@@ -162,7 +162,7 @@ tbody tr:hover{background:#fafbfa}
 @media print{body{background:#fff}.topbar,.sidebar,.no-print,.modal-foot{display:none!important}.main{padding:0;max-width:none}
   .modal-bg{position:static;background:none;padding:0;display:block}.modal,.modal.lg{box-shadow:none;max-width:none;border-radius:0}
   .modal-head{display:none}.modal-body{max-height:none;overflow:visible;padding:0}.report,.receipt{border:none}
-  .idgrid,.pingrid{gap:10px}.idcard,.pincard{break-inside:avoid;page-break-inside:avoid}#checkPrint{box-shadow:none!important}}
+  .idgrid,.pingrid{gap:10px}.idcard,.idc,.pincard{break-inside:avoid;page-break-inside:avoid}#checkPrint{box-shadow:none!important}}
 @media(max-width:760px){.sidebar{position:fixed;left:-230px;transition:.2s;z-index:40;box-shadow:4px 0 20px rgba(0,0,0,.15)}.sidebar.show{left:0}
   .main{padding:16px}.grid2,.grid3,.report .meta-grid,.report .summary,.report .remarks{grid-template-columns:1fr}.menu-toggle{display:flex!important}.topbar .who{display:none}}
 .menu-toggle{display:none;background:none;border:none;color:#fff;font-size:22px;padding:6px;margin-left:-4px}
@@ -170,9 +170,13 @@ tbody tr:hover{background:#fafbfa}
 #navScrim.show{display:block}
 .qrimg{image-rendering:pixelated}
 /* Admission letter */
-.letter{max-width:720px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:8px;padding:34px 38px;font-size:13.5px;line-height:1.7;position:relative}
-.letter .lh{display:flex;align-items:center;gap:14px;border-bottom:3px double var(--green);padding-bottom:12px;margin-bottom:8px}
-.letter .lh .lg{width:60px;height:60px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:30px;overflow:hidden;flex-shrink:0}
+.letter{max-width:720px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:38px 42px 30px;font-size:13.5px;line-height:1.75;position:relative;overflow:hidden;box-shadow:0 8px 30px rgba(0,0,0,.06)}
+.letter:before{content:"";position:absolute;top:0;left:0;right:0;height:8px;background:linear-gradient(90deg,var(--green),var(--gold))}
+.letter .wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;opacity:.04;font-size:260px}
+.letter .wm img{width:340px;height:340px;object-fit:contain}
+.letter>*{position:relative;z-index:1}
+.letter .lh{display:flex;align-items:center;gap:14px;border-bottom:3px double var(--green);padding-bottom:12px;margin-bottom:8px;margin-top:6px}
+.letter .lh .lg{width:64px;height:64px;border-radius:12px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:32px;overflow:hidden;flex-shrink:0;box-shadow:0 3px 8px rgba(10,125,51,.2)}
 .letter .lh .lg img{width:100%;height:100%;object-fit:cover}
 .letter .lh h2{font-size:21px;color:var(--green-dark)}.letter .lh .addr{font-size:11.5px;color:var(--muted)}
 .letter .meta{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin:10px 0}
@@ -214,6 +218,35 @@ tbody tr:hover{background:#fafbfa}
   .idcard{width:100%}
 }
 @media(max-width:420px){.cards-row{grid-template-columns:1fr}.acard{padding:26px 20px}}
+/* Modern ID card */
+.idgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(312px,1fr));gap:22px}
+.idc{width:312px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(10,125,51,.16);position:relative;border:1px solid var(--line)}
+.idc.staff{box-shadow:0 10px 30px rgba(30,95,168,.16)}
+.idc-band{height:78px;background:linear-gradient(120deg,var(--green),#10c25c)}
+.idc.staff .idc-band{background:linear-gradient(120deg,var(--blue),#3b9ae1)}
+.idc-band:after{content:"";position:absolute;top:0;left:0;right:0;height:78px;background:radial-gradient(circle at 82% -30%,rgba(255,255,255,.4),transparent 55%)}
+.idc-head{position:absolute;top:13px;left:15px;right:15px;display:flex;align-items:center;gap:9px;color:#fff;z-index:2}
+.idc-logo{width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,.28);display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden;flex-shrink:0}
+.idc-logo img{width:100%;height:100%;object-fit:cover}
+.idc-school{font-weight:800;font-size:12.5px;line-height:1.12;text-shadow:0 1px 2px rgba(0,0,0,.18)}
+.idc-school small{display:block;font-weight:600;font-size:8.5px;opacity:.92;letter-spacing:.14em;margin-top:2px}
+.idc-photo{width:92px;height:92px;border-radius:50%;border:4px solid #fff;background:var(--green-light);margin:-46px auto 0;position:relative;z-index:3;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 5px 14px rgba(0,0,0,.14)}
+.idc-photo img{width:100%;height:100%;object-fit:cover}
+.idc-name{text-align:center;font-weight:800;font-size:17px;margin-top:9px;color:var(--ink);padding:0 12px}
+.idc-role{text-align:center;font-size:10.5px;color:var(--muted);margin-bottom:11px;letter-spacing:.04em}
+.idc-rows{padding:0 20px;font-size:12px}
+.idc-rows .r{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line)}
+.idc-rows .r span{color:var(--muted)}.idc-rows .r b{color:var(--ink);font-weight:700}
+.idc-bc{padding:12px 16px 2px;text-align:center}.idc-bc svg{max-width:100%}
+.bc-fallback{font-family:monospace;letter-spacing:.2em;font-weight:700;font-size:13px;color:var(--ink)}
+.idc-foot{background:var(--green-light);color:var(--green-dark);font-size:9px;text-align:center;padding:7px;font-weight:600;margin-top:8px}
+.idc.staff .idc-foot{background:#e3eefb;color:var(--blue)}
+/* subtle interactive polish */
+.btn{transition:filter .15s,transform .05s,box-shadow .15s}.btn:active{transform:translateY(1px)}
+.nav-item{transition:background .15s,color .15s}.card,.stat{transition:box-shadow .18s,transform .12s}
+.stat:hover{box-shadow:0 6px 18px rgba(0,0,0,.08)}
+.t-wrap tbody tr{transition:background .12s}
+.subtab{transition:all .12s}
 </style>
 </head>
 <body>
@@ -336,8 +369,15 @@ function stopCam(){if(_camStream){_camStream.getTracks().forEach(t=>t.stop());_c
 
 /* ===================== QR & LOGO ===================== */
 function renderQRs(){if(!window.QRCode)return;document.querySelectorAll('img.qrimg[data-qr]').forEach(el=>{if(el.dataset.done)return;
-  QRCode.toDataURL(el.getAttribute('data-qr'),{margin:0,width:160,color:{dark:'#0a7d33',light:'#ffffff'}},(e,url)=>{if(!e){el.src=url;el.dataset.done='1';}});});}
-function renderVisuals(){setTimeout(()=>{renderBarcodes();renderQRs();},40);}
+  try{QRCode.toDataURL(el.getAttribute('data-qr'),{margin:0,width:200,color:{dark:'#0a7d33',light:'#ffffff'}},(e,url)=>{if(!e){el.src=url;el.dataset.done='1';}});}catch(e){}});}
+// Render barcodes + QRs, retrying a few times in case the CDN libs load slightly late.
+function renderVisuals(tries){tries=tries||0;
+  renderBarcodes();renderQRs();
+  const pendingBC=[...document.querySelectorAll('svg.bc[data-code]')].some(el=>!el.dataset.done);
+  const pendingQR=[...document.querySelectorAll('img.qrimg[data-qr]')].some(el=>!el.dataset.done);
+  if((pendingBC||pendingQR)&&tries<14){setTimeout(()=>renderVisuals(tries+1),250);}
+  else if(pendingBC){ // libs never loaded — show the code as text so the card still works
+    document.querySelectorAll('svg.bc[data-code]').forEach(el=>{if(el.dataset.done)return;const fb=el.parentElement&&el.parentElement.querySelector('.bc-fallback');if(fb){fb.style.display='block';el.style.display='none';}el.dataset.done='1';});}}
 // logo picker (upload + generate)
 let _logo='';
 function logoField(cur){_logo=cur||'';return `<label>School logo</label>
@@ -385,7 +425,7 @@ function promotionFor(stu){const a=annual(stu);if(a.avg==null)return{...a,decisi
 /* ===================== ADMISSION LETTER ===================== */
 function admissionLetter(sid){const s=DB.students.find(x=>x.id===sid);const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';
   const dt=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
-  const html=`<div class="letter"><div class="lh"><div class="lg">${logo}</div><div><h2>${esc(DB.settings.schoolName)}</h2><div class="addr">${esc(DB.settings.address)} · ${esc(DB.settings.motto)}</div></div></div>
+  const html=`<div class="letter"><div class="wm">${DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓'}</div><div class="lh"><div class="lg">${logo}</div><div><h2>${esc(DB.settings.schoolName)}</h2><div class="addr">${esc(DB.settings.address)} · ${esc(DB.settings.motto)}</div></div></div>
     <div class="meta"><div>Ref: ${esc(s.admissionNo||'—')}</div><div>Date: ${dt}</div></div>
     ${s.photo?`<img class="passport" src="${s.photo}">`:'<div class="passport">👧</div>'}
     <p><b>OFFER OF PROVISIONAL ADMISSION</b></p>
@@ -483,7 +523,7 @@ function exportStudentsCSV(){const hdr=['Admission No','Name','Class','Gender','
 
 /* ===================== AUTH SCREENS ===================== */
 function renderAuth(){
-  const sc=$('#screen');
+  const sc=$('#screen');sc.style.display='';$('#app').style.display='none';
   if(MODE==='check'){renderChecker();return;}
   if(MODE==='owner'){
     sc.innerHTML=`<div class="auth owner"><div class="acard"><div class="crest p">🛰️</div>
@@ -521,7 +561,7 @@ function logout(){USER=null;sessionStorage.removeItem('sms_su');$('#app').style.
 /* ===================== APP SHELL ===================== */
 let CURRENT='';
 function enterApp(){
-  $('#screen').innerHTML='';$('#app').style.display='block';
+  $('#screen').innerHTML='';$('#screen').style.display='none';$('#app').style.display='block';window.scrollTo(0,0);
   const owner=USER.role==='owner';
   $('#topbar').className='topbar'+(owner?' owner':'');
   $('#brandName').textContent=owner?((MASTER.platform.name)||'EduManager Cloud'):DB.settings.schoolName;
@@ -791,7 +831,13 @@ function vInsights(){
   if(attRate)insights.push(`📅 Overall attendance is <b>${attRate}%</b> across all recorded days.`);
   if(!insights.length)insights.push('Enter some results and attendance to unlock insights.');
 
+  const totalPupils=DB.students.length;
+  const summary=`Across <b>${totalPupils}</b> pupil(s)${classStats.length?` and ${classStats.length} class(es) with results`:''}, `+
+    (classStats.length?`the school's overall average is <b>${(classStats.reduce((a,c)=>a+c.avg,0)/classStats.length).toFixed(1)}%</b>. `:'no results have been entered yet. ')+
+    (atRisk.length?`<b>${atRisk.length}</b> pupil(s) are below 50% and may need extra support. `:(classStats.length?'No pupils are currently below 50% — strong performance overall. ':''))+
+    (subjArr.length?`The weakest subject so far is <b>${esc(subjArr[0].sub)}</b> (${subjArr[0].avg.toFixed(0)}%)${subjArr.length>1?`, and the strongest is <b>${esc(subjArr[subjArr.length-1].sub)}</b> (${subjArr[subjArr.length-1].avg.toFixed(0)}%)`:''}.`:'');
   $('#view').innerHTML=`<div class="page-head"><div><h2>✨ Smart Insights</h2><p>Automatic analysis of results & attendance</p></div></div>
+  <div class="card pad mb" style="border-left:4px solid var(--purple);background:var(--purple-light)"><div class="flex gap" style="align-items:flex-start"><span style="font-size:22px">🤖</span><div><b style="color:var(--purple)">AI Summary</b><div style="margin-top:4px">${summary}</div></div></div></div>
   ${insights.map(i=>`<div class="insight">${i}</div>`).join('')}
   <div class="grid2">
     <div class="card pad"><h3 class="mb">Pupils needing attention <span class="muted" style="font-size:12px">(avg below 50%)</span></h3>
@@ -1052,9 +1098,13 @@ function autoRemark(avg,subs){if(!subs||!subs.some(m=>m.has))return'No results e
   let tip='';if(best)tip+=` Strongest in ${best.sub}.`;if(worst&&worst.total<50&&worst.sub!==best.sub)tip+=` Should improve in ${worst.sub}.`;return base+tip;}
 function autoHead(a){if(a>=70)return'Outstanding. A model pupil.';if(a>=50)return'Good progress. Well done.';if(a>=40)return'Can do better with more focus.';return'Requires close attention and support.';}
 function editRemarks(sid){const rem=DB.remarks[rkey(sid)]||{};
-  modal('Edit Remarks',`<div class="fld"><label>Class teacher's remark</label><textarea id="rm_t" rows="3">${esc(rem.teacher||'')}</textarea></div>
-    <div class="fld"><label>Head teacher's remark</label><textarea id="rm_h" rows="3">${esc(rem.head||'')}</textarea></div>`,
+  modal('Edit Remarks',`<div class="fld"><div class="flex" style="justify-content:space-between"><label>Class teacher's remark</label><button class="btn sm purple" onclick="aiRemark('${sid}','t')">🤖 AI suggest</button></div><textarea id="rm_t" rows="3">${esc(rem.teacher||'')}</textarea></div>
+    <div class="fld"><div class="flex" style="justify-content:space-between"><label>Head teacher's remark</label><button class="btn sm purple" onclick="aiRemark('${sid}','h')">🤖 AI suggest</button></div><textarea id="rm_h" rows="3">${esc(rem.head||'')}</textarea></div>`,
     `<button class="btn sec" onclick="openReport('${sid}')">Back</button><button class="btn" onclick="saveRemarks('${sid}')">Save & view</button>`);}
+function aiRemark(sid,which){const s=DB.students.find(x=>x.id===sid);const {rows}=computeClassResults(s.classId);const row=rows.find(r=>r.s.id===sid);
+  const first=(s.name||'').split(/\s+/).slice(-1)[0]||'The pupil';
+  if(which==='t'){$('#rm_t').value=first+' — '+autoRemark(row.avg,row.marks);}else{$('#rm_h').value=autoHead(row.avg);}
+  toast('AI remark generated — edit if you like');}
 function saveRemarks(sid){DB.remarks[rkey(sid)]={teacher:$('#rm_t').value.trim(),head:$('#rm_h').value.trim()};save();toast('Remarks saved');openReport(sid);}
 
 /* ===================== SCHOOL: FEES ===================== */
@@ -1132,18 +1182,28 @@ function vIdCards(){if(!idClass)idClass=DB.classes[0]?DB.classes[0].id:'';
 function renderIdCards(){let cards='';
   if(idTab==='students'){const list=studentsIn(idClass);if(!list.length){$('#idArea').innerHTML=`<div class="card"><div class="empty"><div class="big">🪪</div>No pupils.</div></div>`;return;}cards=list.map(studentCardHTML).join('');}
   else{const list=DB.users.filter(u=>u.role==='teacher');if(!list.length){$('#idArea').innerHTML=`<div class="card"><div class="empty"><div class="big">🪪</div>No teachers.</div></div>`;return;}cards=list.map(teacherCardHTML).join('');}
-  $('#idArea').innerHTML=`<div class="idgrid">${cards}</div>`;renderBarcodes();}
-function studentCardHTML(s){const code=s.admissionNo||s.id;return `<div class="idcard"><div class="top"><div class="lg">🎓</div><div class="nm">${esc(DB.settings.schoolName)}<small>PUPIL IDENTITY CARD</small></div></div>
-  <div class="body"><div class="ph">${s.photo?`<img src="${s.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">`:'👧'}</div>
-    <div class="info"><div class="big">${esc(s.name)}</div><div class="row"><span>Adm No:</span> ${esc(s.admissionNo||'—')}</div><div class="row"><span>Class:</span> ${esc(className(s.classId))}</div><div class="row"><span>Gender:</span> ${esc(s.gender||'—')}</div><div class="role-pill">${esc(DB.settings.session)}</div></div></div>
-  <div class="barcode"><svg class="bc" data-code="${esc(code)}"></svg></div><div class="foot">${esc(DB.settings.address)} · If found, please return to the school</div></div>`;}
-function teacherCardHTML(u){const code=u.staffId||u.id;return `<div class="idcard"><div class="top"><div class="lg">🎓</div><div class="nm">${esc(DB.settings.schoolName)}<small>STAFF IDENTITY CARD</small></div></div>
-  <div class="body"><div class="ph">${u.photo?`<img src="${u.photo}" style="width:100%;height:100%;object-fit:cover;border-radius:6px">`:'👩‍🏫'}</div>
-    <div class="info"><div class="big">${esc(u.name)}</div><div class="row"><span>Staff ID:</span> ${esc(u.staffId||'—')}</div><div class="row"><span>Role:</span> Teacher</div><div class="row"><span>Classes:</span> ${esc((u.classes||[]).map(className).join(', ')||'—')}</div><div class="role-pill">${esc(DB.settings.session)}</div></div></div>
-  <div class="barcode"><svg class="bc" data-code="${esc(code)}"></svg></div><div class="foot">${esc(DB.settings.address)} · Authorised staff identification</div></div>`;}
-function renderBarcodes(){if(!window.JsBarcode)return;document.querySelectorAll('svg.bc[data-code]').forEach(el=>{try{JsBarcode(el,el.getAttribute('data-code'),{format:'CODE128',height:38,width:1.6,fontSize:12,margin:0,displayValue:true});}catch(e){}});}
-function showStudentId(id){modal('Pupil ID Card',`<div style="padding:6px 0">${studentCardHTML(DB.students.find(x=>x.id===id))}</div>`,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button>`);setTimeout(renderBarcodes,30);}
-function showTeacherId(id){modal('Staff ID Card',`<div style="padding:6px 0">${teacherCardHTML(DB.users.find(x=>x.id===id))}</div>`,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button>`);setTimeout(renderBarcodes,30);}
+  $('#idArea').innerHTML=`<div class="idgrid">${cards}</div>`;renderVisuals();}
+function idLogo(){return DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';}
+function studentCardHTML(s){const code=s.admissionNo||s.id;return `<div class="idc">
+  <div class="idc-band"></div><div class="idc-head"><div class="idc-logo">${idLogo()}</div><div class="idc-school">${esc(DB.settings.schoolName)}<small>PUPIL IDENTITY CARD</small></div></div>
+  <div class="idc-photo">${s.photo?`<img src="${s.photo}">`:'👧'}</div>
+  <div class="idc-name">${esc(s.name)}</div><div class="idc-role">PUPIL · ${esc(DB.settings.session)}</div>
+  <div class="idc-rows"><div class="r"><span>Admission No</span><b>${esc(s.admissionNo||'—')}</b></div>
+    <div class="r"><span>Class</span><b>${esc(className(s.classId))}</b></div><div class="r"><span>Gender</span><b>${esc(s.gender||'—')}</b></div></div>
+  <div class="idc-bc"><svg class="bc" data-code="${esc(code)}"></svg><div class="bc-fallback" style="display:none">${esc(code)}</div></div>
+  <div class="idc-foot">${esc(DB.settings.address)} · If found, please return to the school</div></div>`;}
+function teacherCardHTML(u){const code=u.staffId||u.id;return `<div class="idc staff">
+  <div class="idc-band"></div><div class="idc-head"><div class="idc-logo">${idLogo()}</div><div class="idc-school">${esc(DB.settings.schoolName)}<small>STAFF IDENTITY CARD</small></div></div>
+  <div class="idc-photo">${u.photo?`<img src="${u.photo}">`:'👩‍🏫'}</div>
+  <div class="idc-name">${esc(u.name)}</div><div class="idc-role">TEACHER · ${esc(DB.settings.session)}</div>
+  <div class="idc-rows"><div class="r"><span>Staff ID</span><b>${esc(u.staffId||'—')}</b></div>
+    <div class="r"><span>Role</span><b>Teacher</b></div><div class="r"><span>Classes</span><b>${esc((u.classes||[]).map(className).join(', ')||'—')}</b></div></div>
+  <div class="idc-bc"><svg class="bc" data-code="${esc(code)}"></svg><div class="bc-fallback" style="display:none">${esc(code)}</div></div>
+  <div class="idc-foot">${esc(DB.settings.address)} · Authorised staff identification</div></div>`;}
+function renderBarcodes(){if(!window.JsBarcode)return;document.querySelectorAll('svg.bc[data-code]').forEach(el=>{if(el.dataset.done)return;
+  try{JsBarcode(el,el.getAttribute('data-code'),{format:'CODE128',height:42,width:1.7,fontSize:12,margin:0,displayValue:true});if(el.childNodes.length)el.dataset.done='1';}catch(e){}});}
+function showStudentId(id){modal('Pupil ID Card',`<div style="padding:6px 0">${studentCardHTML(DB.students.find(x=>x.id===id))}</div>`,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button>`);renderVisuals();}
+function showTeacherId(id){modal('Staff ID Card',`<div style="padding:6px 0">${teacherCardHTML(DB.users.find(x=>x.id===id))}</div>`,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button>`);renderVisuals();}
 
 /* ===================== SCHOOL: SCANNER ===================== */
 function vScanner(){$('#view').innerHTML=`<div class="page-head"><div><h2>Scan ID</h2><p>Scan a pupil/staff barcode to verify, mark present or check fees</p></div></div>
@@ -1186,7 +1246,7 @@ function vMyClasses(){const cls=teacherClasses();
 
 /* ===================== STUDENT RESULT CHECKER (public) ===================== */
 function renderChecker(){
-  $('#app').style.display='none';
+  $('#app').style.display='none';$('#screen').style.display='';
   const name=(DB&&DB.settings.schoolName)||'Result Checker';
   if(!DB){$('#screen').innerHTML=`<div class="auth check"><div class="acard"><div class="crest b">🚫</div><h1>School not found</h1><div class="sub">Check your link.</div></div></div>`;return;}
   $('#screen').innerHTML=`<div class="auth check"><div class="acard"><div class="crest b">📄</div>
