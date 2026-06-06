@@ -1,0 +1,4 @@
+# Netlify: serve the single-page app for every path so school links like
+# https://yoursite.netlify.app/greenfield  and  /greenfield/check  work.
+# Upload this file alongside index.html (same folder / repo root).
+/*    /index.html   200
