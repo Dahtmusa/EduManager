@@ -143,11 +143,13 @@ tbody tr:hover{background:#fafbfa}
 .report .sign div{text-align:center;width:45%}.report .sign .line{border-top:1px solid #888;margin-top:30px;padding-top:4px}
 .keybox{font-size:11px;color:var(--muted);margin-top:10px;text-align:center}
 .viewonly{background:#fff8e1;border:1px solid #f3e2a0;color:#8a6d00;border-radius:8px;padding:8px 12px;font-size:12.5px;text-align:center;margin-top:10px}
-.receipt{max-width:520px;margin:0 auto;border:1px solid var(--line);border-radius:10px;padding:24px;background:#fff}
-.receipt .rh{display:flex;align-items:center;gap:12px;border-bottom:2px solid var(--green);padding-bottom:12px;margin-bottom:14px}
-.receipt .rh .seal{width:50px;height:50px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:24px}
-.receipt h2{font-size:18px;color:var(--green-dark)}.receipt .no{margin-left:auto;text-align:right;font-size:12px}
-.receipt .amount{font-size:30px;font-weight:800;color:var(--green-dark);text-align:center;margin:14px 0;border:2px dashed var(--green);border-radius:10px;padding:12px}
+.receipt{max-width:520px;margin:0 auto;border:1px solid var(--line);border-radius:12px;padding:0 24px 24px;background:#fff;position:relative;overflow:hidden}
+.receipt:before{content:"";position:absolute;top:0;left:0;right:0;height:8px;background:linear-gradient(90deg,#0b5e3a,#caa64e)}
+.receipt .rh{display:flex;align-items:center;gap:12px;border-bottom:2px solid #caa64e;padding:18px 0 12px;margin-bottom:14px}
+.receipt .rh .seal{width:50px;height:50px;border-radius:50%;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:24px;overflow:hidden;border:2px solid #caa64e}
+.receipt .rh .seal img{width:100%;height:100%;object-fit:cover}
+.receipt h2{font-size:18px;color:#0b5e3a}.receipt .no{margin-left:auto;text-align:right;font-size:12px}
+.receipt .amount{font-size:30px;font-weight:800;color:#0b5e3a;text-align:center;margin:14px 0;border:2px dashed #caa64e;border-radius:10px;padding:12px;background:#fbf6e7}
 .receipt .lines div{display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px}.receipt .lines div span{color:var(--muted)}
 .receipt .paid-stamp{display:inline-block;border:3px solid var(--green);color:var(--green);font-weight:800;padding:4px 14px;border-radius:8px;transform:rotate(-8deg);letter-spacing:.1em;margin-top:14px}
 .idgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:18px}
@@ -294,20 +296,20 @@ tbody tr:hover{background:#fafbfa}
 .ev-soon .ev-date{background:var(--gold);color:#3a2c00}.ev-soon .ev-date .d,.ev-soon .ev-date .m{color:#3a2c00}
 /* Invoice */
 .invoice{max-width:680px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:30px 34px;position:relative;overflow:hidden}
-.invoice:before{content:"";position:absolute;top:0;left:0;right:0;height:7px;background:linear-gradient(90deg,var(--blue),var(--green))}
+.invoice:before{content:"";position:absolute;top:0;left:0;right:0;height:8px;background:linear-gradient(90deg,#0b5e3a,#caa64e)}
 .invoice .ih{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--line);padding-bottom:14px;margin-bottom:14px;margin-top:6px}
 .invoice .ih .lg{width:54px;height:54px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden}
 .invoice .ih .lg img{width:100%;height:100%;object-fit:cover}
 .invoice h2{font-size:19px;color:var(--green-dark)}.invoice .ih .addr{font-size:11px;color:var(--muted);max-width:300px}
-.invoice .big-ttl{margin-left:auto;text-align:right}.invoice .big-ttl .t{font-size:24px;font-weight:800;letter-spacing:.08em;color:var(--blue)}
+.invoice .big-ttl{margin-left:auto;text-align:right}.invoice .big-ttl .t{font-size:24px;font-weight:800;letter-spacing:.08em;color:#0b5e3a}
 .invoice .meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12.5px;margin-bottom:14px}
 .invoice .meta span{color:var(--muted)}
 .invoice table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px}
 .invoice th,.invoice td{border:1px solid var(--line);padding:9px 11px;text-align:left}.invoice th{background:#f3f6f9}
 .invoice td.amt{text-align:right;font-variant-numeric:tabular-nums}
 .invoice .total-row td{font-weight:800;background:#f7faf8}
-.invoice .bank{background:#eef4fb;border:1px dashed var(--blue);border-radius:10px;padding:12px 14px;font-size:12.5px;margin-top:10px}
-.invoice .bank b{color:var(--blue)}
+.invoice .bank{background:#fbf6e7;border:1px dashed #caa64e;border-radius:10px;padding:12px 14px;font-size:12.5px;margin-top:10px}
+.invoice .bank b{color:#0b5e3a}
 .invoice .bank .acct{font-size:18px;font-weight:800;letter-spacing:.06em;font-family:monospace;color:var(--ink)}
 /* ===== SIST-style Report Card ===== */
 .rc{--rg:#0b5e3a;--rgd:#08482c;--rgold:#caa64e;--cream:#fbf6e7;max-width:790px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:12px;color:#23302a}
@@ -492,7 +494,7 @@ function monthAbbr(d){const m=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','
 function dayNum(d){const dt=new Date(d);return isNaN(dt)?'–':dt.getDate();}
 function upcomingEvents(n){const t=today();return (DB.events||[]).filter(e=>e.date&&e.date>=t).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,n||5);}
 function G(){return DB.settings.grade||{ca1:20,ca2:20,exam:60};}
-function gradeOf(t){if(t>=70)return{g:'A',r:'Excellent'};if(t>=60)return{g:'B',r:'Very Good'};if(t>=50)return{g:'C',r:'Good'};if(t>=45)return{g:'D',r:'Fair'};if(t>=40)return{g:'E',r:'Pass'};return{g:'F',r:'Fail'};}
+function gradeOf(t){if(t>=75)return{g:'A',r:'Distinction'};if(t>=65)return{g:'B',r:'Very Good'};if(t>=55)return{g:'C',r:'Credit'};if(t>=45)return{g:'D',r:'Pass'};if(t>=40)return{g:'E',r:'Fair'};return{g:'F',r:'Fail'};}
 function teacherClasses(){return USER.role==='admin'?DB.classes:DB.classes.filter(c=>(USER.classes||[]).includes(c.id));}
 function avatar(p,f){return p?`<img class="avatar" src="${p}">`:`<span class="avatar">${f||'👤'}</span>`;}
 function pendingPayCount(){return DB.payments.filter(p=>p.status==='pending').length;}
@@ -627,23 +629,28 @@ function annualReportHTML(sid){const s=DB.students.find(x=>x.id===sid);const sub
   // class position by annual avg
   const ranked=studentsIn(s.classId).map(x=>({id:x.id,avg:annual(x).avg})).filter(x=>x.avg!=null).sort((a,b)=>b.avg-a.avg);
   const pos=ranked.findIndex(x=>x.id===s.id);
-  return `<div class="report"><div class="rh"><div class="seal">${logo}</div><div><h2>${esc(DB.settings.schoolName)}</h2><div class="addr">${addrTel()} · ${esc(DB.settings.motto)}</div></div>
-    <div class="doc">ANNUAL CUMULATIVE REPORT<br><b>End of Session</b><br>${esc(DB.settings.session)}</div></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div style="display:flex;gap:10px;align-items:center">${s.photo?`<img src="${s.photo}" style="width:60px;height:70px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">`:''}
-        <div style="font-size:12.5px"><b>${esc(s.name)}</b><br><span class="muted">${esc(className(s.classId))} · Adm ${esc(s.admissionNo||'—')}</span></div></div>
-      <div class="qrbox" style="text-align:center"><img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}" style="width:64px;height:64px"><div class="muted" style="font-size:9px">Verify</div></div></div>
-    <table><thead><tr><th>Subject</th><th class="center">1st Term</th><th class="center">2nd Term</th><th class="center">3rd Term</th><th class="center">Average</th><th class="center">Grade</th></tr></thead><tbody>
-    ${rows.map(r=>{const g=r.avg!=null?gradeOf(r.avg):null;return `<tr><td>${esc(r.sub)}</td><td class="center">${r.a??'–'}</td><td class="center">${r.b??'–'}</td><td class="center">${r.c??'–'}</td>
-      <td class="center"><b>${r.avg!=null?r.avg.toFixed(1):'–'}</b></td><td class="center">${g?g.g:'–'}</td></tr>`;}).join('')}</tbody></table>
-    <div class="summary"><div class="box"><div class="v">${p.avg!=null?p.avg.toFixed(1)+'%':'–'}</div><div class="k">Annual Average</div></div>
-      <div class="box"><div class="v">${p.avg!=null?gradeOf(p.avg).g:'–'}</div><div class="k">Grade</div></div>
-      <div class="box"><div class="v">${pos>=0?ord(pos+1):'–'}</div><div class="k">Position</div></div>
-      <div class="box"><div class="v">${p.terms}/3</div><div class="k">Terms Done</div></div></div>
-    <div class="remarks"><div class="r"><b>Promotion Decision</b><span class="${p.cls}">${esc(p.label)}</span></div>
-      <div class="r"><b>Head Teacher's Remark</b>${esc(autoHead(p.avg||0))}</div></div>
-    <div class="keybox">Promotion mark: ${promoteMark()}% · A 70–100 · B 60–69 · C 50–59 · D 45–49 · E 40–44 · F below 40</div>
-    <div class="sign"><div><div class="line">Class Teacher</div></div><div><div class="line">Head Teacher / Stamp</div></div></div></div>`;}
+  const isl=isIslamic();const q=isl?islamicQuote(p.terms||1):null;
+  return `<div class="rc">
+    <div class="rc-top">${isl?`<div class="rc-bism">۞ ${BISMILLAH.a} ۞</div>`:''}
+      <div class="rc-head"><div class="rc-crest">${logo}</div>
+        <div class="rc-sch"><h2>${esc(DB.settings.schoolName)}</h2>${(DB.settings.shortName||DB.settings.code)?`<div class="nick">(${esc(DB.settings.shortName||DB.settings.code)})</div>`:''}<div class="addr">${addrTel()}</div></div></div></div>
+    <div class="rc-title">✦ ANNUAL CUMULATIVE REPORT — END OF ${esc(DB.settings.session)} ✦</div>
+    <div class="rc-info">
+      <div class="rc-photo"><div class="p">${s.photo?`<img src="${s.photo}">`:'👧'}</div><div class="cap">PASSPORT</div>
+        <div class="qr"><img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}"><div class="cap">Scan to verify</div></div></div>
+      <div class="rc-fields"><div class="f"><span>Student Name</span><b>${esc(s.name)}</b></div><div class="f"><span>Admission No</span><b>${esc(s.admissionNo||'—')}</b></div><div class="f"><span>Class</span><b>${esc(className(s.classId))}</b></div>
+        <div class="f"><span>Session</span><b>${esc(DB.settings.session)}</b></div><div class="f"><span>Terms Completed</span><b>${p.terms}/3</b></div><div class="f"><span>Subjects</span><b>${rows.length}</b></div></div>
+      <div class="rc-pos"><div class="l">POSITION</div><div class="n">${pos>=0?ord(pos+1):'—'}</div><div class="l">of ${ranked.length}</div></div></div>
+    <table class="rc-tbl"><thead><tr><th>Subject</th><th>1st Term</th><th>2nd Term</th><th>3rd Term</th><th>Average</th><th>Grade</th></tr></thead><tbody>
+    ${rows.map(r=>{const g=r.avg!=null?gradeOf(r.avg):null;return `<tr><td class="sub">${esc(r.sub)}</td><td>${r.a??'–'}</td><td>${r.b??'–'}</td><td>${r.c??'–'}</td><td class="tot">${r.avg!=null?r.avg.toFixed(1):'–'}</td><td>${g?g.g:'–'}</td></tr>`;}).join('')}</tbody></table>
+    <div class="rc-sum"><span>Annual Average: <b>${p.avg!=null?p.avg.toFixed(1)+'%':'–'}</b></span><span>Overall Grade: <b>${p.avg!=null?gradeOf(p.avg).g:'–'}</b></span><span>Position: <b>${pos>=0?ord(pos+1):'–'}</b></span></div>
+    <div class="rc-comments">
+      <div class="c"><b>Promotion Decision</b><div class="box"><span class="${p.cls}" style="font-weight:700">${esc(p.label)}</span></div></div>
+      <div class="c"><b>Head Teacher's Remark</b><div class="box">${esc(autoHead(p.avg||0))}</div></div></div>
+    <div class="rc-meta2"><div><span>Promotion mark:</span> ${promoteMark()}%</div><div><span>Next Session:</span> ${esc(nextSessionStr(DB.settings.session))}</div><div><span>Date of Issue:</span> ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div></div>
+    <div class="rc-sign"><div><div class="ln">Class Teacher's Signature</div></div><div><div class="ln">Principal's Signature</div></div><div><div class="ln">School Stamp</div></div></div>
+    <div class="rc-foot">${isl?`✦ “${esc(q.t)}” — ${esc(q.s)} ✦`:esc(DB.settings.motto||'')}</div>
+  </div>`;}
 function openAnnual(sid){modal('Annual Report — '+DB.students.find(x=>x.id===sid).name,annualReportHTML(sid),
   `<button class="btn sec no-print" onclick="closeModal()">Close</button><span class="viewonly no-print" style="margin:0">🔒 Printing available to pupils via PIN</span>`,true);renderVisuals();}
 
@@ -907,33 +914,43 @@ function vODash(){
     <div class="stat"><div class="lbl">Cloud</div><div class="num" style="font-size:20px">${supa?'Connected':'Local only'}</div><div class="meta">${supa?'shared live':'set keys in file'}</div></div>
   </div>
   ${!supa?`<div class="card pad mb" style="border-left:4px solid var(--gold)"><b>You're in local demo mode.</b> Paste your Supabase keys at the top of <code>index.html</code> (or in Settings) so schools can share live data. See the deploy guide.</div>`:''}
-  <div class="card pad"><h3 class="mb">Your schools</h3>
-  ${schools.length?`<div class="t-wrap"><table><thead><tr><th>School</th><th>Code</th><th>Status</th><th>Created</th><th></th></tr></thead><tbody>
-    ${schools.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td class="muted">${esc(s.code)}</td>
+  <div class="card pad"><h3 class="mb">Your schools & admin logins</h3>
+  ${schools.length?`<div class="t-wrap"><table><thead><tr><th>School</th><th>Code</th><th>Admin login (username / password)</th><th>Status</th><th></th></tr></thead><tbody>
+    ${schools.map(s=>{const d=STORE[s.code];const ad=d&&d.users?d.users.find(u=>u.role==='admin'):null;return `<tr><td><b>${esc(s.name)}</b></td><td class="muted">${esc(s.code)}</td>
+      <td>${ad?`<b>${esc(ad.username)}</b> / <span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(ad.password)}</span> <button class="btn icon" title="Reset password" onclick="resetCred('${s.code}','${ad.id}')">🔑</button>`:'<span class="muted">—</span>'}</td>
       <td><span class="pill ${s.status==='suspended'?'red':'green'}">${s.status==='suspended'?'Suspended':'Active'}</span></td>
-      <td class="muted">${esc(s.createdAt||'')}</td>
-      <td class="right"><button class="btn sm sec" onclick="manageSchool('${s.code}')">Manage</button></td></tr>`).join('')}
+      <td class="right"><button class="btn sm sec" onclick="manageSchool('${s.code}')">Manage</button></td></tr>`;}).join('')}
   </tbody></table></div>`:`<div class="empty"><div class="big">🏫</div>No schools yet. <button class="btn sm purple mt" onclick="editSchool()">Register your first school</button></div>`}
   </div>`;
 }
 /* ===================== OWNER: SCHOOLS ===================== */
 function vSchools(){
-  $('#view').innerHTML=`<div class="page-head"><div><h2>Schools</h2><p>${MASTER.schools.length} registered</p></div>
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Schools</h2><p>${MASTER.schools.length} registered — admin logins shown below</p></div>
     <button class="btn purple" onclick="editSchool()">＋ Register School</button></div>
-  <div class="t-wrap"><table><thead><tr><th>School</th><th>Code</th><th>Pupils</th><th>Status</th><th>Links</th><th></th></tr></thead><tbody>
-  ${MASTER.schools.map(s=>{const d=STORE[s.code];const np=d?(d.students||[]).length:'–';return `<tr>
+  <div class="t-wrap"><table><thead><tr><th>School</th><th>Code</th><th>Pupils</th><th>Admin login (username / password)</th><th>Status</th><th></th></tr></thead><tbody>
+  ${MASTER.schools.map(s=>{const d=STORE[s.code];const np=d?(d.students||[]).length:'–';const ad=d&&d.users?d.users.find(u=>u.role==='admin'):null;return `<tr>
     <td><b>${esc(s.name)}</b></td><td class="muted">${esc(s.code)}</td><td class="center">${np}</td>
+    <td>${ad?`<b>${esc(ad.username)}</b> / <span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(ad.password)}</span> <button class="btn icon" title="Reset password" onclick="resetCred('${s.code}','${ad.id}')">🔑</button>`:'<span class="muted">—</span>'}</td>
     <td><span class="pill ${s.status==='suspended'?'red':'green'}">${s.status==='suspended'?'Suspended':'Active'}</span></td>
-    <td><button class="btn sm sec" onclick="copyText('${jq(schoolLink(s.code))}')">Copy staff link</button></td>
     <td class="right"><button class="btn sm" onclick="manageSchool('${s.code}')">Manage</button></td></tr>`;}).join('')||`<tr><td colspan=6><div class="empty">No schools yet.</div></td></tr>`}
-  </tbody></table></div>`;
+  </tbody></table></div>
+  <p class="muted mt" style="font-size:12px">🔑 resets a password. Open <b>Manage</b> on a school to reset teacher passwords too.</p>`;
 }
+function resetCred(code,userId){const d=STORE[code];const u=d.users.find(x=>x.id===userId);if(!u){toast('User not found',true);return;}
+  modal('Reset password — '+u.name,`<p class="muted mb">Set a new password for <b>${esc(u.name)}</b> (${esc(u.username)}) at <b>${esc(d.settings.schoolName)}</b>.</p>
+    <div class="fld"><label>New password</label><input id="rp_pass" value="${esc(u.password)}"></div>
+    <button class="btn sec sm" onclick="document.getElementById('rp_pass').value=Math.random().toString(36).slice(2,8)">🎲 Generate random</button>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn purple" onclick="doResetCred('${code}','${userId}')">Save password</button>`);}
+function doResetCred(code,userId){const p=$('#rp_pass').value.trim();if(!p){toast('Enter a password',true);return;}
+  const d=STORE[code];d.users.find(x=>x.id===userId).password=p;STORE[code]=d;saveStoreLocal();saveSchoolRow(code);
+  closeModal();toast('Password updated');if(CURRENT==='schools')vSchools();else if(CURRENT==='odash')vODash();else manageSchool(code);}
 function editSchool(code){
   const reg=code?MASTER.schools.find(s=>s.code===code):null;const d=code?STORE[code]:null;
   const g=(d&&d.settings.grade)||{ca1:20,ca2:20,exam:60};
   modal(code?'Edit School':'Register New School',`
     <div class="grid2">
       <div class="fld"><label>School name *</label><input id="sc_name" value="${esc(reg?reg.name:'')}"></div>
+      <div class="fld"><label>Short name / abbreviation</label><input id="sc_short" value="${esc(d?(d.settings.shortName||''):'')}" placeholder="e.g. SIST"></div>
       <div class="fld"><label>Link name / code *</label><input id="sc_code" value="${esc(code||'')}" ${code?'disabled':''} placeholder="e.g. greenfield" oninput="if($('#scLinkP'))$('#scLinkP').textContent=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')"></div>
       <div class="fld full" style="margin-top:-6px"><span class="muted" style="font-size:12px">Link will be: <b>${esc(location.origin)}/</b><b id="scLinkP">${esc((code||'').toLowerCase())}</b> ${code?'(cannot change after creation)':''}</span></div>
       <div class="fld full"><label>Full address *</label><input id="sc_addr" value="${esc(d?d.settings.address:'')}" placeholder="Street, town, state"></div>
@@ -968,14 +985,14 @@ function saveSchool(code){
   if(!email||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('A valid school email is required',true);return;}
   if(ca1+ca2+exam!==100){toast('CA1+CA2+Exam must total 100',true);return;}
   if(code){const reg=MASTER.schools.find(s=>s.code===code);reg.name=name;reg.status=$('#sc_status').value;
-    const d=STORE[code];Object.assign(d.settings,{schoolName:name,address:addr,phone,email,motto:$('#sc_motto').value.trim(),logo:_logo,islamic:$('#sc_islamic').checked,
+    const d=STORE[code];Object.assign(d.settings,{schoolName:name,shortName:$('#sc_short').value.trim(),address:addr,phone,email,motto:$('#sc_motto').value.trim(),logo:_logo,islamic:$('#sc_islamic').checked,
       session:$('#sc_sess').value.trim(),term:$('#sc_term').value,status:$('#sc_status').value,grade:{ca1,ca2,exam,promote}});
     saveMaster();saveSchoolRow(code);closeModal();toast('School updated');manageSchool(code);return;}
   const newCode=$('#sc_code').value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,'').replace(/^-+|-+$/g,'');
   if(!newCode){toast('Code required',true);return;}
   if(MASTER.schools.some(s=>s.code===newCode)){toast('Code already exists',true);return;}
   const auser=$('#sc_auser').value.trim(),apass=$('#sc_apass').value.trim();if(!auser||!apass){toast('Admin login required',true);return;}
-  const d=seedSchool(newCode,name);Object.assign(d.settings,{address:addr,phone,email,motto:$('#sc_motto').value.trim(),logo:_logo,islamic:$('#sc_islamic').checked,
+  const d=seedSchool(newCode,name);Object.assign(d.settings,{shortName:$('#sc_short').value.trim(),address:addr,phone,email,motto:$('#sc_motto').value.trim(),logo:_logo,islamic:$('#sc_islamic').checked,
     session:$('#sc_sess').value.trim(),term:$('#sc_term').value,status:$('#sc_status').value,grade:{ca1,ca2,exam,promote}});
   d.users[0].name=$('#sc_aname').value.trim()||'School Administrator';d.users[0].username=auser;d.users[0].password=apass;
   STORE[newCode]=d;MASTER.schools.push({code:newCode,name,status:$('#sc_status').value,createdAt:today()});
@@ -994,7 +1011,13 @@ function manageSchool(code){
     <div class="linkbox mb"><code>${esc(schoolLink(code))}</code><button class="btn sm sec" onclick="copyText('${jq(schoolLink(code))}')">Copy</button></div>
     <label>Student result-checker link (school shares with pupils)</label>
     <div class="linkbox mb"><code>${esc(checkLink(code))}</code><button class="btn sm sec" onclick="copyText('${jq(checkLink(code))}')">Copy</button></div>
-    <p class="muted" style="font-size:12.5px">Admin login: <b>${esc(d.users.find(u=>u.role==='admin').username)}</b> / <b>${esc(d.users.find(u=>u.role==='admin').password)}</b> · Grading ${d.settings.grade.ca1}/${d.settings.grade.ca2}/${d.settings.grade.exam}</p>
+    <p class="muted" style="font-size:12.5px">Grading ${d.settings.grade.ca1}/${d.settings.grade.ca2}/${d.settings.grade.exam} · ${esc(d.settings.term)}, ${esc(d.settings.session)}</p>
+    <label>Staff logins (passwords visible — reset any)</label>
+    <div class="t-wrap" style="margin-bottom:6px"><table><tbody>
+      ${d.users.map(u=>`<tr><td><b>${esc(u.name)}</b><br><span class="muted" style="font-size:11px">${u.role==='admin'?'Administrator':'Teacher'}</span></td>
+        <td>${esc(u.username)}</td><td><span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(u.password)}</span></td>
+        <td class="right"><button class="btn sm sec" onclick="resetCred('${code}','${u.id}')">🔑 Reset</button></td></tr>`).join('')}
+    </tbody></table></div>
     <div class="card pad" style="background:#f7faf8;margin-top:6px"><div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div style="font-size:12.5px">Current: <b>${esc(d.settings.term)}, ${esc(d.settings.session)}</b><br><span class="muted">Completed terms: ${(d.settings.termsDone||[]).length?(d.settings.termsDone||[]).map(esc).join(', '):'none'}</span></div>
       <button class="btn sm gold" onclick="fixTerm('${code}')">↺ Reset / fix term</button></div></div>`,
@@ -1408,7 +1431,7 @@ function reportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid);const
   return `<div class="rc">
     <div class="rc-top">${isl?`<div class="rc-bism">۞ ${BISMILLAH.a} ۞</div>`:''}
       <div class="rc-head"><div class="rc-crest">${logo}</div>
-        <div class="rc-sch"><h2>${esc(DB.settings.schoolName)}</h2>${DB.settings.code?`<div class="nick">(${esc(DB.settings.code)})</div>`:''}<div class="addr">${addrTel()}</div></div></div></div>
+        <div class="rc-sch"><h2>${esc(DB.settings.schoolName)}</h2>${(DB.settings.shortName||DB.settings.code)?`<div class="nick">(${esc(DB.settings.shortName||DB.settings.code)})</div>`:''}<div class="addr">${addrTel()}</div></div></div></div>
     <div class="rc-title">✦ ACADEMIC PROGRESS REPORT ✦</div>
     <div class="rc-info">
       <div class="rc-photo"><div class="p">${s.photo?`<img src="${s.photo}">`:'👧'}</div><div class="cap">PASSPORT</div>
@@ -1427,8 +1450,8 @@ function reportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid);const
     <div class="rc-sum"><span>${row.count} subject(s) with scores</span><span>Total: <b>${row.count?row.total:'–'}</b></span><span>Position: <b>${row.pos?ord(row.pos):'–'}</b></span><span>Average: <b>${row.count?row.avg.toFixed(1):'–'}/100</b></span></div>
     <div class="rc-two">
       <div class="rc-scale"><h4>Grading Scale</h4>
-        <div class="g"><b>A</b> 70–100 (Excellent)</div><div class="g"><b>B</b> 60–69 (Very Good)</div><div class="g"><b>C</b> 50–59 (Good)</div>
-        <div class="g"><b>D</b> 45–49 (Fair)</div><div class="g"><b>E</b> 40–44 (Pass)</div><div class="g"><b>F</b> 0–39 (Fail)</div></div>
+        <div class="g"><b>A</b> 75–100 (Distinction)</div><div class="g"><b>B</b> 65–74 (Very Good)</div><div class="g"><b>C</b> 55–64 (Credit)</div>
+        <div class="g"><b>D</b> 45–54 (Pass)</div><div class="g"><b>E</b> 40–44 (Fair)</div><div class="g"><b>F</b> 0–39 (Fail)</div></div>
       <div class="rc-perf"><h4>Performance</h4>
         <div class="row"><span>Total Score</span><b>${row.count?row.total:'–'}</b></div><div class="row"><span>Average</span><b>${row.count?row.avg.toFixed(1):'–'}</b></div>
         <div class="row"><span>Class Position</span><b>${row.pos?ord(row.pos)+' of '+size:'–'}</b></div><div class="row"><span>Overall Grade</span><b>${row.count?gradeOf(row.avg).g:'–'}</b></div></div></div>
