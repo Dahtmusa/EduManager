@@ -265,6 +265,20 @@ tbody tr:hover{background:#fafbfa}
 .stat:hover{box-shadow:0 6px 18px rgba(0,0,0,.08)}
 .t-wrap tbody tr{transition:background .12s}
 .subtab{transition:all .12s}
+/* Developer brand badge */
+#devBadge{position:fixed;left:14px;bottom:14px;z-index:35}
+#devBadge .chip{display:flex;align-items:center;gap:9px;background:rgba(255,255,255,.97);border:1px solid var(--line);border-radius:30px;padding:6px 15px 6px 6px;box-shadow:0 8px 22px rgba(0,0,0,.14);cursor:pointer;transition:.2s}
+#devBadge .chip:hover{box-shadow:0 12px 28px rgba(0,0,0,.2);transform:translateY(-1px);border-color:var(--purple)}
+#devBadge .m{width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#6b3fa0,#a877e6);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0;box-shadow:0 2px 6px rgba(107,63,160,.4)}
+#devBadge .t{line-height:1.15}
+#devBadge .t .by{font-size:8.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;display:block}
+#devBadge .t b{font-size:12px;color:var(--ink);display:block;background:linear-gradient(135deg,#6b3fa0,#a877e6);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+#devBadge .det{max-height:0;overflow:hidden;transition:max-height .25s ease;font-size:11px}
+#devBadge .det a{color:var(--purple);text-decoration:none;display:block;margin-top:3px;white-space:nowrap}
+#devBadge .det a:hover{text-decoration:underline}
+#devBadge:hover .det,#devBadge.open .det{max-height:60px;margin-top:4px}
+@media(max-width:760px){#devBadge{left:10px;bottom:10px}#devBadge .chip{padding:5px 12px 5px 5px}}
+@media print{#devBadge{display:none!important}}
 </style>
 </head>
 <body>
@@ -288,6 +302,11 @@ tbody tr:hover{background:#fafbfa}
 <button id="installBtn" onclick="doInstall()" class="btn purple no-print" style="display:none;position:fixed;bottom:18px;right:18px;z-index:60;box-shadow:0 6px 20px rgba(0,0,0,.25)">📲 Install app</button>
 <div id="updateBar" class="no-print" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:70;background:var(--ink);color:#fff;padding:11px 16px;display:none;align-items:center;justify-content:center;gap:14px;font-size:13.5px">
   <span>A new version is available.</span><button class="btn sm gold" onclick="location.reload()">Refresh</button></div>
+<div id="devBadge" class="no-print" onclick="this.classList.toggle('open')" title="Developer contact">
+  <div class="chip"><div class="m">M</div>
+    <div class="t"><span class="by">Developed by</span><b>Muscode</b>
+      <div class="det"><a href="mailto:musahassan575@gmail.com" onclick="event.stopPropagation()">✉ musahassan575@gmail.com</a><a href="tel:08036874028" onclick="event.stopPropagation()">☎ 08036874028</a></div></div>
+  </div></div>
 
 <script>
 /* ===================== GLOBALS ===================== */
@@ -351,7 +370,8 @@ function className(id){const c=DB.classes.find(c=>c.id===id);return c?c.name:'�
 function rkey(sid,sess,term){return (sess||DB.settings.session)+'|'+(term||DB.settings.term)+'|'+sid;}
 function studentsIn(cid){return DB.students.filter(s=>s.classId===cid&&!s.graduated).sort((a,b)=>a.name.localeCompare(b.name));}
 function naira(n){return '₦'+(Number(n)||0).toLocaleString('en-NG');}
-function addrTel(){return esc(DB.settings.address)+(DB.settings.phone?' · ☎ '+esc(DB.settings.phone):'');}
+function addrTel(){return esc(DB.settings.address)+(DB.settings.phone?' · ☎ '+esc(DB.settings.phone):'')+(DB.settings.email?' · ✉ '+esc(DB.settings.email):'');}
+function enquiryLine(){const bits=[];if(DB.settings.phone)bits.push('☎ '+esc(DB.settings.phone));if(DB.settings.email)bits.push('✉ '+esc(DB.settings.email));return bits.length?'For enquiries: '+bits.join(' · '):'';}
 function G(){return DB.settings.grade||{ca1:20,ca2:20,exam:60};}
 function gradeOf(t){if(t>=70)return{g:'A',r:'Excellent'};if(t>=60)return{g:'B',r:'Very Good'};if(t>=50)return{g:'C',r:'Good'};if(t>=45)return{g:'D',r:'Fair'};if(t>=40)return{g:'E',r:'Pass'};return{g:'F',r:'Fail'};}
 function teacherClasses(){return USER.role==='admin'?DB.classes:DB.classes.filter(c=>(USER.classes||[]).includes(c.id));}
@@ -721,7 +741,8 @@ function editSchool(code){
       <div class="fld"><label>Link name / code *</label><input id="sc_code" value="${esc(code||'')}" ${code?'disabled':''} placeholder="e.g. greenfield" oninput="if($('#scLinkP'))$('#scLinkP').textContent=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')"></div>
       <div class="fld full" style="margin-top:-6px"><span class="muted" style="font-size:12px">Link will be: <b>${esc(location.origin)}/</b><b id="scLinkP">${esc((code||'').toLowerCase())}</b> ${code?'(cannot change after creation)':''}</span></div>
       <div class="fld full"><label>Full address *</label><input id="sc_addr" value="${esc(d?d.settings.address:'')}" placeholder="Street, town, state"></div>
-      <div class="fld full"><label>Phone number(s) *</label><input id="sc_phone" value="${esc(d?(d.settings.phone||''):'')}" placeholder="e.g. 0803 000 0000, 0701 111 1111"></div>
+      <div class="fld"><label>Phone number(s) *</label><input id="sc_phone" value="${esc(d?(d.settings.phone||''):'')}" placeholder="e.g. 0803 000 0000"></div>
+      <div class="fld"><label>School email *</label><input id="sc_email" value="${esc(d?(d.settings.email||''):'')}" placeholder="info@school.com"></div>
       <div class="fld full"><label>Motto</label><input id="sc_motto" value="${esc(d?d.settings.motto:'Knowledge • Character • Service')}"></div>
       <div class="fld"><label>Session</label><input id="sc_sess" value="${esc(d?d.settings.session:'2025/2026')}"></div>
       <div class="fld"><label>Current term</label><select id="sc_term">${TERMS.map(t=>`<option ${d&&d.settings.term===t?'selected':''}>${t}</option>`).join('')}</select></div>
@@ -743,20 +764,21 @@ function editSchool(code){
 }
 function saveSchool(code){
   const name=$('#sc_name').value.trim();const ca1=+$('#sc_ca1').value,ca2=+$('#sc_ca2').value,exam=+$('#sc_exam').value;const promote=+$('#sc_promote').value||40;
-  const addr=$('#sc_addr').value.trim(),phone=$('#sc_phone').value.trim();
+  const addr=$('#sc_addr').value.trim(),phone=$('#sc_phone').value.trim(),email=$('#sc_email').value.trim();
   if(!name){toast('School name required',true);return;}
   if(!addr){toast('Full address is required',true);return;}
   if(!phone||phone.replace(/\D/g,'').length<7){toast('A valid phone number is required',true);return;}
+  if(!email||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('A valid school email is required',true);return;}
   if(ca1+ca2+exam!==100){toast('CA1+CA2+Exam must total 100',true);return;}
   if(code){const reg=MASTER.schools.find(s=>s.code===code);reg.name=name;reg.status=$('#sc_status').value;
-    const d=STORE[code];Object.assign(d.settings,{schoolName:name,address:addr,phone,motto:$('#sc_motto').value.trim(),logo:_logo,
+    const d=STORE[code];Object.assign(d.settings,{schoolName:name,address:addr,phone,email,motto:$('#sc_motto').value.trim(),logo:_logo,
       session:$('#sc_sess').value.trim(),term:$('#sc_term').value,status:$('#sc_status').value,grade:{ca1,ca2,exam,promote}});
     saveMaster();saveSchoolRow(code);closeModal();toast('School updated');manageSchool(code);return;}
   const newCode=$('#sc_code').value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,'').replace(/^-+|-+$/g,'');
   if(!newCode){toast('Code required',true);return;}
   if(MASTER.schools.some(s=>s.code===newCode)){toast('Code already exists',true);return;}
   const auser=$('#sc_auser').value.trim(),apass=$('#sc_apass').value.trim();if(!auser||!apass){toast('Admin login required',true);return;}
-  const d=seedSchool(newCode,name);Object.assign(d.settings,{address:addr,phone,motto:$('#sc_motto').value.trim(),logo:_logo,
+  const d=seedSchool(newCode,name);Object.assign(d.settings,{address:addr,phone,email,motto:$('#sc_motto').value.trim(),logo:_logo,
     session:$('#sc_sess').value.trim(),term:$('#sc_term').value,status:$('#sc_status').value,grade:{ca1,ca2,exam,promote}});
   d.users[0].name=$('#sc_aname').value.trim()||'School Administrator';d.users[0].username=auser;d.users[0].password=apass;
   STORE[newCode]=d;MASTER.schools.push({code:newCode,name,status:$('#sc_status').value,createdAt:today()});
@@ -1288,7 +1310,8 @@ function openReceipt(id){const p=DB.payments.find(x=>x.id===id);const s=DB.stude
       <div><span>Method</span>${esc(p.method)}${p.ref?' · '+esc(p.ref):''}</div>
       <div><span>School fees for term</span>${naira(due)}</div><div><span>Fees balance</span><b style="color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</b></div><div><span>Approved by</span>${esc(p.approvedBy||'—')}</div></div>
     <div class="center"><div class="paid-stamp">PAID</div></div>
-    <div class="sign" style="display:flex;justify-content:space-between;margin-top:22px;font-size:12px"><div style="text-align:center;width:45%"><div style="border-top:1px solid #888;margin-top:26px;padding-top:4px">Bursar / Admin</div></div><div style="text-align:center;width:45%"><div style="border-top:1px solid #888;margin-top:26px;padding-top:4px">School Stamp</div></div></div></div>`,
+    <div class="sign" style="display:flex;justify-content:space-between;margin-top:22px;font-size:12px"><div style="text-align:center;width:45%"><div style="border-top:1px solid #888;margin-top:26px;padding-top:4px">Bursar / Admin</div></div><div style="text-align:center;width:45%"><div style="border-top:1px solid #888;margin-top:26px;padding-top:4px">School Stamp</div></div></div>
+    <div style="text-align:center;font-size:10.5px;color:var(--muted);margin-top:14px;border-top:1px dashed var(--line);padding-top:8px">${enquiryLine()}</div></div>`,
     `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print / PDF</button>`);}
 
 /* ===================== SCHOOL: ID CARDS ===================== */
