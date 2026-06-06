@@ -279,6 +279,88 @@ tbody tr:hover{background:#fafbfa}
 #devBadge:hover .det,#devBadge.open .det{max-height:60px;margin-top:4px}
 @media(max-width:760px){#devBadge{left:10px;bottom:10px}#devBadge .chip{padding:5px 12px 5px 5px}}
 @media print{#devBadge{display:none!important}}
+/* Islamic content */
+.bismillah{text-align:center;font-family:'Amiri','Traditional Arabic','Scheherazade',serif;font-size:19px;color:var(--green-dark);direction:rtl;margin:2px 0 6px}
+.islamic-band{background:linear-gradient(135deg,#0a5e3a,#0e8a45);color:#fff;border-radius:12px;padding:12px 16px;text-align:center;position:relative;overflow:hidden}
+.islamic-band:before,.islamic-band:after{content:"۞";position:absolute;top:50%;transform:translateY(-50%);opacity:.25;font-size:26px}
+.islamic-band:before{left:12px}.islamic-band:after{right:12px}
+.islamic-band .ar{font-family:'Amiri','Traditional Arabic',serif;font-size:20px;direction:rtl;margin-bottom:4px}
+.islamic-band .en{font-size:13px;opacity:.95}.islamic-band .src{font-size:11px;opacity:.8;margin-top:3px}
+.quote-line{text-align:center;font-size:11px;color:var(--green-dark);font-style:italic;margin-top:8px;border-top:1px dotted #cfe0d5;padding-top:6px}
+.ev-item{display:flex;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.ev-item:last-child{border-bottom:none}
+.ev-date{flex-shrink:0;width:50px;text-align:center;background:var(--green-light);border-radius:8px;padding:5px 0;line-height:1.1}
+.ev-date .d{font-size:17px;font-weight:800;color:var(--green-dark)}.ev-date .m{font-size:9.5px;text-transform:uppercase;color:var(--muted)}
+.ev-soon .ev-date{background:var(--gold);color:#3a2c00}.ev-soon .ev-date .d,.ev-soon .ev-date .m{color:#3a2c00}
+/* Invoice */
+.invoice{max-width:680px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:12px;padding:30px 34px;position:relative;overflow:hidden}
+.invoice:before{content:"";position:absolute;top:0;left:0;right:0;height:7px;background:linear-gradient(90deg,var(--blue),var(--green))}
+.invoice .ih{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:2px solid var(--line);padding-bottom:14px;margin-bottom:14px;margin-top:6px}
+.invoice .ih .lg{width:54px;height:54px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden}
+.invoice .ih .lg img{width:100%;height:100%;object-fit:cover}
+.invoice h2{font-size:19px;color:var(--green-dark)}.invoice .ih .addr{font-size:11px;color:var(--muted);max-width:300px}
+.invoice .big-ttl{margin-left:auto;text-align:right}.invoice .big-ttl .t{font-size:24px;font-weight:800;letter-spacing:.08em;color:var(--blue)}
+.invoice .meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12.5px;margin-bottom:14px}
+.invoice .meta span{color:var(--muted)}
+.invoice table{width:100%;border-collapse:collapse;font-size:13px;margin-bottom:12px}
+.invoice th,.invoice td{border:1px solid var(--line);padding:9px 11px;text-align:left}.invoice th{background:#f3f6f9}
+.invoice td.amt{text-align:right;font-variant-numeric:tabular-nums}
+.invoice .total-row td{font-weight:800;background:#f7faf8}
+.invoice .bank{background:#eef4fb;border:1px dashed var(--blue);border-radius:10px;padding:12px 14px;font-size:12.5px;margin-top:10px}
+.invoice .bank b{color:var(--blue)}
+.invoice .bank .acct{font-size:18px;font-weight:800;letter-spacing:.06em;font-family:monospace;color:var(--ink)}
+/* ===== SIST-style Report Card ===== */
+.rc{--rg:#0b5e3a;--rgd:#08482c;--rgold:#caa64e;--cream:#fbf6e7;max-width:790px;margin:0 auto;background:#fff;border:1px solid var(--line);border-radius:6px;overflow:hidden;font-size:12px;color:#23302a}
+.rc-top{background:var(--rg);color:#fff;padding:9px 18px 12px}
+.rc-bism{text-align:center;color:#e6cd84;font-family:'Amiri','Traditional Arabic',serif;font-size:15px;direction:rtl;margin-bottom:6px}
+.rc-head{display:flex;align-items:center;gap:14px}
+.rc-crest{width:58px;height:58px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;border:2px solid #e6cd84;font-size:26px;flex-shrink:0}
+.rc-crest img{width:100%;height:100%;object-fit:cover}
+.rc-sch h2{font-family:Georgia,'Times New Roman',serif;font-size:21px;letter-spacing:.04em;line-height:1.1;color:#fff}
+.rc-sch .nick{color:#e6cd84;font-weight:700;font-size:12px;margin-top:2px}
+.rc-sch .addr{color:#cfe0d5;font-size:10.5px;margin-top:2px}
+.rc-title{background:var(--rgold);color:#3c2c06;text-align:center;font-weight:800;letter-spacing:.2em;padding:5px;font-size:11px}
+.rc-info{display:flex;gap:14px;padding:12px 16px;background:var(--cream);align-items:flex-start}
+.rc-photo{text-align:center;width:90px;flex-shrink:0}
+.rc-photo .p{width:80px;height:90px;border:2px solid var(--rg);border-radius:4px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto;overflow:hidden}
+.rc-photo .p img{width:100%;height:100%;object-fit:cover}
+.rc-photo .cap{font-size:8px;letter-spacing:.1em;color:#9a8a55;margin-top:2px}
+.rc-photo .qr{margin-top:6px}.rc-photo .qr img{width:56px;height:56px}
+.rc-fields{flex:1;display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:9px 14px;font-size:11.5px;align-self:center}
+.rc-fields .f span{display:block;font-size:8.5px;color:#9a8a55;text-transform:uppercase;letter-spacing:.05em}
+.rc-fields .f b{color:#23302a;font-size:12.5px}
+.rc-pos{flex-shrink:0;background:var(--rg);color:#fff;border-radius:12px;padding:12px 16px;text-align:center;align-self:center}
+.rc-pos .n{font-size:23px;font-weight:800;color:#e6cd84;line-height:1}.rc-pos .l{font-size:8.5px;letter-spacing:.12em;opacity:.9}
+.rc-att{background:#0e6e44;color:#fff;font-size:10.5px;padding:6px 16px;display:flex;gap:20px;justify-content:center;flex-wrap:wrap}
+.rc-att b{color:#e6cd84}
+.rc-tbl{width:100%;border-collapse:collapse;font-size:11px}
+.rc-tbl th{background:var(--rg);color:#fff;padding:6px 6px;font-size:8.5px;letter-spacing:.03em;text-transform:uppercase;border:1px solid var(--rgd)}
+.rc-tbl td{padding:5px 7px;border:1px solid #e7dec0;text-align:center}
+.rc-tbl td.sub{text-align:left;font-weight:600}
+.rc-tbl tbody tr:nth-child(odd){background:var(--cream)}
+.rc-tbl .tot{color:#c2851b;font-weight:800}
+.rc-tbl .rem-fail{color:var(--red);font-weight:700}
+.rc-sum{background:var(--rg);color:#fff;display:flex;justify-content:space-between;gap:10px;padding:7px 16px;font-size:11px;flex-wrap:wrap}
+.rc-sum b{color:#e6cd84}
+.rc-two{display:grid;grid-template-columns:1.5fr 1fr}
+.rc-scale{padding:10px 16px;font-size:10px}
+.rc-scale h4,.rc-perf h4{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px;color:var(--rg)}
+.rc-scale .g{display:inline-block;width:48%;margin-bottom:3px}.rc-scale .g b{color:var(--rg)}
+.rc-perf{padding:10px 16px;background:var(--rg);color:#fff}
+.rc-perf h4{color:#e6cd84}
+.rc-perf .row{display:flex;justify-content:space-between;border-bottom:1px solid rgba(255,255,255,.18);padding:3px 0;font-size:11px}
+.rc-perf .row b{color:#e6cd84}
+.rc-comments{display:grid;grid-template-columns:1fr 1fr;gap:14px;padding:12px 16px;font-size:11px}
+.rc-comments .c b{display:block;color:var(--rg);font-size:9px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.rc-comments .c .box{border:1px solid #e7dec0;border-radius:6px;padding:8px;min-height:44px;background:var(--cream)}
+.rc-meta2{display:flex;justify-content:space-between;padding:8px 16px;font-size:10.5px;border-top:1px solid #eee;flex-wrap:wrap;gap:10px}
+.rc-meta2 span{color:#9a8a55}
+.rc-sign{display:flex;justify-content:space-between;padding:16px 16px 12px;gap:10px}
+.rc-sign div{flex:1;text-align:center;font-size:9px;color:#888}
+.rc-sign .ln{border-top:1px solid #999;margin-top:22px;padding-top:3px}
+.rc-foot{background:var(--rg);color:#e6cd84;text-align:center;font-size:10.5px;padding:7px;font-style:italic}
+@media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
+@media(max-width:760px){.rc-info{flex-wrap:wrap}.rc-fields{grid-template-columns:1fr 1fr}.rc-two,.rc-comments{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
@@ -355,6 +437,9 @@ function seedMaster(){return{platform:{name:'EduManager Cloud',owner:{name:'Plat
 function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!g)d.settings.grade={ca1:20,ca2:20,exam:60};
   if(d.settings.receiptSeq==null)d.settings.receiptSeq=0;if(!d.settings.status)d.settings.status='active';
   if(!Array.isArray(d.settings.termsDone))d.settings.termsDone=[];
+  if(!d.settings.dates)d.settings.dates={termBegin:'',termEnd:'',resumption:''};
+  if(!d.settings.bank)d.settings.bank={name:'',number:'',bank:''};
+  if(!Array.isArray(d.events))d.events=defaultEvents(parseInt((d.settings.session||'2025').slice(0,4))||2025);
   ['users','classes','students','payments','applicants'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
   ['subjects','attendance','results','fees','remarks'].forEach(k=>{if(!d[k]||typeof d[k]!=='object')d[k]={};});
   d.classes.forEach(c=>{if(!d.subjects[c.id])d.subjects[c.id]=c.name.startsWith('Nursery')?[...NURSERY_SUBJECTS]:[...PRIMARY_SUBJECTS];});return d;}
@@ -372,6 +457,40 @@ function studentsIn(cid){return DB.students.filter(s=>s.classId===cid&&!s.gradua
 function naira(n){return '₦'+(Number(n)||0).toLocaleString('en-NG');}
 function addrTel(){return esc(DB.settings.address)+(DB.settings.phone?' · ☎ '+esc(DB.settings.phone):'')+(DB.settings.email?' · ✉ '+esc(DB.settings.email):'');}
 function enquiryLine(){const bits=[];if(DB.settings.phone)bits.push('☎ '+esc(DB.settings.phone));if(DB.settings.email)bits.push('✉ '+esc(DB.settings.email));return bits.length?'For enquiries: '+bits.join(' · '):'';}
+/* ---- Islamic content (authentic Qur'an / Hadith) ---- */
+const BISMILLAH={a:'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ',t:'In the name of Allah, the Most Gracious, the Most Merciful'};
+const ISLAMIC_QUOTES=[
+  {a:'وَقُل رَّبِّ زِدْنِي عِلْمًا',t:'My Lord, increase me in knowledge.',s:'Qur’an 20:114'},
+  {a:'اقْرَأْ بِاسْمِ رَبِّكَ الَّذِي خَلَقَ',t:'Read! In the name of your Lord who created.',s:'Qur’an 96:1'},
+  {a:'إِنَّ مَعَ الْعُسْرِ يُسْرًا',t:'Indeed, with hardship comes ease.',s:'Qur’an 94:6'},
+  {t:'Are those who know equal to those who do not know?',s:'Qur’an 39:9'},
+  {t:'Allah raises in rank those who believe and those given knowledge.',s:'Qur’an 58:11'},
+  {t:'Seeking knowledge is an obligation upon every Muslim.',s:'Hadith — Ibn Majah'},
+  {t:'The best of you are those who learn the Qur’an and teach it.',s:'Hadith — Bukhari'},
+  {t:'Whoever treads a path seeking knowledge, Allah makes easy for him a path to Paradise.',s:'Hadith — Muslim'},
+  {t:'Actions are judged by their intentions.',s:'Hadith — Bukhari & Muslim'},
+  {t:'Whoever does not thank people has not thanked Allah.',s:'Hadith — Tirmidhi'},
+  {t:'Be mindful of Allah and He will protect you.',s:'Hadith — Tirmidhi'},
+  {t:'The most beloved deeds to Allah are those done consistently, even if small.',s:'Hadith — Bukhari'}
+];
+function isIslamic(){return !!(DB&&DB.settings&&DB.settings.islamic);}
+function islamicQuote(seed){const i=Math.abs(seed!=null?seed:new Date().getDate())%ISLAMIC_QUOTES.length;return ISLAMIC_QUOTES[i];}
+function bismillahHTML(){return `<div class="bismillah">${BISMILLAH.a}</div>`;}
+function docQuote(seed){if(!isIslamic())return '';const q=islamicQuote(seed);return `<div class="quote-line">${q.a?'﴿ '+esc(q.a)+' ﴾ — ':''}“${esc(q.t)}” (${esc(q.s)})</div>`;}
+function islamicBand(seed){const q=islamicQuote(seed);return `<div class="islamic-band">${q.a?`<div class="ar">${esc(q.a)}</div>`:''}<div class="en">“${esc(q.t)}”</div><div class="src">${esc(q.s)}</div></div>`;}
+/* ---- Calendar / events ---- */
+function defaultEvents(yr){yr=yr||2025;const n=yr,m=yr+1;return [
+  {title:'First Term Resumes',date:n+'-09-15'},{title:'Independence Day (Holiday)',date:n+'-10-01'},
+  {title:'Mid-Term Break',date:n+'-10-27'},{title:'First Term Examinations',date:n+'-12-01'},
+  {title:'First Term Ends / Vacation',date:n+'-12-12'},{title:'Second Term Resumes',date:m+'-01-05'},
+  {title:'Mid-Term Break',date:m+'-02-16'},{title:'Second Term Examinations',date:m+'-03-30'},
+  {title:'Second Term Ends',date:m+'-04-10'},{title:'Third Term Resumes',date:m+'-04-27'},
+  {title:'Children’s Day',date:m+'-05-27'},{title:'Democracy Day (Holiday)',date:m+'-06-12'},
+  {title:'Third Term Examinations',date:m+'-07-13'},{title:'End of Session / Long Vacation',date:m+'-07-24'}
+].map(e=>({id:uid('e'),...e}));}
+function monthAbbr(d){const m=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];const dt=new Date(d);return isNaN(dt)?'':m[dt.getMonth()];}
+function dayNum(d){const dt=new Date(d);return isNaN(dt)?'–':dt.getDate();}
+function upcomingEvents(n){const t=today();return (DB.events||[]).filter(e=>e.date&&e.date>=t).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,n||5);}
 function G(){return DB.settings.grade||{ca1:20,ca2:20,exam:60};}
 function gradeOf(t){if(t>=70)return{g:'A',r:'Excellent'};if(t>=60)return{g:'B',r:'Very Good'};if(t>=50)return{g:'C',r:'Good'};if(t>=45)return{g:'D',r:'Fair'};if(t>=40)return{g:'E',r:'Pass'};return{g:'F',r:'Fail'};}
 function teacherClasses(){return USER.role==='admin'?DB.classes:DB.classes.filter(c=>(USER.classes||[]).includes(c.id));}
@@ -628,6 +747,82 @@ function doNewSession(){
   toast('New session '+next+' started');go('dashboard');
 }
 
+/* ===================== CALENDAR / EVENTS / DATES ===================== */
+function vCalendar(){
+  const dt=DB.settings.dates||{},bk=DB.settings.bank||{};
+  $('#view').innerHTML=`<div class="page-head"><div><h2>🗓️ Calendar & Dates</h2><p>Term dates, school events and payment account</p></div></div>
+  <div class="grid2">
+    <div class="card pad"><h3 class="mb">Term dates — ${esc(DB.settings.term)}</h3>
+      <div class="fld"><label>Term begins</label><input type="date" id="dt_begin" value="${esc(dt.termBegin||'')}"></div>
+      <div class="fld"><label>Term ends</label><input type="date" id="dt_end" value="${esc(dt.termEnd||'')}"></div>
+      <div class="fld"><label>Next term resumption</label><input type="date" id="dt_res" value="${esc(dt.resumption||'')}"></div>
+      <button class="btn" onclick="saveDates()">Save dates</button></div>
+    <div class="card pad"><h3 class="mb">Payment account (for invoices)</h3>
+      <div class="fld"><label>Account name</label><input id="bk_name" value="${esc(bk.name||'')}" placeholder="School account name"></div>
+      <div class="fld"><label>Account number</label><input id="bk_num" value="${esc(bk.number||'')}" placeholder="0123456789"></div>
+      <div class="fld"><label>Bank</label><input id="bk_bank" value="${esc(bk.bank||'')}" placeholder="Bank name"></div>
+      <button class="btn" onclick="saveBank()">Save account</button></div>
+  </div>
+  <div class="card pad mt"><div class="flex" style="justify-content:space-between"><h3>School events</h3><div class="flex gap"><button class="btn sec sm" onclick="reseedEvents()">Load Nigerian defaults</button><button class="btn sm" onclick="editEvent()">＋ Add event</button></div></div>
+    <div class="mt">${(DB.events||[]).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||'')).map(e=>`<div class="ev-item">
+      <div class="ev-date"><div class="d">${dayNum(e.date)}</div><div class="m">${monthAbbr(e.date)}</div></div>
+      <div style="flex:1"><b>${esc(e.title)}</b><br><span class="muted" style="font-size:12px">${esc(e.date||'no date')}</span></div>
+      <button class="btn icon" onclick="editEvent('${e.id}')">✏️</button><button class="btn icon" onclick="delEvent('${e.id}')">🗑️</button></div>`).join('')||'<p class="muted">No events. Add one or load defaults.</p>'}</div></div>`;
+}
+function saveDates(){DB.settings.dates={termBegin:$('#dt_begin').value,termEnd:$('#dt_end').value,resumption:$('#dt_res').value};
+  if($('#dt_res').value)DB.settings.nextResumption=new Date($('#dt_res').value).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  save();toast('Dates saved');}
+function saveBank(){DB.settings.bank={name:$('#bk_name').value.trim(),number:$('#bk_num').value.trim(),bank:$('#bk_bank').value.trim()};save();toast('Account saved');}
+function reseedEvents(){const yr=parseInt((DB.settings.session||'2025').slice(0,4))||2025;DB.events=defaultEvents(yr);save();vCalendar();toast('Nigerian calendar loaded');}
+function editEvent(id){const e=id?(DB.events||[]).find(x=>x.id===id):{};
+  modal(id?'Edit event':'Add event',`<div class="fld"><label>Title *</label><input id="ev_t" value="${esc(e.title||'')}" placeholder="e.g. Inter-house Sports"></div>
+    <div class="fld"><label>Date</label><input id="ev_d" type="date" value="${esc(e.date||'')}"></div>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveEvent('${id||''}')">Save</button>`);}
+function saveEvent(id){const title=$('#ev_t').value.trim();if(!title){toast('Title required',true);return;}const date=$('#ev_d').value;
+  DB.events=DB.events||[];if(id){const e=DB.events.find(x=>x.id===id);e.title=title;e.date=date;}else DB.events.push({id:uid('e'),title,date});
+  save();closeModal();vCalendar();toast('Event saved');}
+function delEvent(id){DB.events=(DB.events||[]).filter(x=>x.id!==id);save();vCalendar();toast('Event removed');}
+
+/* ===================== INVOICES ===================== */
+let invClass='';
+function vInvoices(){ // opened from Fees tab
+  if(!invClass)invClass=DB.classes[0]?DB.classes[0].id:'';
+  $('#feeArea').innerHTML=`<div class="toolbar"><div><label>Class</label><select onchange="invClass=this.value;vInvoices()">${DB.classes.map(c=>`<option value="${c.id}" ${invClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div><button class="btn" onclick="printClassInvoices()">🖨 Print all invoices (class)</button></div></div>
+  ${(!DB.settings.bank||!DB.settings.bank.number)?`<div class="viewonly" style="margin-bottom:12px">⚠ Set the payment account on the <a onclick="go('calendar')" style="color:var(--green);cursor:pointer">Calendar</a> page so it shows on invoices.</div>`:''}
+  <div id="invTbl"></div>`;
+  const list=studentsIn(invClass);
+  if(!list.length){$('#invTbl').innerHTML=`<div class="card"><div class="empty"><div class="big">🧾</div>No pupils in this class.</div></div>`;return;}
+  $('#invTbl').innerHTML=`<div class="t-wrap"><table><thead><tr><th>Pupil</th><th class="right">Fee</th><th class="right">Paid</th><th class="right">Balance</th><th></th></tr></thead><tbody>
+  ${list.map(s=>{const due=Number((DB.fees[rkey(s.id)]||{}).due)||0,paid=approvedPaid(s.id),bal=due-paid;return `<tr><td><b>${esc(s.name)}</b></td><td class="right">${naira(due)}</td><td class="right">${naira(paid)}</td>
+    <td class="right" style="color:${bal>0?'var(--red)':'var(--green)'}"><b>${naira(bal)}</b></td><td class="right"><button class="btn sm" onclick="openInvoice('${s.id}')">Invoice</button></td></tr>`;}).join('')}
+  </tbody></table></div>`;
+}
+function invoiceHTML(sid){const s=DB.students.find(x=>x.id===sid);const due=Number((DB.fees[rkey(sid)]||{}).due)||0,paid=approvedPaid(sid),bal=due-paid;
+  const bk=DB.settings.bank||{};const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';const dueDate=(DB.settings.dates&&DB.settings.dates.resumption)||'';
+  const invNo='INV/'+DB.settings.session.slice(0,4)+'/'+(s.admissionNo||s.id).replace(/[^0-9]/g,'').slice(-4);
+  return `<div class="invoice">
+    <div class="ih"><div class="flex gap"><div class="lg">${logo}</div><div><h2>${esc(DB.settings.schoolName)}</h2><div class="addr">${addrTel()}</div></div></div>
+      <div class="big-ttl"><div class="t">INVOICE</div><div class="muted" style="font-size:11.5px">${esc(invNo)}<br>${today()}</div></div></div>
+    ${isIslamic()?bismillahHTML():''}
+    <div class="meta"><div><span>Bill to:</span> <b>${esc(s.guardianName||s.name)}</b></div><div><span>Pupil:</span> <b>${esc(s.name)}</b></div>
+      <div><span>Class:</span> ${esc(className(s.classId))}</div><div><span>Adm No:</span> ${esc(s.admissionNo||'—')}</div>
+      <div><span>Term:</span> ${esc(DB.settings.term)}, ${esc(DB.settings.session)}</div><div><span>Due by:</span> ${esc(dueDate||'—')}</div></div>
+    <table><thead><tr><th>Description</th><th class="amt">Amount</th></tr></thead><tbody>
+      <tr><td>School fees — ${esc(DB.settings.term)} (${esc(DB.settings.session)})</td><td class="amt">${naira(due)}</td></tr>
+      <tr><td>Less: amount paid</td><td class="amt">- ${naira(paid)}</td></tr>
+      <tr class="total-row"><td>Balance due</td><td class="amt">${naira(bal)}</td></tr></tbody></table>
+    <div class="bank"><b>Payment details</b><br>Account Name: <b>${esc(bk.name||'—')}</b> · Bank: <b>${esc(bk.bank||'—')}</b><div class="acct">${esc(bk.number||'—')}</div>
+      Kindly use the pupil's name/admission number as payment reference.</div>
+    ${docQuote(3)}
+    <div style="text-align:center;font-size:10.5px;color:var(--muted);margin-top:10px">${enquiryLine()}</div></div>`;
+}
+function openInvoice(sid){modal('Invoice — '+DB.students.find(x=>x.id===sid).name,invoiceHTML(sid),
+  `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print / Save PDF</button>`,true);}
+function printClassInvoices(){const list=studentsIn(invClass);if(!list.length){toast('No pupils',true);return;}
+  modal('Invoices — '+className(invClass),list.map(s=>`<div style="page-break-after:always;margin-bottom:24px">${invoiceHTML(s.id)}</div>`).join(''),
+  `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print all</button>`,true);}
+
 /* ===================== AUTH SCREENS ===================== */
 function renderAuth(){
   const sc=$('#screen');sc.style.display='';$('#app').style.display='none';if(window.setManifest)setManifest();
@@ -649,6 +844,7 @@ function renderAuth(){
   if(DB.settings.status==='suspended'){sc.innerHTML=`<div class="auth school"><div class="acard"><div class="crest g">⏸️</div><h1>${esc(name)}</h1><div class="sub">This school's access is currently suspended. Please contact the provider.</div></div></div>`;return;}
   sc.innerHTML=`<div class="auth school"><div class="acard"><div class="crest g">${logo}</div>
     <h1>${esc(name)}</h1><div class="sub">Staff Portal</div>
+    ${DB.settings.islamic?`<div class="bismillah" style="font-size:16px;margin:-4px 0 10px">${BISMILLAH.a}</div>`:''}
     <div class="auth-err" id="aerr"></div>
     <div class="field"><label>Username</label><input id="su" placeholder="admin"></div>
     <div class="field"><label>Password</label><input id="sp" type="password"></div>
@@ -682,7 +878,7 @@ function enterApp(){
 function buildNav(){
   let items;
   if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
-  else if(USER.role==='admin') items=[['dashboard','📊','Dashboard'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👩‍🏫','Teachers'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
+  else if(USER.role==='admin') items=[['dashboard','📊','Dashboard'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👩‍🏫','Teachers'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['calendar','🗓️','Calendar'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
   else items=[['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
   const ow=USER.role==='owner'?' owner':'';
   $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${ow}${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
@@ -693,7 +889,7 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
   const map={odash:vODash,schools:vSchools,pins:vPins,revenue:vRevenue,osettings:vOSettings,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
-    promotions:vPromotions,session:vSession};
+    promotions:vPromotions,session:vSession,calendar:vCalendar};
   (map[p]||vDashboard)();}
 
 /* ===================== OWNER: DASHBOARD ===================== */
@@ -753,7 +949,8 @@ function editSchool(code){
       <div><label>CA2 max</label><input id="sc_ca2" type="number" value="${g.ca2}"></div>
       <div><label>Exam max</label><input id="sc_exam" type="number" value="${g.exam}"></div>
     </div>
-    <div class="fld" style="max-width:240px"><label>Promotion pass mark (%)</label><input id="sc_promote" type="number" value="${g.promote||40}"></div>
+    <div class="grid2"><div class="fld"><label>Promotion pass mark (%)</label><input id="sc_promote" type="number" value="${g.promote||40}"></div>
+    <div class="fld"><label>School type</label><label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink);margin-top:4px"><input type="checkbox" id="sc_islamic" style="width:auto" ${d&&d.settings.islamic?'checked':''}> ☪ Islamic school (adds Qur’an/Hadith content)</label></div></div>
     <hr>${logoField(d?d.settings.logo:'')}
     ${code?'':`<hr><label>School administrator login</label><div class="grid2">
       <div class="fld"><label>Admin name</label><input id="sc_aname" value="School Administrator"></div>
@@ -771,14 +968,14 @@ function saveSchool(code){
   if(!email||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('A valid school email is required',true);return;}
   if(ca1+ca2+exam!==100){toast('CA1+CA2+Exam must total 100',true);return;}
   if(code){const reg=MASTER.schools.find(s=>s.code===code);reg.name=name;reg.status=$('#sc_status').value;
-    const d=STORE[code];Object.assign(d.settings,{schoolName:name,address:addr,phone,email,motto:$('#sc_motto').value.trim(),logo:_logo,
+    const d=STORE[code];Object.assign(d.settings,{schoolName:name,address:addr,phone,email,motto:$('#sc_motto').value.trim(),logo:_logo,islamic:$('#sc_islamic').checked,
       session:$('#sc_sess').value.trim(),term:$('#sc_term').value,status:$('#sc_status').value,grade:{ca1,ca2,exam,promote}});
     saveMaster();saveSchoolRow(code);closeModal();toast('School updated');manageSchool(code);return;}
   const newCode=$('#sc_code').value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,'').replace(/^-+|-+$/g,'');
   if(!newCode){toast('Code required',true);return;}
   if(MASTER.schools.some(s=>s.code===newCode)){toast('Code already exists',true);return;}
   const auser=$('#sc_auser').value.trim(),apass=$('#sc_apass').value.trim();if(!auser||!apass){toast('Admin login required',true);return;}
-  const d=seedSchool(newCode,name);Object.assign(d.settings,{address:addr,phone,email,motto:$('#sc_motto').value.trim(),logo:_logo,
+  const d=seedSchool(newCode,name);Object.assign(d.settings,{address:addr,phone,email,motto:$('#sc_motto').value.trim(),logo:_logo,islamic:$('#sc_islamic').checked,
     session:$('#sc_sess').value.trim(),term:$('#sc_term').value,status:$('#sc_status').value,grade:{ca1,ca2,exam,promote}});
   d.users[0].name=$('#sc_aname').value.trim()||'School Administrator';d.users[0].username=auser;d.users[0].password=apass;
   STORE[newCode]=d;MASTER.schools.push({code:newCode,name,status:$('#sc_status').value,createdAt:today()});
@@ -932,6 +1129,9 @@ function vDashboard(){
     <div class="stat"><div class="lbl">Teachers</div><div class="num">${totalTeach}</div></div>
     <div class="stat"><div class="lbl">Attendance Today</div><div class="num">${att}%</div><div class="meta">${present}/${marked} present</div></div>
     <div class="stat"><div class="lbl">Fees Collected</div><div class="num" style="color:var(--green)">${naira(paid)}</div><div class="meta">${naira(due-paid)} outstanding</div></div></div>
+  ${isIslamic()?`<div class="mb">${islamicBand()}</div>`:''}
+  ${(()=>{const ev=upcomingEvents(4);return ev.length?`<div class="card pad mb"><div class="flex" style="justify-content:space-between"><h3>🗓️ Upcoming events</h3><button class="btn sec sm" onclick="go('calendar')">Manage</button></div>
+    <div class="mt">${ev.map(e=>{const soon=(new Date(e.date)-new Date())/86400000<=7;return `<div class="ev-item${soon?' ev-soon':''}"><div class="ev-date"><div class="d">${dayNum(e.date)}</div><div class="m">${monthAbbr(e.date)}</div></div><div style="flex:1"><b>${esc(e.title)}</b><br><span class="muted" style="font-size:12px">${esc(e.date)}</span></div></div>`;}).join('')}</div></div>`:'';})()}
   ${(pendingPayCount()||pendingAppCount())?`<div class="card pad mb" style="border-left:4px solid var(--gold)"><b>Action needed:</b>
     ${pendingPayCount()?`<a onclick="go('fees')" style="color:var(--green);cursor:pointer">${pendingPayCount()} payment(s) to approve</a>`:''}${pendingPayCount()&&pendingAppCount()?' · ':''}
     ${pendingAppCount()?`<a onclick="go('admissions')" style="color:var(--green);cursor:pointer">${pendingAppCount()} admission(s) to review</a>`:''}</div>`:''}
@@ -1198,27 +1398,47 @@ function renderRepList(){const list=studentsIn(repClass);
     <td class="right"><button class="btn sm" onclick="openReport('${r.s.id}')">View</button></td></tr>`).join('')}
   </tbody></table></div>`;}
 function reportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid);const {rows,size}=computeClassResults(s.classId,sess,term);const row=rows.find(r=>r.s.id===sid);
-  const g=G();let present=0,total=0;Object.keys(DB.attendance).forEach(k=>{const cid=k.split('|')[1];if(cid===s.classId){const v=DB.attendance[k][sid];if(v!==undefined){total++;if(v==='P')present++;}}});
-  const rem=DB.remarks[rkey(sid,sess,term)]||{};const subs=row.marks;const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';
-  return `<div class="report"><div class="rh"><div class="seal">${logo}</div><div><h2>${esc(DB.settings.schoolName)}</h2><div class="addr">${addrTel()} · ${esc(DB.settings.motto)}</div></div>
-    <div class="doc">TERMLY REPORT CARD<br><b>${esc(term||DB.settings.term)}</b><br>${esc(sess||DB.settings.session)}</div></div>
-    <div class="meta-grid"><div><span>Name</span>${esc(s.name)}</div><div><span>Admission No</span>${esc(s.admissionNo||'—')}</div>
-      <div><span>Class</span>${esc(className(s.classId))}</div><div><span>Gender</span>${esc(s.gender||'—')}</div>
-      <div><span>No. in Class</span>${size}</div><div><span>Position</span>${row.pos?ord(row.pos):'—'}</div>
-      <div><span>Attendance</span>${total?present+' / '+total:'—'}</div><div><span>Next Term</span>${esc(DB.settings.nextResumption||'—')}</div></div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-      <div style="display:flex;gap:10px;align-items:center">${s.photo?`<img src="${s.photo}" style="width:58px;height:68px;object-fit:cover;border-radius:6px;border:1px solid var(--line)">`:'<div style="width:58px;height:68px;border-radius:6px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:26px">👧</div>'}<span class="muted" style="font-size:10px">Passport</span></div>
-      <div style="text-align:center"><img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}" style="width:66px;height:66px"><div class="muted" style="font-size:9px">Scan to verify</div></div></div>
-    <table><thead><tr><th>Subject</th><th class="center">CA1<br>(${g.ca1})</th><th class="center">CA2<br>(${g.ca2})</th><th class="center">Exam<br>(${g.exam})</th><th class="center">Total</th><th class="center">Grade</th><th>Remark</th></tr></thead><tbody>
-    ${subs.map(m=>{const gr=gradeOf(m.total||0);return `<tr><td>${esc(m.sub)}</td><td class="center">${m.ca1??'–'}</td><td class="center">${m.ca2??'–'}</td><td class="center">${m.exam??'–'}</td>
-      <td class="center"><b>${m.has?m.total:'–'}</b></td><td class="center">${m.has?gr.g:'–'}</td><td>${m.has?gr.r:'–'}</td></tr>`;}).join('')}</tbody></table>
-    <div class="summary"><div class="box"><div class="v">${row.count?row.total:'–'}</div><div class="k">Total</div></div>
-      <div class="box"><div class="v">${row.count?row.avg.toFixed(1)+'%':'–'}</div><div class="k">Average</div></div>
-      <div class="box"><div class="v">${row.count?gradeOf(row.avg).g:'–'}</div><div class="k">Grade</div></div>
-      <div class="box"><div class="v">${row.pos?ord(row.pos):'–'}</div><div class="k">Position</div></div></div>
-    <div class="remarks"><div class="r"><b>Class Teacher's Remark</b>${esc(rem.teacher||autoRemark(row.avg,subs))}</div><div class="r"><b>Head Teacher's Remark</b>${esc(rem.head||autoHead(row.avg))}</div></div>
-    <div class="keybox">A 70–100 · B 60–69 · C 50–59 · D 45–49 · E 40–44 · F below 40</div>
-    <div class="sign"><div><div class="line">Class Teacher</div></div><div><div class="line">Head Teacher / Stamp</div></div></div></div>`;}
+  const g=G();const subsList=DB.subjects[s.classId]||[];const rem=DB.remarks[rkey(sid,sess,term)]||{};const isl=isIslamic();
+  const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';const issue=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  let daysOpen=0,present=0,absent=0,late=0;
+  Object.keys(DB.attendance).forEach(k=>{const p=k.split('|');if(p[1]===s.classId){const rec=DB.attendance[k];if(rec&&Object.keys(rec).length)daysOpen++;const v=rec[sid];if(v==='P')present++;else if(v==='A')absent++;else if(v==='L')late++;}});
+  const classList=studentsIn(s.classId),subPos={};
+  subsList.forEach(sub=>{const arr=classList.map(st=>{const r=(DB.results[rkey(st.id,sess,term)]||{})[sub]||{};const has=r.ca1!=null||r.ca2!=null||r.exam!=null;return{id:st.id,t:(+r.ca1||0)+(+r.ca2||0)+(+r.exam||0),has};}).filter(x=>x.has).sort((a,b)=>b.t-a.t);const m={};arr.forEach((x,i)=>m[x.id]=i+1);subPos[sub]=m;});
+  const q=isl?islamicQuote(row.count||1):null;
+  return `<div class="rc">
+    <div class="rc-top">${isl?`<div class="rc-bism">۞ ${BISMILLAH.a} ۞</div>`:''}
+      <div class="rc-head"><div class="rc-crest">${logo}</div>
+        <div class="rc-sch"><h2>${esc(DB.settings.schoolName)}</h2>${DB.settings.code?`<div class="nick">(${esc(DB.settings.code)})</div>`:''}<div class="addr">${addrTel()}</div></div></div></div>
+    <div class="rc-title">✦ ACADEMIC PROGRESS REPORT ✦</div>
+    <div class="rc-info">
+      <div class="rc-photo"><div class="p">${s.photo?`<img src="${s.photo}">`:'👧'}</div><div class="cap">PASSPORT</div>
+        <div class="qr"><img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}"><div class="cap">Scan to verify</div></div></div>
+      <div class="rc-fields">
+        <div class="f"><span>Student Name</span><b>${esc(s.name)}</b></div><div class="f"><span>Admission No</span><b>${esc(s.admissionNo||'—')}</b></div><div class="f"><span>Class</span><b>${esc(className(s.classId))}</b></div>
+        <div class="f"><span>Academic Session</span><b>${esc(sess||DB.settings.session)}</b></div><div class="f"><span>Term</span><b>${esc(term||DB.settings.term)}</b></div><div class="f"><span>No. of Subjects</span><b>${row.count}</b></div></div>
+      <div class="rc-pos"><div class="l">POSITION</div><div class="n">${row.pos?ord(row.pos):'—'}</div><div class="l">of ${size}</div></div></div>
+    <div class="rc-att"><span>Days School Open: <b>${daysOpen}</b></span><span>Days Present: <b>${present}</b></span><span>Days Absent: <b>${absent}</b></span><span>Times Late: <b>${late}</b></span></div>
+    <table class="rc-tbl"><thead>
+      <tr><th rowspan="2">Subject</th><th colspan="2">Continuous Assessment</th><th rowspan="2">Exam<br>(${g.exam})</th><th rowspan="2">Total<br>(100)</th><th rowspan="2">Grade</th><th rowspan="2">Position</th><th rowspan="2">Remark</th></tr>
+      <tr><th>1st CA (${g.ca1})</th><th>2nd CA (${g.ca2})</th></tr></thead><tbody>
+      ${row.marks.map(m=>{const gr=gradeOf(m.total||0);const pos=(subPos[m.sub]||{})[sid];return `<tr><td class="sub">${esc(m.sub)}</td><td>${m.ca1??'–'}</td><td>${m.ca2??'–'}</td><td>${m.exam??'–'}</td>
+        <td class="tot">${m.has?m.total:'–'}</td><td>${m.has?gr.g:'–'}</td><td>${m.has&&pos?ord(pos):'–'}</td><td class="${m.has&&gr.g==='F'?'rem-fail':''}">${m.has?gr.r:'–'}</td></tr>`;}).join('')}
+    </tbody></table>
+    <div class="rc-sum"><span>${row.count} subject(s) with scores</span><span>Total: <b>${row.count?row.total:'–'}</b></span><span>Position: <b>${row.pos?ord(row.pos):'–'}</b></span><span>Average: <b>${row.count?row.avg.toFixed(1):'–'}/100</b></span></div>
+    <div class="rc-two">
+      <div class="rc-scale"><h4>Grading Scale</h4>
+        <div class="g"><b>A</b> 70–100 (Excellent)</div><div class="g"><b>B</b> 60–69 (Very Good)</div><div class="g"><b>C</b> 50–59 (Good)</div>
+        <div class="g"><b>D</b> 45–49 (Fair)</div><div class="g"><b>E</b> 40–44 (Pass)</div><div class="g"><b>F</b> 0–39 (Fail)</div></div>
+      <div class="rc-perf"><h4>Performance</h4>
+        <div class="row"><span>Total Score</span><b>${row.count?row.total:'–'}</b></div><div class="row"><span>Average</span><b>${row.count?row.avg.toFixed(1):'–'}</b></div>
+        <div class="row"><span>Class Position</span><b>${row.pos?ord(row.pos)+' of '+size:'–'}</b></div><div class="row"><span>Overall Grade</span><b>${row.count?gradeOf(row.avg).g:'–'}</b></div></div></div>
+    <div class="rc-comments">
+      <div class="c"><b>Class Teacher's Comment</b><div class="box">${esc(rem.teacher||autoRemark(row.avg,row.marks))}</div></div>
+      <div class="c"><b>Principal's Recommendation</b><div class="box">${esc(rem.head||autoHead(row.avg))}</div></div></div>
+    <div class="rc-meta2"><div><span>Next Term Begins:</span> ${esc(DB.settings.nextResumption||'—')}</div><div><span>School Fees:</span> ${naira(Number((DB.fees[rkey(sid,sess,term)]||{}).due)||0)}</div><div><span>Date of Issue:</span> ${issue}</div></div>
+    <div class="rc-sign"><div><div class="ln">Class Teacher's Signature</div></div><div><div class="ln">Date</div></div><div><div class="ln">Principal's Signature</div></div><div><div class="ln">School Stamp</div></div></div>
+    <div class="rc-foot">${isl?`✦ “${esc(q.t)}” — ${esc(q.s)} ✦`:esc(DB.settings.motto||'')}</div>
+  </div>`;}
 function openReport(sid){modal('Report Card — '+DB.students.find(x=>x.id===sid).name,reportHTML(sid),
   `<button class="btn sec no-print" onclick="editRemarks('${sid}')">✎ Edit remarks</button><button class="btn sec no-print" onclick="closeModal()">Close</button>
    <span class="viewonly no-print" style="margin:0">🔒 Printing available to pupils via PIN</span>`,true);renderVisuals();}
@@ -1243,8 +1463,9 @@ function vFees(){if(!feeClass)feeClass=DB.classes[0]?DB.classes[0].id:'';
   $('#view').innerHTML=`<div class="page-head"><div><h2>Fees & Payments</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)}</p></div></div>
   <div class="subtabs"><button class="subtab${feeTab==='fees'?' active':''}" onclick="feeTab='fees';vFees()">Fees by class</button>
     <button class="subtab${feeTab==='approve'?' active':''}" onclick="feeTab='approve';vFees()">Approvals ${pendingPayCount()?`<span class="pill amber" style="margin-left:4px">${pendingPayCount()}</span>`:''}</button>
-    <button class="subtab${feeTab==='history'?' active':''}" onclick="feeTab='history';vFees()">History</button></div><div id="feeArea"></div>`;
-  if(feeTab==='fees')renderFees();else if(feeTab==='approve')renderApprovals();else renderPayHistory();}
+    <button class="subtab${feeTab==='history'?' active':''}" onclick="feeTab='history';vFees()">History</button>
+    <button class="subtab${feeTab==='invoices'?' active':''}" onclick="feeTab='invoices';vFees()">🧾 Invoices</button></div><div id="feeArea"></div>`;
+  if(feeTab==='fees')renderFees();else if(feeTab==='approve')renderApprovals();else if(feeTab==='invoices')vInvoices();else renderPayHistory();}
 function renderFees(){$('#feeArea').innerHTML=`<div class="toolbar"><div><label>Class</label><select onchange="feeClass=this.value;renderFees()">${DB.classes.map(c=>`<option value="${c.id}" ${feeClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
     <div><button class="btn sec" onclick="setClassFee()">Set fee for whole class</button></div></div><div id="feeTbl"></div>`;
   const list=studentsIn(feeClass);if(!list.length){$('#feeTbl').innerHTML=`<div class="card"><div class="empty"><div class="big">💰</div>No pupils in this class.</div></div>`;return;}
@@ -1311,6 +1532,7 @@ function openReceipt(id){const p=DB.payments.find(x=>x.id===id);const s=DB.stude
       <div><span>School fees for term</span>${naira(due)}</div><div><span>Fees balance</span><b style="color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</b></div><div><span>Approved by</span>${esc(p.approvedBy||'—')}</div></div>
     <div class="center"><div class="paid-stamp">PAID</div></div>
     <div class="sign" style="display:flex;justify-content:space-between;margin-top:22px;font-size:12px"><div style="text-align:center;width:45%"><div style="border-top:1px solid #888;margin-top:26px;padding-top:4px">Bursar / Admin</div></div><div style="text-align:center;width:45%"><div style="border-top:1px solid #888;margin-top:26px;padding-top:4px">School Stamp</div></div></div>
+    ${docQuote(5)}
     <div style="text-align:center;font-size:10.5px;color:var(--muted);margin-top:14px;border-top:1px dashed var(--line);padding-top:8px">${enquiryLine()}</div></div>`,
     `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print / PDF</button>`);}
 
