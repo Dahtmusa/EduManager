@@ -7,7 +7,7 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script>
 /* ╔══════════════════════════════════════════════════════════════╗
    ║  OWNER: PASTE YOUR SUPABASE KEYS HERE (once, before hosting).   ║
@@ -222,15 +222,26 @@ tbody tr:hover{background:#fafbfa}
 .idgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(312px,1fr));gap:22px}
 .idc{width:312px;margin:0 auto;background:#fff;border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(10,125,51,.16);position:relative;border:1px solid var(--line)}
 .idc.staff{box-shadow:0 10px 30px rgba(30,95,168,.16)}
-.idc-band{height:78px;background:linear-gradient(120deg,var(--green),#10c25c)}
+.idc-band{height:98px;background:linear-gradient(120deg,var(--green),#10c25c)}
 .idc.staff .idc-band{background:linear-gradient(120deg,var(--blue),#3b9ae1)}
-.idc-band:after{content:"";position:absolute;top:0;left:0;right:0;height:78px;background:radial-gradient(circle at 82% -30%,rgba(255,255,255,.4),transparent 55%)}
-.idc-head{position:absolute;top:13px;left:15px;right:15px;display:flex;align-items:center;gap:9px;color:#fff;z-index:2}
+.idc-band:after{content:"";position:absolute;top:0;left:0;right:0;height:98px;background:radial-gradient(circle at 82% -30%,rgba(255,255,255,.4),transparent 55%)}
+.idc-head{position:absolute;top:14px;left:15px;right:15px;display:flex;align-items:center;gap:9px;color:#fff;z-index:2}
 .idc-logo{width:36px;height:36px;border-radius:9px;background:rgba(255,255,255,.28);display:flex;align-items:center;justify-content:center;font-size:18px;overflow:hidden;flex-shrink:0}
 .idc-logo img{width:100%;height:100%;object-fit:cover}
 .idc-school{font-weight:800;font-size:12.5px;line-height:1.12;text-shadow:0 1px 2px rgba(0,0,0,.18)}
 .idc-school small{display:block;font-weight:600;font-size:8.5px;opacity:.92;letter-spacing:.14em;margin-top:2px}
-.idc-photo{width:92px;height:92px;border-radius:50%;border:4px solid #fff;background:var(--green-light);margin:-46px auto 0;position:relative;z-index:3;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 5px 14px rgba(0,0,0,.14)}
+.idc-photo{width:90px;height:90px;border-radius:50%;border:4px solid #fff;background:var(--green-light);margin:-42px auto 0;position:relative;z-index:3;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:40px;box-shadow:0 5px 14px rgba(0,0,0,.14)}
+.idc-back{padding:14px 18px 0}
+.idc-back .bk-h{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line);padding-bottom:8px;margin-bottom:8px}
+.idc-back .bk-h .lg{width:26px;height:26px;border-radius:7px;overflow:hidden;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:14px}
+.idc-back .bk-h .lg img{width:100%;height:100%;object-fit:cover}
+.idc-back .bk-h b{font-size:12px;color:var(--green-dark)}
+.idc-back .r{display:flex;justify-content:space-between;font-size:11.5px;padding:4px 0;border-bottom:1px dashed var(--line)}
+.idc-back .r span{color:var(--muted)}
+.idc-back .terms{font-size:9.5px;color:var(--muted);margin-top:8px;line-height:1.5}
+.idc-back .sig{margin-top:18px;display:flex;justify-content:space-between;align-items:flex-end}
+.idc-back .sig .ln{border-top:1px solid #999;font-size:9.5px;padding-top:3px;width:46%;text-align:center;color:var(--muted)}
+.idc-back .qr{text-align:center}.idc-back .qr img{width:62px;height:62px}
 .idc-photo img{width:100%;height:100%;object-fit:cover}
 .idc-name{text-align:center;font-weight:800;font-size:17px;margin-top:9px;color:var(--ink);padding:0 12px}
 .idc-role{text-align:center;font-size:10.5px;color:var(--muted);margin-bottom:11px;letter-spacing:.04em}
@@ -314,6 +325,7 @@ function seedMaster(){return{platform:{name:'EduManager Cloud',owner:{name:'Plat
     pins:[],batches:[]};}
 function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!g)d.settings.grade={ca1:20,ca2:20,exam:60};
   if(d.settings.receiptSeq==null)d.settings.receiptSeq=0;if(!d.settings.status)d.settings.status='active';
+  if(!Array.isArray(d.settings.termsDone))d.settings.termsDone=[];
   ['users','classes','students','payments','applicants'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
   ['subjects','attendance','results','fees','remarks'].forEach(k=>{if(!d[k]||typeof d[k]!=='object')d[k]={};});
   d.classes.forEach(c=>{if(!d.subjects[c.id])d.subjects[c.id]=c.name.startsWith('Nursery')?[...NURSERY_SUBJECTS]:[...PRIMARY_SUBJECTS];});return d;}
@@ -327,7 +339,7 @@ function toast(m,err){const t=$('#toast');t.textContent=m;t.className='toast sho
 function uid(p){return p+Math.random().toString(36).slice(2,8);}
 function className(id){const c=DB.classes.find(c=>c.id===id);return c?c.name:'—';}
 function rkey(sid,sess,term){return (sess||DB.settings.session)+'|'+(term||DB.settings.term)+'|'+sid;}
-function studentsIn(cid){return DB.students.filter(s=>s.classId===cid).sort((a,b)=>a.name.localeCompare(b.name));}
+function studentsIn(cid){return DB.students.filter(s=>s.classId===cid&&!s.graduated).sort((a,b)=>a.name.localeCompare(b.name));}
 function naira(n){return '₦'+(Number(n)||0).toLocaleString('en-NG');}
 function G(){return DB.settings.grade||{ca1:20,ca2:20,exam:60};}
 function gradeOf(t){if(t>=70)return{g:'A',r:'Excellent'};if(t>=60)return{g:'B',r:'Very Good'};if(t>=50)return{g:'C',r:'Good'};if(t>=45)return{g:'D',r:'Fair'};if(t>=40)return{g:'E',r:'Pass'};return{g:'F',r:'Fail'};}
@@ -368,8 +380,8 @@ function snap(){const v=$('#camVid');if(!v||!v.videoWidth)return;const cv=docume
 function stopCam(){if(_camStream){_camStream.getTracks().forEach(t=>t.stop());_camStream=null;}const w=$('#camWrap');if(w)w.style.display='none';}
 
 /* ===================== QR & LOGO ===================== */
-function renderQRs(){if(!window.QRCode)return;document.querySelectorAll('img.qrimg[data-qr]').forEach(el=>{if(el.dataset.done)return;
-  try{QRCode.toDataURL(el.getAttribute('data-qr'),{margin:0,width:200,color:{dark:'#0a7d33',light:'#ffffff'}},(e,url)=>{if(!e){el.src=url;el.dataset.done='1';}});}catch(e){}});}
+function renderQRs(){if(!window.qrcode)return;document.querySelectorAll('img.qrimg[data-qr]').forEach(el=>{if(el.dataset.done)return;
+  try{const q=qrcode(0,'M');q.addData(el.getAttribute('data-qr')||' ');q.make();el.src=q.createDataURL(5,1);el.dataset.done='1';}catch(e){}});}
 // Render barcodes + QRs, retrying a few times in case the CDN libs load slightly late.
 function renderVisuals(tries){tries=tries||0;
   renderBarcodes();renderQRs();
@@ -521,6 +533,70 @@ function exportStudentsCSV(){const hdr=['Admission No','Name','Class','Gender','
   const rows=DB.students.map(s=>[s.admissionNo,s.name,className(s.classId),s.gender,s.dob,s.guardianName,s.guardianPhone,s.address].map(v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"').join(','));
   const csv=hdr.join(',')+'\n'+rows.join('\n');const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='students-'+today()+'.csv';a.click();toast('Students CSV downloaded');}
 
+/* ===================== SESSION / TERM MANAGEMENT ===================== */
+function termsDone(){return DB.settings.termsDone||[];}
+function allTermsDone(){return TERMS.every(t=>termsDone().includes(t));}
+function nextSessionStr(s){const m=(s||'').match(/(\d{4})\s*\/\s*(\d{4})/);if(m)return (+m[1]+1)+'/'+(+m[2]+1);const y=new Date().getFullYear();return y+'/'+(y+1);}
+function termArchive(label){
+  // Build a records bundle for download/email at term/session close.
+  const data={school:DB.settings.schoolName,code:DB.settings.code,session:DB.settings.session,term:DB.settings.term,generated:new Date().toISOString(),
+    students:DB.students,results:DB.results,payments:DB.payments,fees:DB.fees,attendance:DB.attendance,applicants:DB.applicants,remarks:DB.remarks,settings:DB.settings};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=(DB.settings.code||'school')+'-archive-'+(label||DB.settings.session).replace(/[^a-z0-9]/gi,'_')+'-'+today()+'.json';a.click();
+}
+function vSession(){
+  const done=termsDone(),cur=DB.settings.term;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>📆 Session & Terms</h2><p>${esc(DB.settings.session)} — manage term progress and start a new session</p></div></div>
+  <div class="cards-row">${TERMS.map(t=>{const d=done.includes(t);const isCur=t===cur;return `<div class="stat" style="border-color:${d?'var(--green)':isCur?'var(--gold)':'var(--line)'}">
+    <div class="lbl">${esc(t)}</div><div class="num" style="font-size:18px;color:${d?'var(--green)':isCur?'var(--amber)':'var(--muted)'}">${d?'✓ Completed':isCur?'In progress':'Pending'}</div></div>`;}).join('')}</div>
+  <div class="card pad mb" style="max-width:680px"><h3 class="mb">Current term: ${esc(cur)}</h3>
+    <p class="muted mb">Completing a term locks it for the records and moves the school to the next term. A records archive (pupils, results, payments, admissions) downloads automatically for safe-keeping. Your data also stays in the cloud.</p>
+    <div class="fld" style="max-width:340px"><label>Records email (for your reference)</label><input id="se_email" value="${esc(DB.settings.recordEmail||'')}" placeholder="admin@school.com"></div>
+    ${done.includes(cur)?`<p class="pill green">${esc(cur)} already completed.</p>`:`<button class="btn" onclick="completeTerm()">✓ Complete ${esc(cur)} & download records</button>`}
+  </div>
+  <div class="card pad" style="max-width:680px;border-left:4px solid ${allTermsDone()?'var(--green)':'var(--line)'}">
+    <h3 class="mb">Start new session</h3>
+    ${allTermsDone()
+      ? `<p class="muted mb">All three terms are completed. Starting a new session will <b>promote pupils</b> (based on the Promotions page), graduate Primary 6, advance to <b>${esc(nextSessionStr(DB.settings.session))}</b>, reset to First Term, and archive this session.</p>
+         <button class="btn gold" onclick="confirmNewSession()">🎓 Promote & Start ${esc(nextSessionStr(DB.settings.session))}</button>`
+      : `<p class="muted">🔒 You can start a new session only after <b>all three terms</b> are completed. Completed: ${done.length}/3.</p>`}
+  </div>`;
+}
+function completeTerm(){
+  const cur=DB.settings.term;DB.settings.recordEmail=$('#se_email').value.trim();
+  if(!termsDone().includes(cur))DB.settings.termsDone.push(cur);
+  // advance to next not-done term (keep order)
+  const nextT=TERMS.find(t=>!DB.settings.termsDone.includes(t));
+  if(nextT)DB.settings.term=nextT;
+  save();termArchive(DB.settings.session+'-'+cur);
+  toast(cur+' completed — records downloaded');
+  vSession();buildNav();$('#termBadge').textContent=DB.settings.term+' • '+DB.settings.session;
+}
+function confirmNewSession(){
+  const next=nextSessionStr(DB.settings.session);
+  let promo=0,grad=0,rep=0;
+  DB.students.filter(s=>!s.graduated).forEach(s=>{const d=promotionFor(s).decision;if(d==='promote')promo++;else if(d==='graduate')grad++;else rep++;});
+  modal('Start new session — '+next,`<p>This will close <b>${esc(DB.settings.session)}</b> and begin <b>${esc(next)}</b>:</p>
+    <ul style="margin:10px 0 10px 18px;font-size:13.5px">
+      <li><b>${promo}</b> pupil(s) promoted to the next class</li>
+      <li><b>${grad}</b> Primary 6 pupil(s) graduated (kept as records)</li>
+      <li><b>${rep}</b> pupil(s) repeating their class</li></ul>
+    <p class="muted" style="font-size:12.5px">Past results stay saved under ${esc(DB.settings.session)}. A full session archive will download. This cannot be undone.</p>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn gold" onclick="doNewSession()">Promote & Start ${esc(next)}</button>`);
+}
+function doNewSession(){
+  termArchive('FULL-'+DB.settings.session);
+  const next=nextSessionStr(DB.settings.session);
+  DB.students.filter(s=>!s.graduated).forEach(s=>{const p=promotionFor(s);
+    if(p.decision==='graduate'){s.graduated=true;s.graduatedSession=DB.settings.session;}
+    else if(p.decision==='promote'){const i=DB.classes.findIndex(c=>c.id===s.classId);if(i>=0&&i+1<DB.classes.length)s.classId=DB.classes[i+1].id;}
+    // repeat/pending: stay in same class
+  });
+  DB.settings.session=next;DB.settings.term='First Term';DB.settings.termsDone=[];
+  save();closeModal();$('#termBadge').textContent=DB.settings.term+' • '+DB.settings.session;
+  toast('New session '+next+' started');go('dashboard');
+}
+
 /* ===================== AUTH SCREENS ===================== */
 function renderAuth(){
   const sc=$('#screen');sc.style.display='';$('#app').style.display='none';
@@ -574,7 +650,7 @@ function enterApp(){
 function buildNav(){
   let items;
   if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
-  else if(USER.role==='admin') items=[['dashboard','📊','Dashboard'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👩‍🏫','Teachers'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
+  else if(USER.role==='admin') items=[['dashboard','📊','Dashboard'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👩‍🏫','Teachers'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
   else items=[['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
   const ow=USER.role==='owner'?' owner':'';
   $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${ow}${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
@@ -585,7 +661,7 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
   const map={odash:vODash,schools:vSchools,pins:vPins,revenue:vRevenue,osettings:vOSettings,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
-    promotions:vPromotions};
+    promotions:vPromotions,session:vSession};
   (map[p]||vDashboard)();}
 
 /* ===================== OWNER: DASHBOARD ===================== */
@@ -1132,24 +1208,28 @@ function setClassFee(){modal('Set fee for '+className(feeClass),`<div class="fld
   `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="applyClassFee()">Apply</button>`);}
 function applyClassFee(){const amt=Number($('#cf_amt').value)||0;studentsIn(feeClass).forEach(s=>{const k=rkey(s.id);DB.fees[k]=DB.fees[k]||{};DB.fees[k].due=amt;});save();closeModal();renderFees();toast('Class fee applied');}
 function recordPayment(sid){const s=DB.students.find(x=>x.id===sid);const due=Number((DB.fees[rkey(sid)]||{}).due)||0;const bal=due-approvedPaid(sid);
-  modal('Record Payment — '+s.name,`<p class="muted mb">Outstanding: <b style="color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</b>. New payments need approval before a receipt is issued.</p>
-    <div class="grid2"><div class="fld"><label>Amount (₦) *</label><input id="p_amt" type="number"></div>
+  modal('Record Payment — '+s.name,`<p class="muted mb">Outstanding (school fees): <b style="color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</b>. A receipt is generated once the payment is approved.</p>
+    <div class="grid2"><div class="fld"><label>Payment for *</label><select id="p_purpose" onchange="document.getElementById('p_descWrap').style.display=this.value==='Other'?'block':'none'"><option>School Fees</option><option>Examination Fee</option><option>Uniform</option><option>Books / Stationery</option><option>PTA Levy</option><option>Development Levy</option><option>Excursion</option><option>Other</option></select></div>
+    <div class="fld"><label>Amount (₦) *</label><input id="p_amt" type="number"></div>
+    <div class="fld full" id="p_descWrap" style="display:none"><label>Describe the payment</label><input id="p_desc" placeholder="What is this payment for?"></div>
+    <div class="fld"><label>Term</label><select id="p_term">${TERMS.map(t=>`<option ${DB.settings.term===t?'selected':''}>${t}</option>`).join('')}</select></div>
     <div class="fld"><label>Date</label><input id="p_date" type="date" value="${today()}"></div>
     <div class="fld"><label>Method</label><select id="p_method"><option>Cash</option><option>Bank Transfer</option><option>POS</option><option>Cheque</option></select></div>
     <div class="fld"><label>Reference</label><input id="p_ref" placeholder="optional"></div></div>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="savePayment('${sid}',false)">Submit for approval</button>
      ${USER.role==='admin'?`<button class="btn gold" onclick="savePayment('${sid}',true)">Add & approve now</button>`:''}`);}
 function savePayment(sid,approve){const amt=Number($('#p_amt').value);if(!amt||amt<=0){toast('Enter a valid amount',true);return;}
-  const pay={id:uid('p'),studentId:sid,session:DB.settings.session,term:DB.settings.term,amount:amt,method:$('#p_method').value,ref:$('#p_ref').value.trim(),date:$('#p_date').value,recordedBy:USER.name,status:'pending'};
+  let purpose=$('#p_purpose').value;if(purpose==='Other')purpose=$('#p_desc').value.trim()||'Other';
+  const pay={id:uid('p'),studentId:sid,session:DB.settings.session,term:$('#p_term').value,amount:amt,purpose,method:$('#p_method').value,ref:$('#p_ref').value.trim(),date:$('#p_date').value,recordedBy:USER.name,status:'pending'};
   if(approve&&USER.role==='admin'){pay.status='approved';pay.approvedBy=USER.name;pay.approvedAt=today();pay.receiptNo=nextReceiptNo();}
   DB.payments.push(pay);save();closeModal();buildNav();vFees();if(approve)openReceipt(pay.id);
   toast(approve?'Approved — receipt ready':'Submitted for approval');}
 function nextReceiptNo(){DB.settings.receiptSeq=(DB.settings.receiptSeq||0)+1;return 'RCT/'+DB.settings.session.slice(0,4)+'/'+String(DB.settings.receiptSeq).padStart(4,'0');}
 function renderApprovals(){const pend=DB.payments.filter(p=>p.status==='pending').slice().reverse();
   if(!pend.length){$('#feeArea').innerHTML=`<div class="card"><div class="empty"><div class="big">✅</div>No payments awaiting approval.</div></div>`;return;}
-  $('#feeArea').innerHTML=`<div class="t-wrap"><table><thead><tr><th>Date</th><th>Pupil</th><th>Class</th><th class="right">Amount</th><th>Method</th><th>By</th><th></th></tr></thead><tbody>
-  ${pend.map(p=>{const s=DB.students.find(x=>x.id===p.studentId)||{name:'(deleted)'};return `<tr><td class="muted">${esc(p.date)}</td><td><b>${esc(s.name)}</b></td><td>${esc(className(s.classId))}</td>
-    <td class="right"><b>${naira(p.amount)}</b></td><td>${esc(p.method)}</td><td class="muted">${esc(p.recordedBy||'')}</td>
+  $('#feeArea').innerHTML=`<div class="t-wrap"><table><thead><tr><th>Date</th><th>Pupil</th><th>Payment for</th><th>Term</th><th class="right">Amount</th><th>By</th><th></th></tr></thead><tbody>
+  ${pend.map(p=>{const s=DB.students.find(x=>x.id===p.studentId)||{name:'(deleted)'};return `<tr><td class="muted">${esc(p.date)}</td><td><b>${esc(s.name)}</b><br><span class="muted" style="font-size:11px">${esc(className(s.classId))}</span></td><td>${esc(p.purpose||'School Fees')}</td><td class="muted">${esc(p.term||'')}</td>
+    <td class="right"><b>${naira(p.amount)}</b></td><td class="muted">${esc(p.recordedBy||'')}</td>
     <td class="right" style="white-space:nowrap"><button class="btn sm" onclick="approvePay('${p.id}')">Approve</button><button class="btn sm danger" onclick="rejectPay('${p.id}')">Reject</button></td></tr>`;}).join('')}
   </tbody></table></div>`;}
 function approvePay(id){const p=DB.payments.find(x=>x.id===id);p.status='approved';p.approvedBy=USER.name;p.approvedAt=today();p.receiptNo=nextReceiptNo();save();buildNav();vFees();toast('Approved — '+p.receiptNo);openReceipt(id);}
@@ -1162,12 +1242,19 @@ function renderPayHistory(){const list=DB.payments.filter(p=>p.session===DB.sett
     <td class="right">${naira(p.amount)}</td><td><span class="pill ${st[0]}">${st[1]}</span></td><td class="right">${p.status==='approved'?`<button class="btn sm sec" onclick="openReceipt('${p.id}')">Receipt</button>`:''}</td></tr>`;}).join('')}
   </tbody></table></div>`;}
 function openReceipt(id){const p=DB.payments.find(x=>x.id===id);const s=DB.students.find(x=>x.id===p.studentId)||{name:'(deleted)'};
-  const due=Number((DB.fees[rkey(p.studentId)]||{}).due)||0;const bal=due-approvedPaid(p.studentId);
-  modal('Receipt — '+(p.receiptNo||''),`<div class="receipt"><div class="rh"><div class="seal">🎓</div><div><h2>${esc(DB.settings.schoolName)}</h2><div class="muted" style="font-size:11px">${esc(DB.settings.address)}</div></div>
-    <div class="no">OFFICIAL RECEIPT<br><b>${esc(p.receiptNo||'—')}</b><br>${esc(p.date)}</div></div><div class="amount">${naira(p.amount)}</div>
-    <div class="lines"><div><span>Pupil</span><b>${esc(s.name)}</b></div><div><span>Class</span>${esc(className(s.classId))}</div><div><span>Adm No</span>${esc(s.admissionNo||'—')}</div>
-      <div><span>Term/Session</span>${esc(p.term)}, ${esc(p.session)}</div><div><span>Method</span>${esc(p.method)}${p.ref?' · '+esc(p.ref):''}</div>
-      <div><span>Fee for term</span>${naira(due)}</div><div><span>Balance</span><b style="color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</b></div><div><span>Approved by</span>${esc(p.approvedBy||'—')}</div></div>
+  const due=Number((DB.fees[rkey(p.studentId)]||{}).due)||0;const bal=due-approvedPaid(p.studentId);const logo=DB.settings.logo?`<img src="${DB.settings.logo}" style="width:100%;height:100%;object-fit:cover">`:'🎓';
+  modal('Receipt — '+(p.receiptNo||''),`<div class="receipt"><div class="rh"><div class="seal">${logo}</div><div><h2>${esc(DB.settings.schoolName)}</h2><div class="muted" style="font-size:11px">${esc(DB.settings.address)}</div></div>
+    <div class="no">OFFICIAL RECEIPT<br><b>${esc(p.receiptNo||'—')}</b><br>${esc(p.date)}</div></div>
+    <div style="display:flex;gap:14px;align-items:center;margin:6px 0 4px">
+      <div style="width:64px;height:74px;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:28px;flex-shrink:0">${s.photo?`<img src="${s.photo}" style="width:100%;height:100%;object-fit:cover">`:'👧'}</div>
+      <div style="flex:1"><div style="font-size:16px;font-weight:800">${esc(s.name)}</div><div class="muted" style="font-size:12px">${esc(className(s.classId))} · Adm ${esc(s.admissionNo||'—')}</div>
+        <div style="margin-top:4px"><span class="pill green">${esc(p.term)} · ${esc(p.session)}</span></div></div></div>
+    <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:6px">Being payment for</div>
+    <div style="text-align:center;font-size:15px;font-weight:700;color:var(--green-dark);margin-bottom:6px">${esc(p.purpose||'School Fees')}</div>
+    <div class="amount">${naira(p.amount)}</div>
+    <div class="lines"><div><span>Payment for</span><b>${esc(p.purpose||'School Fees')}</b></div><div><span>Term</span><b>${esc(p.term)}</b></div><div><span>Session</span>${esc(p.session)}</div>
+      <div><span>Method</span>${esc(p.method)}${p.ref?' · '+esc(p.ref):''}</div>
+      <div><span>School fees for term</span>${naira(due)}</div><div><span>Fees balance</span><b style="color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</b></div><div><span>Approved by</span>${esc(p.approvedBy||'—')}</div></div>
     <div class="center"><div class="paid-stamp">PAID</div></div>
     <div class="sign" style="display:flex;justify-content:space-between;margin-top:22px;font-size:12px"><div style="text-align:center;width:45%"><div style="border-top:1px solid #888;margin-top:26px;padding-top:4px">Bursar / Admin</div></div><div style="text-align:center;width:45%"><div style="border-top:1px solid #888;margin-top:26px;padding-top:4px">School Stamp</div></div></div></div>`,
     `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print / PDF</button>`);}
@@ -1180,9 +1267,9 @@ function vIdCards(){if(!idClass)idClass=DB.classes[0]?DB.classes[0].id:'';
   ${idTab==='students'?`<div class="toolbar no-print"><div><label>Class</label><select onchange="idClass=this.value;vIdCards()">${DB.classes.map(c=>`<option value="${c.id}" ${idClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div></div>`:''}
   <div id="idArea"></div>`;renderIdCards();}
 function renderIdCards(){let cards='';
-  if(idTab==='students'){const list=studentsIn(idClass);if(!list.length){$('#idArea').innerHTML=`<div class="card"><div class="empty"><div class="big">🪪</div>No pupils.</div></div>`;return;}cards=list.map(studentCardHTML).join('');}
-  else{const list=DB.users.filter(u=>u.role==='teacher');if(!list.length){$('#idArea').innerHTML=`<div class="card"><div class="empty"><div class="big">🪪</div>No teachers.</div></div>`;return;}cards=list.map(teacherCardHTML).join('');}
-  $('#idArea').innerHTML=`<div class="idgrid">${cards}</div>`;renderVisuals();}
+  if(idTab==='students'){const list=studentsIn(idClass);if(!list.length){$('#idArea').innerHTML=`<div class="card"><div class="empty"><div class="big">🪪</div>No pupils.</div></div>`;return;}cards=list.map(s=>studentCardHTML(s)+studentCardBack(s)).join('');}
+  else{const list=DB.users.filter(u=>u.role==='teacher');if(!list.length){$('#idArea').innerHTML=`<div class="card"><div class="empty"><div class="big">🪪</div>No teachers.</div></div>`;return;}cards=list.map(u=>teacherCardHTML(u)+teacherCardBack(u)).join('');}
+  $('#idArea').innerHTML=`<div class="no-print muted mb" style="font-size:12.5px">Each person has a <b>front</b> and a <b>back</b> card — print both and place back-to-back.</div><div class="idgrid">${cards}</div>`;renderVisuals();}
 function idLogo(){return DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';}
 function studentCardHTML(s){const code=s.admissionNo||s.id;return `<div class="idc">
   <div class="idc-band"></div><div class="idc-head"><div class="idc-logo">${idLogo()}</div><div class="idc-school">${esc(DB.settings.schoolName)}<small>PUPIL IDENTITY CARD</small></div></div>
@@ -1192,6 +1279,17 @@ function studentCardHTML(s){const code=s.admissionNo||s.id;return `<div class="i
     <div class="r"><span>Class</span><b>${esc(className(s.classId))}</b></div><div class="r"><span>Gender</span><b>${esc(s.gender||'—')}</b></div></div>
   <div class="idc-bc"><svg class="bc" data-code="${esc(code)}"></svg><div class="bc-fallback" style="display:none">${esc(code)}</div></div>
   <div class="idc-foot">${esc(DB.settings.address)} · If found, please return to the school</div></div>`;}
+function studentCardBack(s){return `<div class="idc"><div class="idc-back">
+  <div class="bk-h"><div class="lg">${idLogo()}</div><b>${esc(DB.settings.schoolName)} — Pupil Card (Back)</b></div>
+  <div class="r"><span>Guardian</span><b>${esc(s.guardianName||'—')}</b></div>
+  <div class="r"><span>Guardian phone</span><b>${esc(s.guardianPhone||'—')}</b></div>
+  <div class="r"><span>Date of birth</span><b>${esc(s.dob||'—')}</b></div>
+  <div class="r"><span>Address</span><b style="max-width:150px;text-align:right">${esc(s.address||'—')}</b></div>
+  <div class="r"><span>Session</span><b>${esc(DB.settings.session)}</b></div>
+  <div class="qr" style="margin-top:8px"><img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}"><div class="muted" style="font-size:8.5px">Scan to verify</div></div>
+  <div class="terms">This card remains the property of ${esc(DB.settings.schoolName)} and must be surrendered on request. If found, please return to the school address.</div>
+  <div class="sig"><div class="ln">Holder's Signature</div><div class="ln">Head Teacher</div></div></div>
+  <div class="idc-foot">${esc(DB.settings.motto||'')}</div></div>`;}
 function teacherCardHTML(u){const code=u.staffId||u.id;return `<div class="idc staff">
   <div class="idc-band"></div><div class="idc-head"><div class="idc-logo">${idLogo()}</div><div class="idc-school">${esc(DB.settings.schoolName)}<small>STAFF IDENTITY CARD</small></div></div>
   <div class="idc-photo">${u.photo?`<img src="${u.photo}">`:'👩‍🏫'}</div>
@@ -1200,10 +1298,20 @@ function teacherCardHTML(u){const code=u.staffId||u.id;return `<div class="idc s
     <div class="r"><span>Role</span><b>Teacher</b></div><div class="r"><span>Classes</span><b>${esc((u.classes||[]).map(className).join(', ')||'—')}</b></div></div>
   <div class="idc-bc"><svg class="bc" data-code="${esc(code)}"></svg><div class="bc-fallback" style="display:none">${esc(code)}</div></div>
   <div class="idc-foot">${esc(DB.settings.address)} · Authorised staff identification</div></div>`;}
+function teacherCardBack(u){return `<div class="idc staff"><div class="idc-back">
+  <div class="bk-h"><div class="lg">${idLogo()}</div><b>${esc(DB.settings.schoolName)} — Staff Card (Back)</b></div>
+  <div class="r"><span>Staff ID</span><b>${esc(u.staffId||'—')}</b></div>
+  <div class="r"><span>Username</span><b>${esc(u.username||'—')}</b></div>
+  <div class="r"><span>Classes</span><b style="max-width:150px;text-align:right">${esc((u.classes||[]).map(className).join(', ')||'—')}</b></div>
+  <div class="r"><span>Session</span><b>${esc(DB.settings.session)}</b></div>
+  <div class="qr" style="margin-top:8px"><img class="qrimg" data-qr="${esc(u.staffId||u.id)}"><div class="muted" style="font-size:8.5px">Scan to verify</div></div>
+  <div class="terms">This card certifies the holder as authorised staff of ${esc(DB.settings.schoolName)}. It remains school property and must be returned on exit.</div>
+  <div class="sig"><div class="ln">Staff Signature</div><div class="ln">Head Teacher</div></div></div>
+  <div class="idc-foot">${esc(DB.settings.motto||'')}</div></div>`;}
 function renderBarcodes(){if(!window.JsBarcode)return;document.querySelectorAll('svg.bc[data-code]').forEach(el=>{if(el.dataset.done)return;
   try{JsBarcode(el,el.getAttribute('data-code'),{format:'CODE128',height:42,width:1.7,fontSize:12,margin:0,displayValue:true});if(el.childNodes.length)el.dataset.done='1';}catch(e){}});}
-function showStudentId(id){modal('Pupil ID Card',`<div style="padding:6px 0">${studentCardHTML(DB.students.find(x=>x.id===id))}</div>`,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button>`);renderVisuals();}
-function showTeacherId(id){modal('Staff ID Card',`<div style="padding:6px 0">${teacherCardHTML(DB.users.find(x=>x.id===id))}</div>`,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button>`);renderVisuals();}
+function showStudentId(id){const s=DB.students.find(x=>x.id===id);modal('Pupil ID Card (Front & Back)',`<div class="idgrid" style="padding:6px 0">${studentCardHTML(s)}${studentCardBack(s)}</div>`,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button>`,true);renderVisuals();}
+function showTeacherId(id){const u=DB.users.find(x=>x.id===id);modal('Staff ID Card (Front & Back)',`<div class="idgrid" style="padding:6px 0">${teacherCardHTML(u)}${teacherCardBack(u)}</div>`,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button>`,true);renderVisuals();}
 
 /* ===================== SCHOOL: SCANNER ===================== */
 function vScanner(){$('#view').innerHTML=`<div class="page-head"><div><h2>Scan ID</h2><p>Scan a pupil/staff barcode to verify, mark present or check fees</p></div></div>
