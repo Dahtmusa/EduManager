@@ -362,6 +362,15 @@ tbody tr:hover{background:#fafbfa}
 .rc-sign .ln{border-top:1px solid #999;margin-top:22px;padding-top:3px}
 .rc-foot{background:var(--rg);color:#e6cd84;text-align:center;font-size:10.5px;padding:7px;font-style:italic}
 @media print{*{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}}
+/* Houses */
+.house-crest{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:17px;flex-shrink:0;box-shadow:0 2px 6px rgba(0,0,0,.2)}
+.podium{display:flex;justify-content:center;align-items:flex-end;gap:14px;margin:6px 0 20px;flex-wrap:wrap}
+.podium .col{width:140px;text-align:center}
+.podium .name{font-weight:700;font-size:13px;margin-bottom:5px}
+.podium .blk{border-radius:10px 10px 0 0;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:800;box-shadow:inset 0 -3px 0 rgba(0,0,0,.15)}
+.podium .blk .m{font-size:26px}.podium .blk .pts{font-size:13px;opacity:.95}
+.hscore td input{border-color:#e2e8e4}
+.hwk-now{background:var(--gold)!important;color:#3a2c05!important}
 @media(max-width:760px){.rc-info{flex-wrap:wrap}.rc-fields{grid-template-columns:1fr 1fr}.rc-two,.rc-comments{grid-template-columns:1fr}}
 </style>
 </head>
@@ -868,10 +877,11 @@ function renderHousesTab(){
   const unassigned=DB.students.filter(s=>!s.houseId&&!s.graduated).length;
   $('#houseArea').innerHTML=`<div class="toolbar"><button class="btn" onclick="editHouse()">＋ Add house</button><button class="btn sec" onclick="autoAssignHouses()">🎲 Auto-assign pupils</button>
     ${unassigned?`<span class="pill amber">${unassigned} pupil(s) not in a house</span>`:'<span class="pill green">All pupils assigned</span>'}</div>
-  <div class="cards-row">${DB.houses.map(h=>{const m=DB.users.find(u=>u.id===h.masterId);return `<div class="card pad" style="border-top:4px solid ${esc(h.color||'#888')}">
-    <div class="flex" style="justify-content:space-between"><h3>${esc(h.name)}</h3><div><button class="btn icon" onclick="editHouse('${h.id}')">✏️</button><button class="btn icon" onclick="delHouse('${h.id}')">🗑️</button></div></div>
-    <p class="muted" style="font-size:12.5px">${houseStudents(h.id).length} pupils · Master: ${m?esc(m.name):'<span style="color:var(--amber)">unassigned</span>'}</p>
-    <button class="btn sm sec mt" onclick="assignPupils('${h.id}')">Manage pupils</button></div>`;}).join('')}</div>`;
+  <div class="cards-row">${DB.houses.map(h=>{const m=DB.users.find(u=>u.id===h.masterId);const init=((h.name||'?').trim()[0]||'?').toUpperCase();return `<div class="card pad" style="border-top:5px solid ${esc(h.color||'#888')}">
+    <div class="flex" style="justify-content:space-between"><div class="flex gap"><div class="house-crest" style="background:${esc(h.color||'#888')}">${esc(init)}</div><div><h3 style="margin:0;line-height:1.1">${esc(h.name)}</h3><span class="muted" style="font-size:12px">${houseStudents(h.id).length} pupils</span></div></div>
+      <div style="white-space:nowrap"><button class="btn icon" onclick="editHouse('${h.id}')">✏️</button><button class="btn icon" onclick="delHouse('${h.id}')">🗑️</button></div></div>
+    <div class="mt" style="font-size:12.5px">👤 <b>Master:</b> ${m?esc(m.name):'<span style="color:var(--amber)">unassigned</span>'}</div>
+    <button class="btn sm sec mt" onclick="assignPupils('${h.id}')" style="width:100%;justify-content:center">Manage pupils</button></div>`;}).join('')}</div>`;
 }
 function editHouse(id){const h=id?DB.houses.find(x=>x.id===id):{color:'#0a7d33'};const teachers=DB.users.filter(u=>u.role==='teacher');
   modal(id?'Edit House':'Add House',`<div class="grid2">
@@ -906,18 +916,24 @@ function renderEvents(){if(!DB.houses.length){$('#houseArea').innerHTML=`<div cl
     return `<tr><td><b style="color:${esc(h.color)}">●</b> ${esc(h.name)}</td>${cells}<td class="center"><b>${tot}</b></td></tr>`;}).join('')}
   </tbody></table></div>`;
 }
-function setHouseScore(kind,id,hid,val){const k=hsKey(kind,id,hid);if(val==='')delete DB.houseScores[k];else DB.houseScores[k]=Number(val);save();}
+function setHouseScore(kind,id,hid,val){const k=hsKey(kind,id,hid);if(val==='')delete DB.houseScores[k];else DB.houseScores[k]=Number(val);save();
+  (houseTab==='inspect'?renderInspect:renderEvents)();}
 function addActivity(){modal('Add activity',`<div class="fld"><label>Activity name *</label><input id="act_name" placeholder="e.g. March Past"></div>`,
   `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveActivity()">Add</button>`);}
 function saveActivity(){const n=$('#act_name').value.trim();if(!n){toast('Name required',true);return;}DB.houseActivities.push({id:uid('a'),name:n});save();closeModal();vHouses();}
 function delActivity(id){DB.houseActivities=DB.houseActivities.filter(a=>a.id!==id);save();vHouses();}
 function renderStandings(){if(!DB.houses.length){$('#houseArea').innerHTML=`<div class="card"><div class="empty">Create houses first.</div></div>`;return;}
-  const rank=houseRank();const best=rank[0];
-  $('#houseArea').innerHTML=`<div class="cards-row">${rank.map((r,i)=>`<div class="card pad" style="border-top:4px solid ${esc(r.h.color)};${i===0?'box-shadow:0 0 0 2px var(--gold)':''}">
-    <div class="flex" style="justify-content:space-between"><h3>${i===0?'🏆 ':''}${esc(r.h.name)}</h3><span class="pill ${i===0?'amber':'grey'}">${ord(i+1)}</span></div>
-    <div class="num" style="font-size:26px;color:${esc(r.h.color)}">${r.total}<span style="font-size:13px;color:var(--muted)"> pts</span></div></div>`).join('')}</div>
-  ${best&&best.total>0?`<div class="card pad"><div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div><b>Best house of the term:</b> ${esc(best.h.name)} (${best.total} pts)</div>
-    <button class="btn gold" onclick="bestHouseCert()">🏅 Best-house certificate</button></div></div>`:'<div class="card pad muted">Enter inspection & activity scores to rank houses.</div>'}`;
+  const rank=houseRank();const best=rank[0];const scored=rank.some(r=>r.total>0);
+  const top=rank.slice(0,3);const order=[1,0,2];const heights=[110,86,66];const medals=['🥇','🥈','🥉'];const maxP=Math.max(1,top[0]?top[0].total:1);
+  const podium=`<div class="podium">${order.filter(i=>top[i]).map(i=>{const r=top[i];return `<div class="col"><div class="name">${medals[i]} ${esc(r.h.name)}</div>
+    <div class="blk" style="height:${heights[i]}px;background:${esc(r.h.color)}"><div class="m">${ord(i+1)}</div><div class="pts">${r.total} pts</div></div></div>`;}).join('')}</div>`;
+  $('#houseArea').innerHTML=`${scored?podium:''}
+  <div class="t-wrap"><table><thead><tr><th>Pos</th><th>House</th><th class="center">Pupils</th><th class="right">Inspections</th><th class="right">Activities</th><th class="right">Total</th></tr></thead><tbody>
+  ${rank.map((r,i)=>{let insp=0;INSPECT_WEEKS.forEach(w=>insp+=Number(DB.houseScores[hsKey('insp','wk'+w,r.h.id)])||0);const evt=r.total-insp;
+    return `<tr${i===0&&scored?' style="background:#fdf3d7"':''}><td><b>${ord(i+1)}</b></td><td><b style="color:${esc(r.h.color)}">●</b> ${esc(r.h.name)}</td><td class="center">${houseStudents(r.h.id).length}</td><td class="right">${insp}</td><td class="right">${evt}</td><td class="right"><b>${r.total}</b></td></tr>`;}).join('')}
+  </tbody></table></div>
+  ${best&&scored?`<div class="card pad mt"><div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div>🏆 <b>Best house of the term:</b> ${esc(best.h.name)} — ${best.total} pts</div>
+    <button class="btn gold" onclick="bestHouseCert()">🏅 Generate best-house certificate</button></div></div>`:'<p class="muted mt">Enter inspection & activity scores to rank houses.</p>'}`;
 }
 function bestHouseCert(){const best=houseRank()[0];if(!best||!best.total){toast('No scores yet',true);return;}const h=best.h;const m=DB.users.find(u=>u.id===h.masterId);const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';
   modal('Best House Certificate',`<div class="cert" style="border-color:${esc(h.color)}">
@@ -1729,7 +1745,7 @@ function renderFees(){$('#feeArea').innerHTML=`<div class="toolbar"><div><label>
     const st=due===0?['grey','Not set']:bal<=0?['green','Paid']:paid>0?['amber','Part']:['red','Owing'];
     return `<tr><td>${avatar(s.photo,'👧')}</td><td><b>${esc(s.name)}</b></td><td><input class="score-in" style="width:110px;text-align:right" type="number" value="${f.due??''}" onchange="setFeeDue('${s.id}',this.value)"></td>
       <td class="right">${naira(paid)}</td><td class="right" style="color:${bal>0?'var(--red)':'var(--green)'}"><b>${naira(bal)}</b></td>
-      <td class="center"><span class="pill ${st[0]}">${st[1]}</span></td><td class="right"><button class="btn sm" onclick="recordPayment('${s.id}')">＋ Payment</button></td></tr>`;}).join('');
+      <td class="center"><span class="pill ${st[0]}">${st[1]}</span></td><td class="right" style="white-space:nowrap"><button class="btn sm" onclick="recordPayment('${s.id}')">＋ Pay</button><button class="btn icon" title="View / edit payments" onclick="managePayments('${s.id}')">📋</button></td></tr>`;}).join('');
   $('#feeTbl').innerHTML=`<div class="cards-row" style="margin-bottom:16px"><div class="stat"><div class="lbl">Expected</div><div class="num">${naira(tDue)}</div></div>
     <div class="stat"><div class="lbl">Collected</div><div class="num" style="color:var(--green)">${naira(tPaid)}</div></div>
     <div class="stat"><div class="lbl">Outstanding</div><div class="num" style="color:var(--red)">${naira(tDue-tPaid)}</div></div></div>
@@ -1773,6 +1789,16 @@ function renderPayHistory(){const list=DB.payments.filter(p=>p.session===DB.sett
     <td class="right">${naira(p.amount)}</td><td><span class="pill ${st[0]}">${st[1]}</span></td>
     <td class="right" style="white-space:nowrap">${p.status==='approved'?`<button class="btn icon" title="Receipt" onclick="openReceipt('${p.id}')">🧾</button>`:''}<button class="btn icon" title="Edit" onclick="editPayment('${p.id}')">✏️</button><button class="btn icon" title="Delete" onclick="delPayment('${p.id}')">🗑️</button></td></tr>`;}).join('')}
   </tbody></table></div><p class="muted mt" style="font-size:12px">✏️ correct a mistake · 🗑️ remove a wrong entry. Balances update automatically.</p>`;}
+function managePayments(sid){const s=DB.students.find(x=>x.id===sid);const list=DB.payments.filter(p=>p.studentId===sid).slice().reverse();
+  const due=Number((DB.fees[rkey(sid)]||{}).due)||0,paid=approvedPaid(sid),bal=due-paid;
+  modal('Payments — '+s.name,`<p class="muted mb">Fee due (this term): <b>${naira(due)}</b> · Paid: <b style="color:var(--green)">${naira(paid)}</b> · Balance: <b style="color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</b></p>
+    <div class="mb"><label>Fix the term fee total (₦) — if it was entered wrong</label><div class="flex gap"><input id="mp_due" type="number" value="${due}" style="max-width:170px"><button class="btn sec sm" onclick="fixFeeDue('${sid}')">Save fee</button></div></div>
+    ${list.length?`<div class="t-wrap"><table><thead><tr><th>Date</th><th>For</th><th>Term</th><th class="right">Amount</th><th>Status</th><th></th></tr></thead><tbody>
+      ${list.map(p=>`<tr><td class="muted">${esc(p.date)}</td><td>${esc(p.purpose||'School Fees')}</td><td class="muted">${esc(p.term||'')}</td><td class="right">${naira(p.amount)}</td><td><span class="pill ${p.status==='approved'?'green':p.status==='pending'?'amber':'red'}">${esc(p.status)}</span></td>
+        <td class="right" style="white-space:nowrap"><button class="btn icon" title="Edit amount/details" onclick="editPayment('${p.id}')">✏️</button><button class="btn icon" title="Delete wrong entry" onclick="delPayment('${p.id}')">🗑️</button></td></tr>`).join('')}
+    </tbody></table></div>`:'<p class="muted">No payments recorded for this pupil yet.</p>'}`,
+    `<button class="btn sec" onclick="closeModal()">Close</button><button class="btn" onclick="recordPayment('${sid}')">＋ Add payment</button>`,true);}
+function fixFeeDue(sid){const v=Number($('#mp_due').value)||0;const k=rkey(sid);DB.fees[k]=DB.fees[k]||{};DB.fees[k].due=v;save();toast('Term fee corrected');managePayments(sid);}
 function editPayment(id){const p=DB.payments.find(x=>x.id===id);if(!p)return;
   modal('Edit payment',`<div class="grid2">
     <div class="fld"><label>Payment for</label><input id="ep_purpose" value="${esc(p.purpose||'School Fees')}"></div>
