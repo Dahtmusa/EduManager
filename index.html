@@ -1154,11 +1154,12 @@ function manageSchool(code){
     <div class="card pad" style="background:#f7faf8;margin-top:6px"><div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div style="font-size:12.5px">Current: <b>${esc(d.settings.term)}, ${esc(d.settings.session)}</b><br><span class="muted">Completed terms: ${(d.settings.termsDone||[]).length?(d.settings.termsDone||[]).map(esc).join(', '):'none'}</span></div>
       <button class="btn sm gold" onclick="fixTerm('${code}')">↺ Reset / fix term</button></div></div>
-    <hr><label>Modules — push features to this school (saves instantly)</label>
+    <hr><label>Modules — tick to push features to this school</label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
-      ${MODULES.map(([k,l])=>`<label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" style="width:auto" ${d.settings.modules&&d.settings.modules[k]?'checked':''} onchange="toggleModule('${code}','${k}',this.checked)"> ${l}</label>`).join('')}
+      ${MODULES.map(([k,l])=>`<label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" class="ms_mod" value="${k}" style="width:auto" ${d.settings.modules&&d.settings.modules[k]?'checked':''}> ${l}</label>`).join('')}
     </div>
-    <label class="mt">Document theme</label><div class="flex gap"><select id="ms_theme" onchange="setSchoolTheme('${code}',this.value)" style="max-width:220px">${Object.entries(THEMES).map(([k,t])=>`<option value="${k}" ${(d.settings.theme||'green')===k?'selected':''}>${t.n}</option>`).join('')}</select></div>`,
+    <label class="mt">Document theme</label><select id="ms_theme" style="max-width:220px">${Object.entries(THEMES).map(([k,t])=>`<option value="${k}" ${(d.settings.theme||'green')===k?'selected':''}>${t.n}</option>`).join('')}</select>
+    <div class="mt"><button class="btn purple" onclick="saveSchoolModules('${code}')">💾 Save & push to ${esc(reg.name)}</button></div>`,
     `<button class="btn sec" onclick="closeModal()">Close</button>
      <button class="btn sec" onclick="go('pins');closeModal()">Generate PINs</button>
      <button class="btn ${reg.status==='suspended'?'':'sec'}" onclick="toggleSchool('${code}')">${reg.status==='suspended'?'Re-activate':'Suspend'}</button>
@@ -1178,9 +1179,10 @@ function fixTerm(code){const d=STORE[code];const done=d.settings.termsDone||[];
 function saveFixTerm(code){const d=STORE[code];d.settings.term=$('#ft_term').value;d.settings.session=$('#ft_sess').value.trim()||d.settings.session;
   d.settings.termsDone=[...document.querySelectorAll('.ft_done:checked')].map(c=>c.value);
   STORE[code]=d;saveStoreLocal();saveSchoolRow(code);toast('Term progress updated');manageSchool(code);}
-function toggleModule(code,key,on){const d=STORE[code];d.settings.modules=d.settings.modules||{};if(on)d.settings.modules[key]=true;else delete d.settings.modules[key];
-  STORE[code]=d;saveStoreLocal();saveSchoolRow(code);toast((on?'Enabled ':'Disabled ')+key);}
-function setSchoolTheme(code,t){const d=STORE[code];d.settings.theme=t;STORE[code]=d;saveStoreLocal();saveSchoolRow(code);toast('Theme set');}
+function saveSchoolModules(code){const d=STORE[code];const mods={};document.querySelectorAll('.ms_mod:checked').forEach(c=>mods[c.value]=true);
+  d.settings.modules=mods;if($('#ms_theme'))d.settings.theme=$('#ms_theme').value;
+  STORE[code]=d;saveStoreLocal();saveSchoolRow(code);
+  const on=Object.keys(mods).length;toast(on?(on+' module(s) pushed to school'):'Modules updated');manageSchool(code);}
 function toggleSchool(code){const reg=MASTER.schools.find(s=>s.code===code);reg.status=reg.status==='suspended'?'active':'suspended';
   STORE[code].settings.status=reg.status;saveMaster();saveSchoolRow(code);toast('School '+reg.status);manageSchool(code);}
 function delSchool(code){modal('Delete school?',`<p>Permanently delete <b>${esc(MASTER.schools.find(s=>s.code===code).name)}</b> and all its data and PINs? This cannot be undone.</p>`,
