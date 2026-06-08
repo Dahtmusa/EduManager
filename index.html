@@ -374,7 +374,13 @@ tbody tr:hover{background:#fafbfa}
 .home{min-height:100vh;background:var(--bg)}
 .home-top{background:#fff;border-bottom:1px solid var(--line);padding:9px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;flex-wrap:wrap;gap:8px}
 .home-top .b{display:flex;align-items:center;gap:10px}
-.home-top .lg{width:42px;height:42px;border-radius:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.home-top .lg{width:44px;height:44px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;border:2px solid var(--rg,#0a7d33)}
+.home-top .lg img{width:100%;height:100%;object-fit:cover}
+.hero-crest{width:92px;height:92px;border-radius:50%;margin:0 auto 12px;background:#fff;border:3px solid var(--rgold,#caa64e);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:42px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.hero-crest img{width:100%;height:100%;object-fit:cover}
+.vtile{height:140px;cursor:pointer;position:relative;overflow:hidden}
+.vplay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+.vplay span{width:48px;height:48px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px}
 .home-top .btn{color:#fff}.home-top .btn.sec{color:var(--ink)}
 .home-hero{color:#fff;padding:48px 20px;text-align:center;overflow:hidden}
 .hero-slide{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity 1.1s ease}
@@ -561,7 +567,7 @@ function copyText(t){navigator.clipboard&&navigator.clipboard.writeText(t).then(
 function modal(title,body,foot,big){$('#modal').className='modal'+(big?' lg':'');
   $('#modal').innerHTML=`<div class="modal-head"><h3>${esc(title)}</h3><button class="x" onclick="closeModal()">×</button></div>
     <div class="modal-body">${body}</div>${foot?`<div class="modal-foot">${foot}</div>`:''}`;$('#modalBg').classList.add('open');}
-function closeModal(){stopCam();if(window.stopAyah)stopAyah();$('#modalBg').classList.remove('open');}
+function closeModal(){stopCam();if(window.stopAyah)stopAyah();$('#modalBg').classList.remove('open');$('#modal').innerHTML='';}
 $('#modalBg').addEventListener('click',e=>{if(e.target===$('#modalBg'))closeModal();});
 let _photo='',_camStream=null;
 function photoField(cur){_photo=cur||'';return `<label>Photo</label><div class="photo-pick mb">
@@ -985,6 +991,19 @@ function saveAbout(){DB.settings.about=$('#wb_about').value.trim();save();toast(
 
 /* ===================== EVENTS GALLERY ===================== */
 const GAL_CATS=['Sports / Inter-house','Cultural Day','Graduation','Excursion','Prize-giving','Academic','Religious','Other'];
+function ytId(u){const m=(u||'').match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/))([\w-]{11})/);return m?m[1]:'';}
+function vimeoId(u){const m=(u||'').match(/vimeo\.com\/(?:video\/)?(\d+)/);return m?m[1]:'';}
+function isFb(u){return /facebook\.com|fb\.watch|fb\.me/i.test(u||'');}
+function videoEmbedSrc(u){const y=ytId(u);if(y)return 'https://www.youtube.com/embed/'+y+'?autoplay=1&rel=0';const v=vimeoId(u);if(v)return 'https://player.vimeo.com/video/'+v+'?autoplay=1';
+  if(isFb(u))return 'https://www.facebook.com/plugins/video.php?href='+encodeURIComponent(u)+'&show_text=false&autoplay=true';return '';}
+function videoThumb(u){const y=ytId(u);return y?'https://img.youtube.com/vi/'+y+'/hqdefault.jpg':'';}
+function playVideo(u){const src=videoEmbedSrc(u);const inner=src?`<div style="position:relative;padding-bottom:56.25%;height:0"><iframe src="${src}" style="position:absolute;inset:0;width:100%;height:100%;border:0;border-radius:8px" allow="autoplay;encrypted-media;picture-in-picture" allowfullscreen></iframe></div>`:`<video controls autoplay src="${esc(u)}" style="width:100%;border-radius:8px"></video>`;
+  modal('Video',inner,`<button class="btn sec" onclick="closeModal()">Close</button>`,true);}
+function mediaTile(m,albumId,i,admin){const del=admin?`<button class="btn icon" style="position:absolute;top:4px;right:4px;background:#fff;z-index:3" onclick="event.stopPropagation();delMedia('${albumId}',${i})">✕</button>`:'';
+  if(m.type==='image')return `<div class="card" style="overflow:hidden;position:relative">${del}<img src="${m.url}" style="width:100%;height:140px;object-fit:cover"></div>`;
+  const th=videoThumb(m.url);const fb=isFb(m.url);
+  const ph=th?`<img src="${th}" style="width:100%;height:100%;object-fit:cover">`:(fb?'<div style="height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#1877f2,#0b5fce);color:#fff"><div style="font-size:30px;font-weight:800">f</div><div style="font-size:10px;letter-spacing:.05em">FACEBOOK VIDEO</div></div>':'<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:34px;background:#000;color:#fff">🎬</div>');
+  return `<div class="card vtile" onclick="playVideo('${jq(m.url)}')">${ph}<div class="vplay"><span>▶</span></div>${del}</div>`;}
 function vGallery(){
   $('#view').innerHTML=`<div class="page-head"><div><h2>🖼️ Events Gallery</h2><p>Photos & videos of school activities</p></div><button class="btn" onclick="editAlbum()">＋ Add activity / album</button></div>
   <div id="galArea"></div>`;renderGallery();
@@ -1008,15 +1027,13 @@ function saveAlbum(id){const t=$('#al_title').value.trim();if(!t){toast('Title r
 function openAlbum(id){const a=DB.gallery.find(x=>x.id===id);
   modal(a.title,`<div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div><span class="pill grey">${esc(a.category||'')}</span> <span class="muted" style="font-size:12px">${esc(a.date||'')}</span><div class="muted" style="font-size:12.5px;margin-top:4px">${esc(a.desc||'')}</div></div>
     <div class="flex gap"><button class="btn sm sec" onclick="addPhoto('${id}')">⬆ Add photo</button><button class="btn sm sec" onclick="addVideo('${id}')">🎬 Add video link</button><button class="btn sm sec" onclick="editAlbum('${id}')">Edit</button><button class="btn icon" onclick="delAlbum('${id}')">🗑️</button></div></div>
-    <div class="cards-row mt" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${(a.media||[]).map((m,i)=>`<div class="card" style="overflow:hidden;position:relative">
-      ${m.type==='image'?`<img src="${m.url}" style="width:100%;height:130px;object-fit:cover">`:`<a href="${esc(m.url)}" target="_blank" style="display:flex;height:130px;align-items:center;justify-content:center;font-size:34px;text-decoration:none">🎬</a>`}
-      <button class="btn icon" style="position:absolute;top:4px;right:4px;background:#fff" onclick="delMedia('${id}',${i})">✕</button>
-      ${m.type==='video'?`<div class="muted" style="font-size:11px;padding:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.url)}</div>`:''}</div>`).join('')||'<p class="muted">No media yet. Add photos or a video link.</p>'}</div>`,
+    <div class="cards-row mt" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${(a.media||[]).map((m,i)=>mediaTile(m,id,i,true)).join('')||'<p class="muted">No media yet. Add photos or a video link.</p>'}</div>`,
     `<button class="btn sec" onclick="closeModal()">Close</button>`,true);}
 function addPhoto(id){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;
   inp.onchange=()=>{const files=[...inp.files];let done=0;files.forEach(f=>{const r=new FileReader();r.onload=e=>compress(e.target.result,d=>{const a=DB.gallery.find(x=>x.id===id);a.media=a.media||[];a.media.push({type:'image',url:d});done++;if(done===files.length){save();openAlbum(id);toast(files.length+' photo(s) added');}},760,.6);r.readAsDataURL(f);});};
   inp.click();}
-function addVideo(id){modal('Add video link',`<div class="fld"><label>Video URL (YouTube, etc.)</label><input id="vid_url" placeholder="https://youtu.be/…"></div><p class="muted" style="font-size:12px">Paste a link rather than uploading — video files are too large to store.</p>`,
+function addVideo(id){modal('Add video link',`<div class="fld"><label>Video URL</label><input id="vid_url" placeholder="https://facebook.com/… or https://youtu.be/…"></div>
+  <p class="muted" style="font-size:12px">Works with <b>Facebook</b>, YouTube and Vimeo links. ⚠ Facebook videos must be set to <b>Public</b> on Facebook to play here. Paste a link rather than uploading (video files are too large to store).</p>`,
   `<button class="btn sec" onclick="openAlbum('${id}')">Cancel</button><button class="btn" onclick="saveVideo('${id}')">Add</button>`);}
 function saveVideo(id){const u=$('#vid_url').value.trim();if(!u){toast('URL required',true);return;}const a=DB.gallery.find(x=>x.id===id);a.media=a.media||[];a.media.push({type:'video',url:u});save();openAlbum(id);toast('Video added');}
 function delMedia(id,i){const a=DB.gallery.find(x=>x.id===id);a.media.splice(i,1);save();openAlbum(id);}
@@ -1403,7 +1420,7 @@ function renderSchoolHome(){
     <div class="home-top"><div class="b"><div class="lg" style="background:${t.rg}1a">${logoTop}</div><div><b style="font-size:15px">${esc(set.schoolName)}</b>${set.shortName?`<div class="muted" style="font-size:11px">(${esc(set.shortName)})</div>`:''}</div></div>
       <div class="flex gap">${set.onlineAdmission?`<button class="btn gold sm" onclick="applyOnline()">Apply</button>`:''}<button class="btn sec sm" onclick="MODE='check';renderChecker()">Check Result</button><button class="btn sm" style="background:${t.rg}" onclick="staffLoginModal()">Staff Login</button></div></div>
     <div class="home-hero" style="position:relative;${heroes.length?'':`background:linear-gradient(135deg,${t.rg},${t.rgd})`}">${heroBg}
-      <div style="position:relative">${set.islamic?`<div class="bismillah" style="color:${t.gold};font-size:17px;margin-bottom:8px">${BISMILLAH.a}</div>`:''}
+      <div style="position:relative"><div class="hero-crest">${logoTop}</div>${set.islamic?`<div class="bismillah" style="color:${t.gold};font-size:17px;margin-bottom:8px">${BISMILLAH.a}</div>`:''}
       <h1>${esc(set.schoolName)}</h1><div style="opacity:.92;max-width:620px;margin:0 auto">${esc(set.motto||'Welcome to our school')}</div>
       <div style="margin-top:14px;font-size:13px;opacity:.88">📍 ${esc(set.address||'')}${set.phone?' · ☎ '+esc(set.phone):''}</div>
       ${set.onlineAdmission?`<button class="btn gold mt" onclick="applyOnline()">📝 Apply for Admission</button>`:''}</div></div>
@@ -1446,7 +1463,7 @@ function staffLoginModal(){const set=DB.settings;
 }
 function publicAlbum(id){const a=DB.gallery.find(x=>x.id===id);if(!a)return;
   modal(a.title,`<div><span class="pill grey">${esc(a.category||'')}</span> <span class="muted" style="font-size:12px">${esc(a.date||'')}</span>${a.desc?`<div class="muted" style="font-size:12.5px;margin-top:4px">${esc(a.desc)}</div>`:''}</div>
-    <div class="cards-row mt" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${(a.media||[]).map(m=>m.type==='image'?`<div class="card" style="overflow:hidden"><img src="${m.url}" style="width:100%;height:140px;object-fit:cover"></div>`:`<a class="card" href="${esc(m.url)}" target="_blank" style="display:flex;height:140px;align-items:center;justify-content:center;font-size:34px;text-decoration:none">🎬</a>`).join('')||'<p class="muted">No media.</p>'}</div>`,
+    <div class="cards-row mt" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${(a.media||[]).map((m,i)=>mediaTile(m,id,i,false)).join('')||'<p class="muted">No media.</p>'}</div>`,
     `<button class="btn sec" onclick="closeModal()">Close</button>`,true);}
 function ownerLogin(){const u=$('#ou').value.trim().toLowerCase(),p=$('#op').value;const o=MASTER.platform.owner;
   if(u===o.username.toLowerCase()&&p===o.password){USER={name:o.name,role:'owner'};enterApp();}else{$('#aerr').style.display='block';$('#aerr').textContent='Invalid owner credentials.';}}
