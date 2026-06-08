@@ -371,6 +371,8 @@ tbody tr:hover{background:#fafbfa}
 .podium .blk .m{font-size:26px}.podium .blk .pts{font-size:13px;opacity:.95}
 .hscore td input{border-color:#e2e8e4}
 .hwk-now{background:var(--gold)!important;color:#3a2c05!important}
+.ayah{font-family:'Amiri','Traditional Arabic','Scheherazade',serif;font-size:21px;direction:rtl;text-align:right;line-height:2.1}
+.ayah-ans{font-family:'Amiri','Traditional Arabic',serif;font-size:17px;direction:rtl;text-align:right;color:var(--green-dark);border-right:3px solid var(--rgold,#caa64e);padding-right:8px;margin-top:4px}
 @media(max-width:760px){.rc-info{flex-wrap:wrap}.rc-fields{grid-template-columns:1fr 1fr}.rc-two,.rc-comments{grid-template-columns:1fr}}
 </style>
 </head>
@@ -460,6 +462,10 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(!Array.isArray(d.houses))d.houses=[];
   if(!Array.isArray(d.houseActivities))d.houseActivities=[{id:'a_debate',name:'Debate Competition'},{id:'a_quiz',name:'Quiz Competition'},{id:'a_football',name:'Football'}];
   if(!d.houseScores||typeof d.houseScores!=='object')d.houseScores={};
+  if(!Array.isArray(d.quranLevels))d.quranLevels=[{id:'l_half',name:'Half-Hizb',cap:1},{id:'l1',name:'1 Hizb',cap:1},{id:'l2',name:'2 Hizb',cap:2},{id:'l5',name:'5 Hizb',cap:5},{id:'l10',name:'10 Hizb',cap:10},{id:'l20',name:'20 Hizb',cap:20},{id:'l30',name:'30 Hizb',cap:30},{id:'l60',name:'60 Hizb',cap:60}];
+  if(!Array.isArray(d.quranQuestions))d.quranQuestions=[];
+  if(!d.quranScores||typeof d.quranScores!=='object')d.quranScores={};
+  if(d.settings.quranQPerStudent==null)d.settings.quranQPerStudent=5;
   ['users','classes','students','payments','applicants'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
   ['subjects','attendance','results','fees','remarks'].forEach(k=>{if(!d[k]||typeof d[k]!=='object')d[k]={};});
   d.classes.forEach(c=>{if(!d.subjects[c.id])d.subjects[c.id]=c.name.startsWith('Nursery')?[...NURSERY_SUBJECTS]:[...PRIMARY_SUBJECTS];});return d;}
@@ -516,7 +522,7 @@ function gradeOf(t){if(t>=75)return{g:'A',r:'Distinction'};if(t>=65)return{g:'B'
 const THEMES={green:{n:'Green & Gold',rg:'#0b5e3a',rgd:'#08482c',gold:'#caa64e'},blue:{n:'Royal Blue & Gold',rg:'#15366e',rgd:'#0f2750',gold:'#d4af37'},maroon:{n:'Maroon & Gold',rg:'#6e1f2a',rgd:'#54141d',gold:'#d4af37'},teal:{n:'Teal & Gold',rg:'#0c5b56',rgd:'#084540',gold:'#c9a24b'},purple:{n:'Purple & Gold',rg:'#4a2a6e',rgd:'#371f52',gold:'#d4af37'}};
 function theme(){return THEMES[(DB&&DB.settings&&DB.settings.theme)||'green']||THEMES.green;}
 function themeVars(){const t=theme();return `--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}`;}
-const MODULES=[['gradPry5','Graduate at Primary 5'],['staffAttendance','Staff attendance & charges'],['weeks','School weeks (inspection basis)'],['lessonPlans','Lesson plans (manual + AI draft)'],['houses','Houses & activities (coming)'],['quran','Qur’an competition (coming)']];
+const MODULES=[['gradPry5','Graduate at Primary 5'],['staffAttendance','Staff attendance & charges'],['weeks','School weeks (inspection basis)'],['lessonPlans','Lesson plans (manual + AI draft)'],['houses','Houses & activities'],['quran','Qur’an competition']];
 function hasModule(m){return !!(DB&&DB.settings&&DB.settings.modules&&DB.settings.modules[m]);}
 function gradClassName(){return (DB.settings.modules&&DB.settings.modules.gradPry5)?'Primary 5':'Primary 6';}
 function termWeeks(){return Number(DB.settings.termWeeks)||13;}
@@ -539,7 +545,7 @@ function copyText(t){navigator.clipboard&&navigator.clipboard.writeText(t).then(
 function modal(title,body,foot,big){$('#modal').className='modal'+(big?' lg':'');
   $('#modal').innerHTML=`<div class="modal-head"><h3>${esc(title)}</h3><button class="x" onclick="closeModal()">×</button></div>
     <div class="modal-body">${body}</div>${foot?`<div class="modal-foot">${foot}</div>`:''}`;$('#modalBg').classList.add('open');}
-function closeModal(){stopCam();$('#modalBg').classList.remove('open');}
+function closeModal(){stopCam();if(window.stopAyah)stopAyah();$('#modalBg').classList.remove('open');}
 $('#modalBg').addEventListener('click',e=>{if(e.target===$('#modalBg'))closeModal();});
 let _photo='',_camStream=null;
 function photoField(cur){_photo=cur||'';return `<label>Photo</label><div class="photo-pick mb">
@@ -858,6 +864,156 @@ function setStaffAtt(uid,st){const ch=DB.settings.charges||{late:200,absent:500}
 function setStaffReason(uid,v){const r=(DB.staffAtt[staffDate]||{})[uid];if(r){r.reason=v;save();}}
 function staffDecision(uid,dec){const r=(DB.staffAtt[staffDate]||{})[uid];if(r){r.decision=dec;save();vStaffAtt();}}
 
+/* ===================== QUR'AN COMPETITION ===================== */
+let qTab='levels',qFilterHizb='',QURAN=null;
+function quranLoaded(){return Array.isArray(QURAN)&&QURAN.length>6000&&QURAN[0]&&QURAN[0].g;}
+function loadQuranCache(){if(quranLoaded())return;try{const c=JSON.parse(localStorage.getItem('quran_uthmani_v2'));if(Array.isArray(c)&&c.length>6000&&c[0].g)QURAN=c;}catch(e){}}
+const RECITERS=[{id:'ar.alafasy',name:'Mishary Al-Afasy',br:128},{id:'ar.husary',name:'Mahmoud Al-Husary',br:128},{id:'ar.husarymujawwad',name:'Al-Husary (Mujawwad)',br:128},{id:'ar.minshawi',name:'Al-Minshawi',br:128},{id:'ar.abdulbasitmurattal',name:'Abdul-Basit (Murattal)',br:128},{id:'ar.abdurrahmaansudais',name:'Abdur-Rahman As-Sudais',br:192},{id:'ar.mahermuaiqly',name:'Maher Al-Muaiqly',br:128},{id:'ar.shaatree',name:'Abu Bakr Ash-Shaatri',br:128}];
+function curReciter(){return RECITERS.find(r=>r.id===(DB.settings.quranReciter||'ar.alafasy'))||RECITERS[0];}
+function ayahAudio(g){const r=curReciter();return 'https://cdn.islamic.network/quran/audio/'+r.br+'/'+r.id+'/'+g+'.mp3';}
+let _qAudio=null;
+function playAyah(g){try{if(_qAudio){_qAudio.pause();}_qAudio=new Audio(ayahAudio(g));_qAudio.play().catch(()=>toast('Audio needs internet (plays offline once cached).',true));toast('▶ Playing ayah…');}catch(e){toast('Could not play audio',true);}}
+function stopAyah(){if(_qAudio){_qAudio.pause();_qAudio=null;}}
+async function fetchQuran(){
+  toast('Downloading the Qur’an… (one-time)');
+  try{const r=await fetch('https://api.alquran.cloud/v1/quran/quran-uthmani');const j=await r.json();
+    if(!j||!j.data||!j.data.surahs)throw 0;
+    const arr=[];j.data.surahs.forEach(su=>su.ayahs.forEach(ay=>arr.push({g:ay.number,s:su.number,sn:su.englishName,a:ay.numberInSurah,h:Math.ceil(ay.hizbQuarter/4),t:ay.text})));
+    QURAN=arr;try{localStorage.setItem('quran_uthmani_v2',JSON.stringify(arr));}catch(e){toast('Loaded (too large to cache offline)',true);}
+    toast('Qur’an loaded — '+arr.length+' ayat across 60 Hizb');if(qTab==='levels')qRenderLevels();else if(qTab==='compete')qRenderCompete();
+  }catch(e){toast('Could not download the Qur’an. Check internet, then retry.',true);}
+}
+function quranDir(){return DB.settings.quranDir||'end';}
+function levelHizbRange(l){const cap=l.cap;return quranDir()==='begin'?[1,cap]:[61-cap,60];}
+function reciteCandidates(l){if(!quranLoaded())return [];const[lo,hi]=levelHizbRange(l);const c=[];
+  for(let i=0;i<QURAN.length-1;i++){const x=QURAN[i],y=QURAN[i+1];if(x.h>=lo&&x.h<=hi&&y.s===x.s)c.push(i);}return c;}
+function reciteSheet(s){const l=qLevelOf(s);if(!l||!quranLoaded())return [];const cand=reciteCandidates(l);const n=DB.settings.quranQPerStudent||5;
+  const picks=[],used={};let guard=0;while(picks.length<Math.min(n,cand.length)&&guard++<n*40){const idx=cand[Math.floor(Math.random()*cand.length)];if(used[idx])continue;used[idx]=1;const x=QURAN[idx],y=QURAN[idx+1];picks.push({prompt:x,answer:y});}return picks;}
+function qLevel(id){return DB.quranLevels.find(l=>l.id===id);}
+function qLevelOf(s){return s.quranLevel?qLevel(s.quranLevel):null;}
+function qStudents(levelId){return DB.students.filter(s=>!s.graduated&&s.quranLevel===levelId).sort((a,b)=>a.name.localeCompare(b.name));}
+function qScoreKey(sid){return DB.settings.session+'|'+DB.settings.term+'|'+sid;}
+function bankForLevel(l){if(!l)return [];const[lo,hi]=levelHizbRange(l);return DB.quranQuestions.filter(q=>Number(q.hizb)>=lo&&Number(q.hizb)<=hi);}
+function qEligible(s){return bankForLevel(qLevelOf(s));}
+function vQuran(){loadQuranCache();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>☪ Qur’an Competition</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)} — Hizb levels (1–60). All pupils participate.</p></div></div>
+  <div class="subtabs">${[['levels','Levels & Pupils'],['bank','Question Bank'],['compete','Competition'],['results','Results 🏆']].map(([k,l])=>`<button class="subtab${qTab===k?' active':''}" onclick="qTab='${k}';vQuran()">${l}</button>`).join('')}</div>
+  <div id="qArea"></div>`;
+  ({levels:qRenderLevels,bank:qRenderBank,compete:qRenderCompete,results:qRenderResults}[qTab]||qRenderLevels)();
+}
+function qRenderLevels(){
+  const unassigned=DB.students.filter(s=>!s.graduated&&!s.quranLevel).length;
+  $('#qArea').innerHTML=`<div class="card pad mb"><div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
+      <div><b>📖 Qur’an text:</b> ${quranLoaded()?`<span class="pill green">Loaded (${QURAN.length} ayat, 60 Hizb)</span>`:'<span class="pill amber">Not loaded</span> — load it to auto-generate recitation questions'}</div>
+      <button class="btn ${quranLoaded()?'sec':''} sm" onclick="fetchQuran()">${quranLoaded()?'↻ Reload':'⬇ Load Qur’an (one-time)'}</button></div>
+    <div class="flex gap mt" style="align-items:center"><label style="margin:0">Memorisation counts:</label>
+      <select onchange="DB.settings.quranDir=this.value;save();qRenderLevels()" style="max-width:280px">
+        <option value="end" ${quranDir()==='end'?'selected':''}>From the end — Juz’ Amma first (Hizb 60 → 1)</option>
+        <option value="begin" ${quranDir()==='begin'?'selected':''}>From the beginning — Al-Baqarah first (Hizb 1 → 60)</option></select></div>
+    <p class="muted mt" style="font-size:12px">A level covers its Hizb range automatically, e.g. “5 Hizb” = ${quranDir()==='end'?'Hizb 56–60':'Hizb 1–5'}.</p></div>
+  <div class="cards-row">${DB.quranLevels.map(l=>{const[lo,hi]=levelHizbRange(l);return `<div class="stat"><div class="lbl">${esc(l.name)}</div><div class="num">${qStudents(l.id).length}</div><div class="meta">Hizb ${lo}–${hi}</div></div>`;}).join('')}</div>
+  ${unassigned?`<div class="viewonly mb">⚠ ${unassigned} pupil(s) not yet placed in a Hizb level. Assign them below.</div>`:''}
+  <div class="card pad"><div class="flex" style="justify-content:space-between"><h3>Assign pupils to levels</h3><span class="muted" style="font-size:12px">Use ⬆ to upgrade a pupil to the next level when they complete it.</span></div>
+  <div class="t-wrap mt"><table><thead><tr><th>Pupil</th><th>Class</th><th>Hizb Level</th><th></th></tr></thead><tbody>
+  ${DB.students.filter(s=>!s.graduated).sort((a,b)=>a.name.localeCompare(b.name)).map(s=>`<tr><td><b>${esc(s.name)}</b></td><td class="muted">${esc(className(s.classId))}</td>
+    <td><select onchange="setQLevel('${s.id}',this.value)"><option value="">— not set —</option>${DB.quranLevels.map(l=>`<option value="${l.id}" ${s.quranLevel===l.id?'selected':''}>${esc(l.name)}</option>`).join('')}</select></td>
+    <td class="right"><button class="btn sm sec" title="Upgrade to next level" onclick="upgradeQ('${s.id}')">⬆ Upgrade</button></td></tr>`).join('')}
+  </tbody></table></div></div>`;
+}
+function setQLevel(sid,lid){const s=DB.students.find(x=>x.id===sid);if(lid)s.quranLevel=lid;else delete s.quranLevel;save();}
+function upgradeQ(sid){const s=DB.students.find(x=>x.id===sid);const order=DB.quranLevels;const i=order.findIndex(l=>l.id===s.quranLevel);
+  if(i<0){s.quranLevel=order[0].id;}else if(i+1<order.length){s.quranLevel=order[i+1].id;}else{toast('Already at highest level',true);return;}
+  save();qRenderLevels();toast(s.name.split(' ')[0]+' upgraded to '+qLevel(s.quranLevel).name);}
+function qRenderBank(){
+  let list=DB.quranQuestions.slice();if(qFilterHizb)list=list.filter(q=>String(q.hizb)===String(qFilterHizb));
+  list.sort((a,b)=>a.hizb-b.hizb);
+  $('#qArea').innerHTML=`<div class="toolbar"><button class="btn" onclick="editQuestion()">＋ Add question</button>
+    <div><label>Filter by Hizb</label><select onchange="qFilterHizb=this.value;qRenderBank()"><option value="">All Hizb</option>${Array.from({length:60},(_,i)=>i+1).map(n=>`<option value="${n}" ${String(qFilterHizb)===String(n)?'selected':''}>Hizb ${n}</option>`).join('')}</select></div>
+    <span class="pill grey">${DB.quranQuestions.length} question(s) total</span></div>
+  ${list.length?`<div class="t-wrap"><table><thead><tr><th>Hizb</th><th>Question</th><th>Answer</th><th></th></tr></thead><tbody>
+    ${list.map(q=>`<tr><td class="center"><b>${q.hizb}</b></td><td>${esc(q.text)}</td><td class="muted">${esc(q.answer||'—')}</td>
+      <td class="right" style="white-space:nowrap"><button class="btn icon" onclick="editQuestion('${q.id}')">✏️</button><button class="btn icon" onclick="delQuestion('${q.id}')">🗑️</button></td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">📖</div>No questions yet. Add questions tagged by their Hizb number.</div></div>`}`;
+}
+function editQuestion(id){const q=id?DB.quranQuestions.find(x=>x.id===id):{hizb:qFilterHizb||1};
+  modal(id?'Edit question':'Add question',`<div class="grid2">
+    <div class="fld"><label>Hizb (1–60) *</label><input id="q_hizb" type="number" min="1" max="60" value="${q.hizb||1}"></div></div>
+    <div class="fld"><label>Question *</label><textarea id="q_text" rows="2" placeholder="e.g. Recite the next verse after… / Which Surah contains…">${esc(q.text||'')}</textarea></div>
+    <div class="fld"><label>Answer / note (for examiner, optional)</label><textarea id="q_ans" rows="2">${esc(q.answer||'')}</textarea></div>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveQuestion('${id||''}')">Save</button>`);}
+function saveQuestion(id){const hizb=Math.max(1,Math.min(60,Number($('#q_hizb').value)||1));const text=$('#q_text').value.trim();if(!text){toast('Question required',true);return;}
+  const obj={hizb,text,answer:$('#q_ans').value.trim()};if(id)Object.assign(DB.quranQuestions.find(x=>x.id===id),obj);else{obj.id=uid('q');DB.quranQuestions.push(obj);}
+  save();closeModal();qRenderBank();toast('Question saved');}
+function delQuestion(id){DB.quranQuestions=DB.quranQuestions.filter(x=>x.id!==id);save();qRenderBank();toast('Question removed');}
+function qRenderCompete(){
+  const n=DB.settings.quranQPerStudent||5;const src=DB.settings.quranSource||(quranLoaded()?'recite':'bank');
+  $('#qArea').innerHTML=`<div class="card pad mb" style="max-width:640px"><div class="grid2">
+      <div class="fld"><label>Questions per pupil</label><input id="q_per" type="number" min="1" value="${n}"></div>
+      <div class="fld"><label>Question source</label><select id="q_src"><option value="recite" ${src==='recite'?'selected':''}>Recitation — auto from Qur’an</option><option value="bank" ${src==='bank'?'selected':''}>Typed question bank</option></select></div>
+      <div class="fld full"><label>Reciter (for ▶ audio)</label><select id="q_reciter">${RECITERS.map(r=>`<option value="${r.id}" ${curReciter().id===r.id?'selected':''}>${esc(r.name)}</option>`).join('')}</select>
+        <button type="button" class="btn sec sm mt" onclick="DB.settings.quranReciter=document.getElementById('q_reciter').value;playAyah(1)">▶ Preview</button></div>
+    </div><button class="btn sec sm" onclick="setQCompete()">Save</button>
+    ${src==='recite'&&!quranLoaded()?'<p class="viewonly mt">⚠ Load the Qur’an text on the <b>Levels</b> tab first to use recitation questions.</p>':''}</div>
+  <div class="card pad"><h3 class="mb">Generate question sheets</h3>
+    <p class="muted mb">Each pupil gets <b>${n}</b> ${src==='recite'?'<b>recitation prompt(s)</b> — a verse to continue — drawn from the Hizb within their level':'question(s) from the typed bank within their level'}. The examiner answer key is included.</p>
+    <div class="t-wrap"><table><thead><tr><th>Level</th><th class="center">Pupils</th><th class="center">Available</th><th></th></tr></thead><tbody>
+    ${DB.quranLevels.map(l=>{const pupils=qStudents(l.id);if(!pupils.length)return '';const avail=src==='recite'?reciteCandidates(l).length:bankForLevel(l).length;return `<tr><td><b>${esc(l.name)}</b></td><td class="center">${pupils.length}</td><td class="center">${avail}</td>
+      <td class="right"><button class="btn sm ${avail<1?'sec':''}" onclick="printSheets('${l.id}')">🖨 Sheets for level</button></td></tr>`;}).join('')||'<tr><td colspan=4 class="muted center">No pupils assigned to levels yet.</td></tr>'}
+    </tbody></table></div>
+    <p class="muted mt" style="font-size:12px">If fewer items are available than the set number, all available are used. Each sheet is freshly randomised.</p></div>`;
+}
+function setQCompete(){DB.settings.quranQPerStudent=Math.max(1,Number($('#q_per').value)||1);DB.settings.quranSource=$('#q_src').value;if($('#q_reciter'))DB.settings.quranReciter=$('#q_reciter').value;save();qRenderCompete();toast('Saved');}
+function pickQs(s){const pool=qEligible(s).slice();const n=DB.settings.quranQPerStudent||5;for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}return pool.slice(0,n);}
+function sheetHead(s,l){const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';
+  return `<div class="rc-top"><div class="rc-bism">۞ ${BISMILLAH.a} ۞</div><div class="rc-head"><div class="rc-crest">${logo}</div><div class="rc-sch"><h2>${esc(DB.settings.schoolName)}</h2><div class="addr">${addrTel()}</div></div></div></div>
+    <div class="rc-title">✦ QUR’AN COMPETITION — QUESTION SHEET ✦</div>
+    <div class="rc-fields" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px 14px;padding:12px 18px 0"><div class="f"><span>Pupil</span><b>${esc(s.name)}</b></div><div class="f"><span>Level</span><b>${esc(l?l.name:'—')}</b></div><div class="f"><span>Term</span><b>${esc(DB.settings.term)}</b></div></div>`;}
+function sheetHTML(s){const l=qLevelOf(s);const src=DB.settings.quranSource||(quranLoaded()?'recite':'bank');
+  let body;
+  if(src==='recite'){const items=reciteSheet(s);
+    body=items.length?`<ol style="font-size:13px;padding-left:20px">${items.map(it=>`<li style="margin-bottom:12px">Continue the recitation from <b>(${esc(it.prompt.sn)} ${it.prompt.s}:${it.prompt.a}, Hizb ${it.prompt.h})</b>
+      <button class="btn sm sec no-print" style="margin-left:6px" onclick="playAyah(${it.prompt.g})">▶ Play ayah</button>:
+      <div class="ayah">${esc(it.prompt.t)}</div>
+      <div class="ayah-ans">الإجابة: ${esc(it.answer.t)} <span style="font-size:11px;color:#888">(${esc(it.answer.sn)} ${it.answer.s}:${it.answer.a})</span> <button class="btn sm sec no-print" onclick="playAyah(${it.answer.g})">▶ Play answer</button></div></li>`).join('')}</ol>`
+      :'<p class="muted">No recitation items available for this level. Load the Qur’an text and check the level’s Hizb range.</p>';
+  }else{const qs=pickQs(s);
+    body=qs.length?`<ol style="font-size:13px;padding-left:20px">${qs.map(q=>`<li style="margin-bottom:8px"><b>(Hizb ${q.hizb})</b> ${esc(q.text)}${q.answer?`<div class="muted" style="font-size:11px;border-left:2px solid var(--rgold);padding-left:8px;margin-top:3px">Answer: ${esc(q.answer)}</div>`:''}</li>`).join('')}</ol>`
+      :'<p class="muted">No eligible questions in the bank for this level yet.</p>';}
+  return `<div class="rc" style="${themeVars()};margin-bottom:18px">${sheetHead(s,l)}<div style="padding:8px 18px 14px">${body}
+    <div class="rc-sign" style="padding:6px 0 0"><div><div class="ln">Examiner</div></div><div><div class="ln">Score: ____ / ____</div></div></div></div></div>`;}
+function printSheets(levelId){const pupils=qStudents(levelId);if(!pupils.length){toast('No pupils in this level',true);return;}
+  modal('Question Sheets — '+qLevel(levelId).name,pupils.map(s=>`<div style="page-break-after:always">${sheetHTML(s)}</div>`).join(''),
+  `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print all sheets</button>`,true);renderVisuals();}
+function qRenderResults(){
+  $('#qArea').innerHTML=`<p class="muted mb">Enter each pupil's competition score, then ranking is computed within each level (best to last). Generate certificates below.</p>
+  ${DB.quranLevels.filter(l=>qStudents(l.id).length).map(l=>{
+    const rows=qStudents(l.id).map(s=>({s,score:Number(DB.quranScores[qScoreKey(s.id)])||0,has:DB.quranScores[qScoreKey(s.id)]!=null}));
+    const ranked=rows.slice().filter(r=>r.has).sort((a,b)=>b.score-a.score);ranked.forEach((r,i)=>r.pos=i+1);
+    return `<div class="card pad mb"><div class="flex" style="justify-content:space-between"><h3>${esc(l.name)} <span class="muted" style="font-size:12px">(${rows.length} pupils)</span></h3>
+      <button class="btn sm gold" onclick="printQCerts('${l.id}')">🏅 Certificates</button></div>
+    <div class="t-wrap mt"><table><thead><tr><th>Pupil</th><th class="center">Score</th><th class="center">Position</th></tr></thead><tbody>
+    ${rows.map(r=>`<tr><td><b>${esc(r.s.name)}</b></td><td class="center"><input class="score-in" type="number" value="${r.has?r.score:''}" onchange="setQScore('${r.s.id}',this.value)"></td>
+      <td class="center">${r.pos?(r.pos<=5?['🥇','🥈','🥉','4th','5th'][r.pos-1]:ord(r.pos)):'—'}</td></tr>`).join('')}
+    </tbody></table></div></div>`;}).join('')||'<div class="card"><div class="empty">Assign pupils to levels first.</div></div>'}`;
+}
+function setQScore(sid,val){const k=qScoreKey(sid);if(val==='')delete DB.quranScores[k];else DB.quranScores[k]=Number(val);save();qRenderResults();}
+function printQCerts(levelId){const l=qLevel(levelId);const rows=qStudents(levelId).map(s=>({s,score:Number(DB.quranScores[qScoreKey(s.id)])||0,has:DB.quranScores[qScoreKey(s.id)]!=null}));
+  const ranked=rows.slice().filter(r=>r.has).sort((a,b)=>b.score-a.score);ranked.forEach((r,i)=>r.pos=i+1);
+  const posOf={};ranked.forEach(r=>posOf[r.s.id]=r.pos);
+  if(!rows.length){toast('No pupils',true);return;}
+  modal('Qur’an Certificates — '+l.name,rows.map(r=>qCertHTML(r.s,l,r.score,posOf[r.s.id])).join(''),
+  `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print all</button>`,true);}
+function qCertHTML(s,l,score,pos){const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';const top5=pos&&pos<=5;const ord5=pos?ord(pos):'';
+  return `<div class="cert" style="page-break-after:always">${s.photo?`<img class="cpass" src="${s.photo}">`:''}
+    <div class="lg">${logo}</div><h1>${esc(DB.settings.schoolName)}</h1><div class="sub2">${addrTel()}</div>
+    <div style="font-family:'Amiri',serif;font-size:18px;color:var(--green-dark);direction:rtl;margin:4px 0">۞ ${BISMILLAH.a} ۞</div>
+    <div class="ttl">Qur’an Competition — Certificate ${top5?'of Excellence':'of Participation'}</div>
+    <p>This is to certify that</p><div class="nm">${esc(s.name)}</div>
+    <p>participated in the Qur’an Competition (<b>${esc(l.name)}</b> level) for <b>${esc(DB.settings.term)}, ${esc(DB.settings.session)}</b>${score?` and scored <b>${score}</b>`:''}${top5?`, finishing in <b>${ord5} position</b>`:''}.</p>
+    <p style="font-style:italic;color:#5a6b62">“The best of you are those who learn the Qur’an and teach it.” — Hadith, Bukhari</p>
+    <p>Awarded this ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}.</p>
+    <div class="crow"><div class="line">Mu’allim / Examiner</div><div class="seal">★</div><div class="line">Head Teacher</div></div></div>`;}
+
 /* ===================== HOUSES & ACTIVITIES ===================== */
 const INSPECT_WEEKS=[3,4,5,6,7,8,9];
 let houseTab='houses';
@@ -1115,6 +1271,7 @@ function buildNav(){
   else if(USER.role==='admin'){items=[['dashboard','📊','Dashboard'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👩‍🏫','Teachers'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['calendar','🗓️','Calendar'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
     if(hasModule('staffAttendance'))items.splice(7,0,['staffatt','👔','Staff Att.']);
     if(hasModule('houses'))items.push(['houses','🏠','Houses']);
+    if(hasModule('quran'))items.push(['quran','☪','Qur’an']);
     if(hasModule('lessonPlans'))items.push(['lessons','📚','Lesson Plans']);}
   else {items=[['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
     if(hasModule('lessonPlans'))items.splice(4,0,['lessons','📚','Lesson Plans']);}
@@ -1127,7 +1284,7 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
   const map={odash:vODash,schools:vSchools,pins:vPins,revenue:vRevenue,osettings:vOSettings,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
-    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses};
+    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran};
   (map[p]||vDashboard)();}
 
 /* ===================== OWNER: DASHBOARD ===================== */
