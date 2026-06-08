@@ -610,8 +610,9 @@ function approvedPaid(sid){return DB.payments.filter(p=>p.studentId===sid&&p.sta
 function appUrl(){return location.origin+location.pathname;}
 // Pretty path links (need Netlify _redirects). Fall back to ?s= if opened from a file.
 function prettyOK(){return location.protocol==='http:'||location.protocol==='https:';}
-function schoolLink(code){return prettyOK()?location.origin+'/'+code.toLowerCase():appUrl()+'?s='+encodeURIComponent(code);}
-function checkLink(code){return prettyOK()?location.origin+'/'+code.toLowerCase()+'/check':appUrl()+'?s='+encodeURIComponent(code)+'&check=1';}
+function schoolDomain(code){const reg=MASTER&&MASTER.schools&&MASTER.schools.find(s=>s.code===code);let dom=(reg&&reg.domain)||(STORE[code]&&STORE[code].settings&&STORE[code].settings.domain)||'';return dom?dom.replace(/^https?:\/\//,'').replace(/\/.*$/,'').replace(/^www\./i,'').trim():'';}
+function schoolLink(code){const dom=schoolDomain(code);if(dom)return 'https://'+dom+'/';return prettyOK()?location.origin+'/'+code.toLowerCase():appUrl()+'?s='+encodeURIComponent(code);}
+function checkLink(code){const dom=schoolDomain(code);if(dom)return 'https://'+dom+'/check';return prettyOK()?location.origin+'/'+code.toLowerCase()+'/check':appUrl()+'?s='+encodeURIComponent(code)+'&check=1';}
 function copyText(t){navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>toast('Link copied'),()=>toast('Copy failed',true));}
 
 /* ===================== MODAL & PHOTO ===================== */
@@ -1677,7 +1678,8 @@ function editSchool(code){
       <div class="fld"><label>School name *</label><input id="sc_name" value="${esc(reg?reg.name:'')}"></div>
       <div class="fld"><label>Short name / abbreviation</label><input id="sc_short" value="${esc(d?(d.settings.shortName||''):'')}" placeholder="e.g. SIST"></div>
       <div class="fld"><label>Link name / code *</label><input id="sc_code" value="${esc(code||'')}" ${code?'disabled':''} placeholder="e.g. greenfield" oninput="if($('#scLinkP'))$('#scLinkP').textContent=this.value.toLowerCase().replace(/[^a-z0-9-]/g,'')"></div>
-      <div class="fld full" style="margin-top:-6px"><span class="muted" style="font-size:12px">Link will be: <b>${esc(location.origin)}/</b><b id="scLinkP">${esc((code||'').toLowerCase())}</b> ${code?'(cannot change after creation)':''}</span></div>
+      <div class="fld full" style="margin-top:-6px"><span class="muted" style="font-size:12px">Default link: <b>${esc(location.origin)}/</b><b id="scLinkP">${esc((code||'').toLowerCase())}</b> ${code?'(cannot change after creation)':''}</span></div>
+      <div class="fld full"><label>Custom domain / subdomain (optional)</label><input id="sc_domain" value="${esc(d?(d.settings.domain||''):'')}" placeholder="e.g. greenfield.muscodes.com.ng or greenfieldschool.com"></div>
       <div class="fld full"><label>Full address *</label><input id="sc_addr" value="${esc(d?d.settings.address:'')}" placeholder="Street, town, state"></div>
       <div class="fld"><label>Phone number(s) *</label><input id="sc_phone" value="${esc(d?(d.settings.phone||''):'')}" placeholder="e.g. 0803 000 0000"></div>
       <div class="fld"><label>School email *</label><input id="sc_email" value="${esc(d?(d.settings.email||''):'')}" placeholder="info@school.com"></div>
@@ -1717,15 +1719,16 @@ function saveSchool(code){
   if(!phone||phone.replace(/\D/g,'').length<7){toast('A valid phone number is required',true);return;}
   if(!email||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('A valid school email is required',true);return;}
   if(ca1+ca2+exam!==100){toast('CA1+CA2+Exam must total 100',true);return;}
-  if(code){const reg=MASTER.schools.find(s=>s.code===code);reg.name=name;reg.status=$('#sc_status').value;
-    const d=STORE[code];Object.assign(d.settings,{schoolName:name,shortName:$('#sc_short').value.trim(),address:addr,phone,email,motto:$('#sc_motto').value.trim(),facebookUrl:($('#sc_fb')?$('#sc_fb').value.trim():d.settings.facebookUrl),logo:_logo,islamic:$('#sc_islamic').checked,theme:themeSel,modules:mods,
+  const domain=($('#sc_domain')?$('#sc_domain').value.trim().replace(/^https?:\/\//,'').replace(/\/.*$/,''):'');
+  if(code){const reg=MASTER.schools.find(s=>s.code===code);reg.name=name;reg.status=$('#sc_status').value;reg.domain=domain;
+    const d=STORE[code];Object.assign(d.settings,{schoolName:name,shortName:$('#sc_short').value.trim(),address:addr,phone,email,motto:$('#sc_motto').value.trim(),domain,facebookUrl:($('#sc_fb')?$('#sc_fb').value.trim():d.settings.facebookUrl),logo:_logo,islamic:$('#sc_islamic').checked,theme:themeSel,modules:mods,
       session:$('#sc_sess').value.trim(),term:$('#sc_term').value,status:$('#sc_status').value,grade:{ca1,ca2,exam,promote}});
     saveMaster();saveSchoolRow(code);closeModal();toast('School updated');manageSchool(code);return;}
   const newCode=$('#sc_code').value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,'').replace(/^-+|-+$/g,'');
   if(!newCode){toast('Code required',true);return;}
   if(MASTER.schools.some(s=>s.code===newCode)){toast('Code already exists',true);return;}
   const auser=$('#sc_auser').value.trim(),apass=$('#sc_apass').value.trim();if(!auser||!apass){toast('Admin login required',true);return;}
-  const d=seedSchool(newCode,name);Object.assign(d.settings,{shortName:$('#sc_short').value.trim(),address:addr,phone,email,motto:$('#sc_motto').value.trim(),facebookUrl:($('#sc_fb')?$('#sc_fb').value.trim():''),logo:_logo,islamic:$('#sc_islamic').checked,theme:themeSel,modules:mods,
+  const d=seedSchool(newCode,name);Object.assign(d.settings,{shortName:$('#sc_short').value.trim(),address:addr,phone,email,motto:$('#sc_motto').value.trim(),domain,facebookUrl:($('#sc_fb')?$('#sc_fb').value.trim():''),logo:_logo,islamic:$('#sc_islamic').checked,theme:themeSel,modules:mods,
     session:$('#sc_sess').value.trim(),term:$('#sc_term').value,status:$('#sc_status').value,grade:{ca1,ca2,exam,promote}});
   d.users[0].name=$('#sc_aname').value.trim()||'School Administrator';d.users[0].username=auser;d.users[0].password=apass;
   STORE[newCode]=d;MASTER.schools.push({code:newCode,name,status:$('#sc_status').value,createdAt:today()});
@@ -1744,6 +1747,7 @@ function manageSchool(code){
     <div class="linkbox mb"><code>${esc(schoolLink(code))}</code><button class="btn sm sec" onclick="copyText('${jq(schoolLink(code))}')">Copy</button></div>
     <label>Student result-checker link (school shares with pupils)</label>
     <div class="linkbox mb"><code>${esc(checkLink(code))}</code><button class="btn sm sec" onclick="copyText('${jq(checkLink(code))}')">Copy</button></div>
+    <div class="muted mb" style="font-size:12px">${schoolDomain(code)?`🌐 Custom domain: <b>${esc(schoolDomain(code))}</b> — point its DNS to your Netlify site (see steps in chat/guide), then add it in Netlify → Domain management.`:'No custom domain set. Add one in <b>Edit details</b> to use e.g. greenfield.yourdomain.com.'}</div>
     <p class="muted" style="font-size:12.5px">Grading ${d.settings.grade.ca1}/${d.settings.grade.ca2}/${d.settings.grade.exam} · ${esc(d.settings.term)}, ${esc(d.settings.session)}</p>
     <label>Staff logins (passwords visible — reset any)</label>
     <div class="t-wrap" style="margin-bottom:6px"><table><tbody>
@@ -2486,6 +2490,10 @@ async function boot(){
   // ensure master
   if(supa){await pullRow('__master__');}
   MASTER=STORE['__master__'];
+  // custom domain → school detection (when no ?s= and no path code)
+  if(!code&&MASTER&&MASTER.schools){const host=location.hostname.replace(/^www\./i,'').toLowerCase();
+    const m=MASTER.schools.find(s=>s.domain&&s.domain.replace(/^https?:\/\//,'').replace(/\/.*$/,'').replace(/^www\./i,'').toLowerCase()===host);
+    if(m){code=m.code;SCHOOL_CODE=code.toUpperCase();}}
   if(!MASTER){MASTER=seedMaster();STORE['__master__']=MASTER;saveStoreLocal();
     // also seed DEMO school
     if(!STORE['DEMO']){STORE['DEMO']=seedSchool('DEMO','Demo Nursery & Primary');saveStoreLocal();}
