@@ -372,18 +372,52 @@ tbody tr:hover{background:#fafbfa}
 .hscore td input{border-color:#e2e8e4}
 .hwk-now{background:var(--gold)!important;color:#3a2c05!important}
 .home{min-height:100vh;background:var(--bg)}
-.home-top{background:#fff;border-bottom:1px solid var(--line);padding:9px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;flex-wrap:wrap;gap:8px}
+.home-top{background:var(--rgd,#0a5e3a);color:#fff;padding:8px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;flex-wrap:wrap;gap:8px}
 .home-top .b{display:flex;align-items:center;gap:10px}
-.home-top .lg{width:44px;height:44px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;border:2px solid var(--rg,#0a7d33)}
+.home-top .b .nm{font-family:'Amiri','Traditional Arabic',serif;font-size:15px;color:#fff}
+.home-top .lg{width:40px;height:40px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;border:2px solid var(--rgold,#caa64e)}
 .home-top .lg img{width:100%;height:100%;object-fit:cover}
+.home-top .nav{display:flex;gap:3px;align-items:center;flex-wrap:wrap}
+.home-top .nav a{color:#fff;padding:7px 12px;border-radius:8px;font-size:13.5px;font-weight:600;text-decoration:none;cursor:pointer;display:inline-flex;align-items:center;gap:5px}
+.home-top .nav a:hover,.home-top .nav a.active{background:var(--rgold,#caa64e);color:#3a2c05}
+.home-top .nav a.login{background:var(--rgold,#caa64e);color:#3a2c05}
+@media(max-width:680px){.home-top{flex-direction:column;align-items:stretch}.home-top .nav{justify-content:center}.home-top .b .nm2{display:none}}
 .hero-crest{width:92px;height:92px;border-radius:50%;margin:0 auto 12px;background:#fff;border:3px solid var(--rgold,#caa64e);overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:42px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
 .hero-crest img{width:100%;height:100%;object-fit:cover}
 .vtile{height:140px;cursor:pointer;position:relative;overflow:hidden}
 .vplay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
 .vplay span{width:48px;height:48px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px}
 .home-top .btn{color:#fff}.home-top .btn.sec{color:var(--ink)}
-.home-hero{color:#fff;padding:48px 20px;text-align:center;overflow:hidden}
+.home-hero{color:#fff;padding:80px 20px;text-align:center;overflow:hidden}
 .hero-slide{position:absolute;inset:0;background-size:cover;background-position:center;transition:opacity 1.1s ease}
+.home-hero h1{font-size:42px;font-weight:800;letter-spacing:.01em}
+.home-hero .tag{color:var(--rgold,#caa64e);font-weight:700;font-size:18px;margin:6px 0 10px;letter-spacing:.04em}
+.home-hero .desc{opacity:.94;max-width:600px;margin:0 auto;font-size:15px;line-height:1.6}
+.home-hero .acts{margin-top:22px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.home-hero .acts .btn{padding:12px 22px;font-size:15px}
+.btn-ghost{background:transparent;border:2px solid rgba(255,255,255,.85);color:#fff}.btn-ghost:hover{background:rgba(255,255,255,.15)}
+@media(max-width:600px){.home-hero{padding:54px 16px}.home-hero h1{font-size:27px}.home-hero .tag{font-size:15px}}
+.sec-h{text-align:center;margin-bottom:26px}
+.sec-h h2{font-size:26px;color:var(--rg,#0a5e3a);font-weight:800}
+.sec-h .u{width:64px;height:3px;background:var(--rgold,#caa64e);margin:8px auto 6px;border-radius:3px}
+.sec-h p{color:var(--muted);font-size:13.5px}
+.sec-dark{color:#fff}.sec-dark .sec-h h2{color:#fff}.sec-dark .sec-h p{color:rgba(255,255,255,.8)}
+.about2{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center}
+.about2 .txt{font-size:14px;line-height:1.8;white-space:pre-line}
+.about2 img{width:100%;border-radius:10px;box-shadow:0 10px 26px rgba(0,0,0,.14)}
+.cv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;max-width:980px;margin:0 auto}
+.cv{text-align:center}.cv .i{font-size:42px;margin-bottom:8px;line-height:1}.cv h4{color:var(--rgold,#caa64e);font-size:16px;margin-bottom:5px}.cv p{font-size:12.5px;opacity:.92}
+.house-car{position:relative;border-radius:12px;overflow:hidden;height:300px;max-width:1000px;margin:0 auto;box-shadow:0 10px 30px rgba(0,0,0,.18)}
+.house-slide{position:absolute;inset:0;opacity:0;transition:opacity 1s ease;background-size:cover;background-position:center;display:flex;align-items:center;justify-content:center}
+.house-slide.on{opacity:1}
+.house-slide .cap{background:linear-gradient(transparent,rgba(0,0,0,.55));position:absolute;inset:0;display:flex;align-items:flex-end;justify-content:center;padding:24px}
+.house-slide .cap b{color:#fff;font-size:26px;font-weight:800;text-shadow:0 2px 10px rgba(0,0,0,.7)}
+.teachers-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:20px;max-width:920px;margin:0 auto}
+.tcard{background:#fff;border-radius:14px;padding:20px;text-align:center;box-shadow:0 8px 22px rgba(0,0,0,.18)}
+.tcard .ph{width:88px;height:88px;border-radius:50%;margin:0 auto 10px;overflow:hidden;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:36px}
+.tcard .ph img{width:100%;height:100%;object-fit:cover}
+.tcard b{color:var(--ink);font-size:14.5px}.tcard .role{color:var(--muted);font-size:12px;margin-top:4px}
+@media(max-width:760px){.cv-grid{grid-template-columns:1fr 1fr}.about2{grid-template-columns:1fr}.house-car{height:210px}}
 .home-hero h1{font-size:30px;margin-bottom:6px;line-height:1.15}
 .home-sec{max-width:1100px;margin:0 auto;padding:22px 18px}
 .home-sec h2{font-size:20px;margin-bottom:14px}
@@ -486,6 +520,10 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(!Array.isArray(d.settings.heroImages))d.settings.heroImages=[];
   if(d.settings.about==null)d.settings.about='';
   if(d.settings.onlineAdmission==null)d.settings.onlineAdmission=false;
+  if(d.settings.facebookUrl==null)d.settings.facebookUrl='';
+  if(d.settings.heroDesc==null)d.settings.heroDesc='A centre of excellence, nurturing disciplined and well-rounded leaders.';
+  if(d.settings.showTeachers==null)d.settings.showTeachers=true;
+  if(!Array.isArray(d.settings.coreValues))d.settings.coreValues=[{i:'📚',t:'Sound Knowledge',d:'A strong foundation in academics.'},{i:'⚖️',t:'Discipline',d:'Moral uprightness and responsibility.'},{i:'👥',t:'Leadership',d:'Confidence, integrity and service.'},{i:'❤️',t:'Good Character',d:'Kindness, honesty and respect.'}];
   if(!d.quranScores||typeof d.quranScores!=='object')d.quranScores={};
   if(d.settings.quranQPerStudent==null)d.settings.quranQPerStudent=5;
   ['users','classes','students','payments','applicants'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
@@ -977,9 +1015,21 @@ function vWebsite(){const set=DB.settings;
     <p class="muted mb">These rotate at the top of your homepage. Use a few good wide photos.</p>
     <div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr))">${(set.heroImages||[]).map((u,i)=>`<div class="card" style="overflow:hidden;position:relative"><img src="${u}" style="width:100%;height:90px;object-fit:cover"><button class="btn icon" style="position:absolute;top:4px;right:4px;background:#fff" onclick="delHero(${i})">✕</button></div>`).join('')||'<p class="muted">No hero images yet.</p>'}</div>
     <button class="btn sec mt" onclick="addHero()">⬆ Add hero image(s)</button></div>
+  <div class="card pad mb" style="max-width:760px"><h3 class="mb">Hero tagline (under the school name)</h3>
+    <input id="wb_hdesc" value="${esc(set.heroDesc||'')}" placeholder="A short, inspiring one-liner">
+    <button class="btn mt" onclick="saveHeroDesc()">Save tagline</button></div>
   <div class="card pad mb" style="max-width:760px"><h3 class="mb">About the school</h3>
     <textarea id="wb_about" rows="4" placeholder="A short welcome / about paragraph for your homepage…">${esc(set.about||'')}</textarea>
     <button class="btn mt" onclick="saveAbout()">Save about</button></div>
+  <div class="card pad mb" style="max-width:760px"><h3 class="mb">Core values (4 shown on homepage)</h3>
+    ${(set.coreValues||[]).map((v,i)=>`<div class="grid3 mb" style="grid-template-columns:60px 1fr 2fr"><div><label>Icon</label><input class="cvI" value="${esc(v.i||'')}"></div><div><label>Title</label><input class="cvT" value="${esc(v.t||'')}"></div><div><label>Description</label><input class="cvD" value="${esc(v.d||'')}"></div></div>`).join('')}
+    <button class="btn" onclick="saveCoreValues()">Save core values</button></div>
+  <div class="card pad mb" style="max-width:760px"><label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" style="width:auto" ${set.showTeachers!==false?'checked':''} onchange="DB.settings.showTeachers=this.checked;save();toast('Saved')"> Show <b>Meet Our Teachers</b> section on the homepage</label>
+    <p class="muted mt" style="font-size:12px">Uses each teacher's photo & name. Add photos under Teachers.</p></div>
+  <div class="card pad mb" style="max-width:760px"><h3 class="mb">Facebook page link</h3>
+    <p class="muted mb">Adds a <b>“Follow us on Facebook”</b> button to your homepage. To show specific event photos/videos, add them yourself in the <b>Gallery</b> (you stay in control of what appears — irrelevant posts won't be pulled in).</p>
+    <div class="fld"><label>Facebook Page URL (optional)</label><input id="wb_fb" value="${esc(set.facebookUrl||'')}" placeholder="https://facebook.com/yourschool"></div>
+    <button class="btn" onclick="saveFb()">Save</button></div>
   <div class="card pad" style="max-width:760px"><h3 class="mb">Online admissions</h3>
     <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" id="wb_adm" style="width:auto" ${set.onlineAdmission?'checked':''} onchange="DB.settings.onlineAdmission=this.checked;save();toast(this.checked?'Online admissions ON':'Online admissions OFF')"> Show an <b>Apply for Admission</b> button on the homepage</label>
     <p class="muted mt" style="font-size:12.5px">Submissions appear in your <b>Admissions</b> list (marked “online”) for you to review.</p></div>`;
@@ -988,6 +1038,10 @@ function addHero(){const inp=document.createElement('input');inp.type='file';inp
   inp.onchange=()=>{const files=[...inp.files];let done=0;files.forEach(f=>{const r=new FileReader();r.onload=e=>compress(e.target.result,d=>{DB.settings.heroImages=DB.settings.heroImages||[];DB.settings.heroImages.push(d);done++;if(done===files.length){save();vWebsite();toast('Hero image(s) added');}},1100,.6);r.readAsDataURL(f);});};inp.click();}
 function delHero(i){DB.settings.heroImages.splice(i,1);save();vWebsite();}
 function saveAbout(){DB.settings.about=$('#wb_about').value.trim();save();toast('About saved');}
+function saveFb(){DB.settings.facebookUrl=$('#wb_fb').value.trim();save();toast('Facebook page saved');}
+function saveHeroDesc(){DB.settings.heroDesc=$('#wb_hdesc').value.trim();save();toast('Tagline saved');}
+function saveCoreValues(){const I=[...document.querySelectorAll('.cvI')],T=[...document.querySelectorAll('.cvT')],D=[...document.querySelectorAll('.cvD')];
+  DB.settings.coreValues=T.map((el,i)=>({i:I[i].value.trim()||'⭐',t:el.value.trim(),d:D[i].value.trim()})).filter(v=>v.t);save();toast('Core values saved');}
 
 /* ===================== EVENTS GALLERY ===================== */
 const GAL_CATS=['Sports / Inter-house','Cultural Day','Graduation','Excursion','Prize-giving','Academic','Religious','Other'];
@@ -1214,14 +1268,20 @@ function renderHousesTab(){
     <div class="mt" style="font-size:12.5px">👤 <b>Master:</b> ${m?esc(m.name):'<span style="color:var(--amber)">unassigned</span>'}</div>
     <button class="btn sm sec mt" onclick="assignPupils('${h.id}')" style="width:100%;justify-content:center">Manage pupils</button></div>`;}).join('')}</div>`;
 }
-function editHouse(id){const h=id?DB.houses.find(x=>x.id===id):{color:'#0a7d33'};const teachers=DB.users.filter(u=>u.role==='teacher');
+let _houseImg='';
+function editHouse(id){const h=id?DB.houses.find(x=>x.id===id):{color:'#0a7d33'};const teachers=DB.users.filter(u=>u.role==='teacher');_houseImg=h.image||'';
   modal(id?'Edit House':'Add House',`<div class="grid2">
     <div class="fld"><label>House name *</label><input id="h_name" value="${esc(h.name||'')}" placeholder="e.g. Green House"></div>
     <div class="fld"><label>Colour</label><input id="h_color" type="color" value="${esc(h.color||'#0a7d33')}" style="height:40px;padding:3px"></div>
-    <div class="fld full"><label>House master / mistress</label><select id="h_master"><option value="">— none —</option>${teachers.map(t=>`<option value="${t.id}" ${h.masterId===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></div></div>`,
+    <div class="fld full"><label>House master / mistress</label><select id="h_master"><option value="">— none —</option>${teachers.map(t=>`<option value="${t.id}" ${h.masterId===t.id?'selected':''}>${esc(t.name)}</option>`).join('')}</select></div></div>
+    <label>House photo (shows in the homepage Houses carousel)</label>
+    <div class="photo-pick mb"><div class="photo-prev" id="hImgPrev" style="width:120px;height:70px;border-radius:8px">${_houseImg?`<img src="${_houseImg}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">`:'🏠'}</div>
+      <div><input type="file" id="hImgFile" accept="image/*" style="display:none" onchange="pickHouseImg(this)"><button type="button" class="btn sec sm" onclick="document.getElementById('hImgFile').click()">⬆ Upload</button> <button type="button" class="btn sec sm" onclick="clearHouseImg()">Remove</button></div></div>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveHouse('${id||''}')">Save</button>`);}
+function pickHouseImg(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>compress(e.target.result,d=>{_houseImg=d;$('#hImgPrev').innerHTML=`<img src="${d}" style="width:100%;height:100%;object-fit:cover;border-radius:8px">`;},900,.6);r.readAsDataURL(f);}
+function clearHouseImg(){_houseImg='';const p=$('#hImgPrev');if(p)p.innerHTML='🏠';}
 function saveHouse(id){const name=$('#h_name').value.trim();if(!name){toast('Name required',true);return;}
-  const obj={name,color:$('#h_color').value,masterId:$('#h_master').value};
+  const obj={name,color:$('#h_color').value,masterId:$('#h_master').value,image:_houseImg};
   if(id)Object.assign(DB.houses.find(x=>x.id===id),obj);else{obj.id=uid('h');DB.houses.push(obj);}save();closeModal();vHouses();toast('House saved');}
 function delHouse(id){DB.students.forEach(s=>{if(s.houseId===id)delete s.houseId;});DB.houses=DB.houses.filter(x=>x.id!==id);save();vHouses();toast('House removed');}
 function autoAssignHouses(){if(!DB.houses.length){toast('Create houses first',true);return;}
@@ -1416,27 +1476,39 @@ function renderSchoolHome(){
   const galOn=hasModule('gallery')&&(DB.gallery||[]).length;
   const heroes=set.heroImages||[];
   const heroBg=heroes.length?`<div id="heroSlides" style="position:absolute;inset:0">${heroes.map((u,i)=>`<div class="hero-slide" style="background-image:url('${u}');opacity:${i===0?1:0}"></div>`).join('')}<div style="position:absolute;inset:0;background:linear-gradient(135deg,${t.rg}cc,${t.rgd}cc)"></div></div>`:'';
+  const cv=set.coreValues||[];const houses=(hasModule('houses')&&DB.houses)?DB.houses:[];
+  const teachers=set.showTeachers!==false?DB.users.filter(u=>u.role==='teacher'):[];
+  const aboutImg=heroes[1]||heroes[0]||((DB.gallery||[]).flatMap(a=>a.media||[]).find(m=>m.type==='image')||{}).url||'';
   sc.innerHTML=`<div class="home" style="--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}">
-    <div class="home-top"><div class="b"><div class="lg" style="background:${t.rg}1a">${logoTop}</div><div><b style="font-size:15px">${esc(set.schoolName)}</b>${set.shortName?`<div class="muted" style="font-size:11px">(${esc(set.shortName)})</div>`:''}</div></div>
-      <div class="flex gap">${set.onlineAdmission?`<button class="btn gold sm" onclick="applyOnline()">Apply</button>`:''}<button class="btn sec sm" onclick="MODE='check';renderChecker()">Check Result</button><button class="btn sm" style="background:${t.rg}" onclick="staffLoginModal()">Staff Login</button></div></div>
-    <div class="home-hero" style="position:relative;${heroes.length?'':`background:linear-gradient(135deg,${t.rg},${t.rgd})`}">${heroBg}
-      <div style="position:relative"><div class="hero-crest">${logoTop}</div>${set.islamic?`<div class="bismillah" style="color:${t.gold};font-size:17px;margin-bottom:8px">${BISMILLAH.a}</div>`:''}
-      <h1>${esc(set.schoolName)}</h1><div style="opacity:.92;max-width:620px;margin:0 auto">${esc(set.motto||'Welcome to our school')}</div>
-      <div style="margin-top:14px;font-size:13px;opacity:.88">📍 ${esc(set.address||'')}${set.phone?' · ☎ '+esc(set.phone):''}</div>
-      ${set.onlineAdmission?`<button class="btn gold mt" onclick="applyOnline()">📝 Apply for Admission</button>`:''}</div></div>
-    ${set.about?`<div class="home-sec"><h2>About Us</h2><div class="card pad" style="font-size:14px;line-height:1.7;white-space:pre-line">${esc(set.about)}</div></div>`:''}
-    ${ev.length?`<div class="home-sec"><h2>🗓️ Upcoming Events</h2><div class="card pad">${ev.map(e=>`<div class="ev-item"><div class="ev-date"><div class="d">${dayNum(e.date)}</div><div class="m">${monthAbbr(e.date)}</div></div><div style="flex:1"><b>${esc(e.title)}</b><br><span class="muted" style="font-size:12px">${esc(e.date)}</span></div></div>`).join('')}</div></div>`:''}
-    ${galOn?`<div class="home-sec"><h2>🖼️ Our Gallery</h2><div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
+    <div class="home-top"><div class="b"><div class="lg">${logoTop}</div><span class="nm">${esc(set.shortName||set.schoolName)}</span></div>
+      <div class="nav"><a class="active" onclick="hgo('home')">🏠 Home</a><a onclick="hgo('about')">ℹ️ About</a><a onclick="${set.onlineAdmission?"applyOnline()":"hgo('contact')"}">📥 Admission</a><a onclick="hgo('contact')">📞 Contact</a><a class="login" onclick="staffLoginModal()">🔐 Login</a></div></div>
+    <div id="home" class="home-hero" style="position:relative;${heroes.length?'':`background:linear-gradient(135deg,${t.rg},${t.rgd})`}">${heroBg}
+      <div style="position:relative">${set.logo?`<div class="hero-crest">${logoTop}</div>`:''}${set.islamic?`<div class="bismillah" style="color:${t.gold};font-size:17px;margin-bottom:8px">${BISMILLAH.a}</div>`:''}
+        <h1>${esc(set.schoolName)}</h1><div class="tag">${esc(set.motto||'')}</div>
+        <div class="desc">${esc(set.heroDesc||'')}</div>
+        <div class="acts">${set.onlineAdmission?`<button class="btn gold" onclick="applyOnline()">Apply for Admission</button>`:''}<button class="btn btn-ghost" onclick="hgo('about')">Learn More</button></div></div></div>
+    ${set.about?`<div id="about" class="home-sec"><div class="sec-h"><h2>About Our Institution</h2><div class="u"></div><p>A balanced approach to education${set.islamic?' — Islamic and modern':''}</p></div>
+      <div class="about2"><div class="txt">${esc(set.about)}</div>${aboutImg?`<img src="${aboutImg}">`:''}</div></div>`:''}
+    ${cv.length?`<div class="sec-dark" style="background:${t.rg}"><div class="home-sec"><div class="sec-h"><h2>Our Core Values</h2><div class="u"></div><p>The principles guiding our institution</p></div>
+      <div class="cv-grid">${cv.map(v=>`<div class="cv"><div class="i">${esc(v.i||'⭐')}</div><h4>${esc(v.t)}</h4><p>${esc(v.d)}</p></div>`).join('')}</div></div></div>`:''}
+    ${houses.length?`<div class="home-sec"><div class="sec-h"><h2>Our School Houses</h2><div class="u"></div><p>Unity, discipline and healthy competition</p></div>
+      <div class="house-car" id="houseCar">${houses.map((h,i)=>`<div class="house-slide${i===0?' on':''}" style="${h.image?`background-image:url('${h.image}')`:`background:linear-gradient(135deg,${esc(h.color||t.rg)},${t.rgd})`}"><div class="cap"><b>${esc(h.name)}</b></div></div>`).join('')}</div></div>`:''}
+    ${teachers.length?`<div class="sec-dark" style="background:#222"><div class="home-sec"><div class="sec-h"><h2>Meet Our Teachers</h2><div class="u"></div><p>Dedicated educators shaping young minds</p></div>
+      <div class="teachers-grid">${teachers.map(u=>`<div class="tcard"><div class="ph">${u.photo?`<img src="${u.photo}">`:'👩‍🏫'}</div><b>${esc(u.name)}</b><div class="role">Teacher</div></div>`).join('')}</div></div></div>`:''}
+    ${galOn?`<div class="home-sec"><div class="sec-h"><h2>Gallery</h2><div class="u"></div><p>Moments from our activities</p></div><div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
       ${DB.gallery.slice().reverse().map(a=>{const cover=(a.media||[]).find(m=>m.type==='image');return `<div class="card" style="overflow:hidden;cursor:pointer" onclick="publicAlbum('${a.id}')">
         <div style="height:150px;background:#eef2ef;display:flex;align-items:center;justify-content:center;font-size:40px">${cover?`<img src="${cover.url}" style="width:100%;height:100%;object-fit:cover">`:'🖼️'}</div>
         <div style="padding:12px"><div class="flex" style="justify-content:space-between"><b>${esc(a.title)}</b><span class="pill grey">${(a.media||[]).length}</span></div><div class="muted" style="font-size:12px">${esc(a.category||'')}${a.date?' · '+esc(a.date):''}</div></div></div>`;}).join('')}
     </div></div>`:''}
-    <div class="home-sec" style="text-align:center;color:var(--muted);font-size:12.5px;padding-bottom:60px">
-      <hr><b>${esc(set.schoolName)}</b><br>${esc(set.address||'')}${set.phone?' · ☎ '+esc(set.phone):''}${set.email?' · ✉ '+esc(set.email):''}
-      <div class="flex gap" style="justify-content:center;margin-top:12px"><button class="btn" style="background:${t.rg}" onclick="staffLoginModal()">Staff Login</button><button class="btn sec" onclick="MODE='check';renderChecker()">Check Your Result</button></div></div>
+    ${ev.length?`<div class="home-sec"><div class="sec-h"><h2>Upcoming Events</h2><div class="u"></div></div><div class="card pad" style="max-width:680px;margin:0 auto">${ev.map(e=>`<div class="ev-item"><div class="ev-date"><div class="d">${dayNum(e.date)}</div><div class="m">${monthAbbr(e.date)}</div></div><div style="flex:1"><b>${esc(e.title)}</b><br><span class="muted" style="font-size:12px">${esc(e.date)}</span></div></div>`).join('')}</div></div>`:''}
+    <div id="contact" class="sec-dark" style="background:${t.rgd}"><div class="home-sec" style="text-align:center"><div class="sec-h"><h2>Contact Us</h2><div class="u"></div></div>
+      <div style="font-size:14px;line-height:1.9">📍 ${esc(set.address||'')}<br>${set.phone?'☎ '+esc(set.phone)+'<br>':''}${set.email?'✉ '+esc(set.email):''}</div>
+      <div class="flex gap" style="justify-content:center;margin-top:16px;flex-wrap:wrap">${set.facebookUrl?`<a class="btn" style="background:#1877f2" href="${esc(set.facebookUrl)}" target="_blank">📘 Facebook</a>`:''}<button class="btn gold" onclick="MODE='check';renderChecker()">Check Result</button><button class="btn btn-ghost" onclick="staffLoginModal()">Staff Login</button></div></div></div>
   </div>`;
   clearInterval(window._heroT);if(heroes.length>1){let hi=0;window._heroT=setInterval(()=>{const sl=document.querySelectorAll('#heroSlides .hero-slide');if(!sl.length){clearInterval(window._heroT);return;}sl[hi].style.opacity=0;hi=(hi+1)%sl.length;sl[hi].style.opacity=1;},4500);}
+  clearInterval(window._houseT);if(houses.length>1){let ci=0;window._houseT=setInterval(()=>{const sl=document.querySelectorAll('#houseCar .house-slide');if(!sl.length){clearInterval(window._houseT);return;}sl[ci].classList.remove('on');ci=(ci+1)%sl.length;sl[ci].classList.add('on');},4000);}
 }
+function hgo(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth'});}
 function applyOnline(){
   modal('Apply for Admission — '+DB.settings.schoolName,`<p class="muted mb">Complete the form and the school will review your application and contact you.</p>
     <div class="grid2"><div class="fld full"><label>Pupil full name *</label><input id="oa_name"></div>
@@ -1476,7 +1548,7 @@ function logout(){USER=null;sessionStorage.removeItem('sms_su');$('#app').style.
 /* ===================== APP SHELL ===================== */
 let CURRENT='';
 function enterApp(){
-  closeModal();clearInterval(window._heroT);$('#screen').innerHTML='';$('#screen').style.display='none';$('#app').style.display='block';window.scrollTo(0,0);
+  closeModal();clearInterval(window._heroT);clearInterval(window._houseT);$('#screen').innerHTML='';$('#screen').style.display='none';$('#app').style.display='block';window.scrollTo(0,0);
   const owner=USER.role==='owner';
   $('#topbar').className='topbar'+(owner?' owner':'');
   $('#brandName').textContent=owner?((MASTER.platform.name)||'EduManager Cloud'):DB.settings.schoolName;
@@ -1570,6 +1642,7 @@ function editSchool(code){
       <div class="fld"><label>Phone number(s) *</label><input id="sc_phone" value="${esc(d?(d.settings.phone||''):'')}" placeholder="e.g. 0803 000 0000"></div>
       <div class="fld"><label>School email *</label><input id="sc_email" value="${esc(d?(d.settings.email||''):'')}" placeholder="info@school.com"></div>
       <div class="fld full"><label>Motto</label><input id="sc_motto" value="${esc(d?d.settings.motto:'Knowledge • Character • Service')}"></div>
+      <div class="fld full"><label>Facebook Page URL (optional — adds a “Follow us” button)</label><input id="sc_fb" value="${esc(d?(d.settings.facebookUrl||''):'')}" placeholder="https://facebook.com/yourschool"></div>
       <div class="fld"><label>Session</label><input id="sc_sess" value="${esc(d?d.settings.session:'2025/2026')}"></div>
       <div class="fld"><label>Current term</label><select id="sc_term">${TERMS.map(t=>`<option ${d&&d.settings.term===t?'selected':''}>${t}</option>`).join('')}</select></div>
     </div>
@@ -1605,14 +1678,14 @@ function saveSchool(code){
   if(!email||!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)){toast('A valid school email is required',true);return;}
   if(ca1+ca2+exam!==100){toast('CA1+CA2+Exam must total 100',true);return;}
   if(code){const reg=MASTER.schools.find(s=>s.code===code);reg.name=name;reg.status=$('#sc_status').value;
-    const d=STORE[code];Object.assign(d.settings,{schoolName:name,shortName:$('#sc_short').value.trim(),address:addr,phone,email,motto:$('#sc_motto').value.trim(),logo:_logo,islamic:$('#sc_islamic').checked,theme:themeSel,modules:mods,
+    const d=STORE[code];Object.assign(d.settings,{schoolName:name,shortName:$('#sc_short').value.trim(),address:addr,phone,email,motto:$('#sc_motto').value.trim(),facebookUrl:($('#sc_fb')?$('#sc_fb').value.trim():d.settings.facebookUrl),logo:_logo,islamic:$('#sc_islamic').checked,theme:themeSel,modules:mods,
       session:$('#sc_sess').value.trim(),term:$('#sc_term').value,status:$('#sc_status').value,grade:{ca1,ca2,exam,promote}});
     saveMaster();saveSchoolRow(code);closeModal();toast('School updated');manageSchool(code);return;}
   const newCode=$('#sc_code').value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,'').replace(/^-+|-+$/g,'');
   if(!newCode){toast('Code required',true);return;}
   if(MASTER.schools.some(s=>s.code===newCode)){toast('Code already exists',true);return;}
   const auser=$('#sc_auser').value.trim(),apass=$('#sc_apass').value.trim();if(!auser||!apass){toast('Admin login required',true);return;}
-  const d=seedSchool(newCode,name);Object.assign(d.settings,{shortName:$('#sc_short').value.trim(),address:addr,phone,email,motto:$('#sc_motto').value.trim(),logo:_logo,islamic:$('#sc_islamic').checked,theme:themeSel,modules:mods,
+  const d=seedSchool(newCode,name);Object.assign(d.settings,{shortName:$('#sc_short').value.trim(),address:addr,phone,email,motto:$('#sc_motto').value.trim(),facebookUrl:($('#sc_fb')?$('#sc_fb').value.trim():''),logo:_logo,islamic:$('#sc_islamic').checked,theme:themeSel,modules:mods,
     session:$('#sc_sess').value.trim(),term:$('#sc_term').value,status:$('#sc_status').value,grade:{ca1,ca2,exam,promote}});
   d.users[0].name=$('#sc_aname').value.trim()||'School Administrator';d.users[0].username=auser;d.users[0].password=apass;
   STORE[newCode]=d;MASTER.schools.push({code:newCode,name,status:$('#sc_status').value,createdAt:today()});
