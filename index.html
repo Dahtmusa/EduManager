@@ -603,6 +603,8 @@ function currentWeek(){const tb=DB.settings.dates&&DB.settings.dates.termBegin;
   if(tb){const w=Math.floor((Date.now()-new Date(tb).getTime())/(7*86400000))+1;return Math.max(1,Math.min(termWeeks(),w));}
   return Math.max(1,Math.min(termWeeks(),DB.settings.currentWeek||1));}
 function teacherClasses(){return USER.role==='admin'?DB.classes:DB.classes.filter(c=>(USER.classes||[]).includes(c.id));}
+const POSITION_RANK={'Proprietor / Director':1,'Director':1,'Proprietor':1,'Principal':2,'Vice Principal':3,'Head Teacher':4,'Assistant Head Teacher':5,'Senior Master / Mistress':6,'Head of Department':7,'Exam Officer':8,'Accountant / Bursar':9,'Counsellor':10,'Sports Master / Mistress':11,'ICT Teacher':12,'Mu’allim / Islamic Studies':13,'Imam / Chaplain':14,'Librarian':15,'Form Teacher':16,'Teacher':20};
+function rankOf(u){if(u.rank!=null&&u.rank!=='')return Number(u.rank);const p=u.position||'Teacher';return POSITION_RANK[p]!=null?POSITION_RANK[p]:22;}
 function avatar(p,f){return p?`<img class="avatar" src="${p}">`:`<span class="avatar">${f||'👤'}</span>`;}
 function pendingPayCount(){return DB.payments.filter(p=>p.status==='pending').length;}
 function pendingAppCount(){return DB.applicants.filter(a=>a.status==='applied'||a.status==='reviewing').length;}
@@ -1514,7 +1516,7 @@ function renderSchoolHome(){
   const heroes=set.heroImages||[];
   const heroBg=heroes.length?`<div id="heroSlides" style="position:absolute;inset:0">${heroes.map((u,i)=>`<div class="hero-slide" style="background-image:url('${u}');opacity:${i===0?1:0}"></div>`).join('')}<div style="position:absolute;inset:0;background:linear-gradient(135deg,${t.rg}cc,${t.rgd}cc)"></div></div>`:'';
   const cv=set.coreValues||[];const houses=(hasModule('houses')&&DB.houses)?DB.houses:[];
-  const teachers=set.showTeachers!==false?DB.users.filter(u=>u.role==='teacher'):[];
+  const teachers=set.showTeachers!==false?DB.users.filter(u=>u.role==='teacher').sort((a,b)=>rankOf(a)-rankOf(b)||(a.name||'').localeCompare(b.name||'')):[];
   const aboutImg=heroes[1]||heroes[0]||((DB.gallery||[]).flatMap(a=>a.media||[]).find(m=>m.type==='image')||{}).url||'';
   sc.innerHTML=`<div class="home" style="--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}">
     <div class="home-top"><div class="b"><div class="lg">${logoTop}</div><span class="nm">${esc(set.shortName||set.schoolName)}</span></div>
@@ -1534,7 +1536,7 @@ function renderSchoolHome(){
     ${houses.length?`<div class="home-sec"><div class="sec-h"><h2>Our School Houses</h2><div class="u"></div><p>Unity, discipline and healthy competition</p></div>
       <div class="house-car" id="houseCar">${houses.map((h,i)=>`<div class="house-slide${i===0?' on':''}" style="${h.image?`background-image:url('${h.image}')`:`background:linear-gradient(135deg,${esc(h.color||t.rg)},${t.rgd})`}"><div class="cap"><b>${esc(h.name)}</b></div></div>`).join('')}</div></div>`:''}
     ${teachers.length?`<div class="sec-dark" style="background:#222"><div class="home-sec"><div class="sec-h"><h2>Meet Our Teachers</h2><div class="u"></div><p>Dedicated educators shaping young minds</p></div>
-      <div class="teachers-grid">${teachers.map(u=>`<div class="tcard"><div class="ph">${u.photo?`<img src="${u.photo}">`:'👩‍🏫'}</div><b>${esc(u.name)}</b><div class="role">Teacher</div></div>`).join('')}</div></div></div>`:''}
+      <div class="teachers-grid">${teachers.map(u=>`<div class="tcard"><div class="ph">${u.photo?`<img src="${u.photo}">`:'👩‍🏫'}</div><b>${esc(u.name)}</b><div class="role">${esc(u.position||'Teacher')}</div></div>`).join('')}</div></div></div>`:''}
     ${galOn?`<div class="home-sec"><div class="sec-h"><h2>Gallery</h2><div class="u"></div><p>Moments from our activities</p></div><div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
       ${DB.gallery.slice().reverse().map(a=>{const cover=(a.media||[]).find(m=>m.type==='image');return `<div class="card" style="overflow:hidden;cursor:pointer" onclick="publicAlbum('${a.id}')">
         <div style="height:150px;background:#eef2ef;display:flex;align-items:center;justify-content:center;font-size:40px">${cover?`<img src="${cover.url}" style="width:100%;height:100%;object-fit:cover">`:'🖼️'}</div>
@@ -2069,29 +2071,32 @@ function addSubRow(){$('#subList').insertAdjacentHTML('beforeend',subRow(''));}
 function saveSubjects(cid){DB.subjects[cid]=[...document.querySelectorAll('#subList [data-row] input')].map(i=>i.value.trim()).filter(Boolean);save();closeModal();vClasses();toast('Subjects updated');}
 
 /* ===================== SCHOOL: TEACHERS ===================== */
-function vTeachers(){const ts=DB.users.filter(u=>u.role==='teacher');
-  $('#view').innerHTML=`<div class="page-head"><div><h2>Teachers</h2><p>${ts.length} teaching staff</p></div><button class="btn" onclick="editTeacher()">＋ Add Teacher</button></div>
-  <div class="t-wrap"><table><thead><tr><th></th><th>Name</th><th>Staff ID</th><th>Username</th><th>Classes</th><th></th></tr></thead><tbody>
-  ${ts.length?ts.map(u=>`<tr><td>${avatar(u.photo,'👩‍🏫')}</td><td><b>${esc(u.name)}</b></td><td class="muted">${esc(u.staffId||'—')}</td><td class="muted">${esc(u.username)}</td>
+function vTeachers(){const ts=DB.users.filter(u=>u.role==='teacher').sort((a,b)=>rankOf(a)-rankOf(b)||(a.name||'').localeCompare(b.name||''));
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Staff</h2><p>${ts.length} staff member(s) — ordered by rank</p></div><button class="btn" onclick="editTeacher()">＋ Add Staff</button></div>
+  <div class="t-wrap"><table><thead><tr><th></th><th>Name</th><th>Position</th><th>Staff ID</th><th>Classes</th><th></th></tr></thead><tbody>
+  ${ts.length?ts.map(u=>`<tr><td>${avatar(u.photo,'👩‍🏫')}</td><td><b>${esc(u.name)}</b><br><span class="muted" style="font-size:11px">${esc(u.username)}</span></td><td><span class="pill blue">${esc(u.position||'Teacher')}</span></td><td class="muted">${esc(u.staffId||'—')}</td>
     <td>${(u.classes||[]).map(c=>`<span class="pill green" style="margin:1px">${esc(className(c))}</span>`).join(' ')||'<span class="muted">None</span>'}</td>
     <td class="right" style="white-space:nowrap"><button class="btn icon" title="ID" onclick="showTeacherId('${u.id}')">🪪</button><button class="btn icon" onclick="editTeacher('${u.id}')">✏️</button><button class="btn icon" onclick="delTeacher('${u.id}')">🗑️</button></td></tr>`).join('')
-    :`<tr><td colspan=6><div class="empty"><div class="big">👩‍🏫</div>No teachers yet.</div></td></tr>`}</tbody></table></div>`;}
+    :`<tr><td colspan=6><div class="empty"><div class="big">👩‍🏫</div>No staff yet.</div></td></tr>`}</tbody></table></div>`;}
 function editTeacher(id){const u=id?DB.users.find(x=>x.id===id):{classes:[]};const sid=u.staffId||('STAFF/'+String(DB.users.filter(x=>x.role==='teacher').length+1).padStart(3,'0'));
-  modal(id?'Edit Teacher':'Add Teacher',`${photoField(u.photo)}<div class="grid2">
+  const POSITIONS=['Teacher','Head Teacher','Assistant Head Teacher','Principal','Vice Principal','Proprietor / Director','Accountant / Bursar','Sports Master / Mistress','Form Teacher','Head of Department','Senior Master / Mistress','Exam Officer','Counsellor','Librarian','ICT Teacher','Mu’allim / Islamic Studies','Imam / Chaplain'];
+  modal(id?'Edit Staff':'Add Staff',`${photoField(u.photo)}<div class="grid2">
     <div class="fld"><label>Full name *</label><input id="t_name" value="${esc(u.name||'')}"></div>
+    <div class="fld"><label>Position / Designation</label><input id="t_pos" list="posList" value="${esc(u.position||'Teacher')}" placeholder="e.g. Head Teacher"><datalist id="posList">${POSITIONS.map(p=>`<option value="${esc(p)}">`).join('')}</datalist></div>
+    <div class="fld"><label>Homepage rank (lower = higher up)</label><input id="t_rank" type="number" value="${u.rank!=null?u.rank:''}" placeholder="auto by position"></div>
     <div class="fld"><label>Staff ID</label><input id="t_sid" value="${esc(sid)}"></div>
     <div class="fld"><label>Username *</label><input id="t_user" value="${esc(u.username||'')}" placeholder="e.g. mrs.bello"></div>
-    <div class="fld"><label>Password *</label><input id="t_pass" value="${esc(u.password||'')}"></div></div>
+    <div class="fld full"><label>Password *</label><input id="t_pass" value="${esc(u.password||'')}"></div></div>
     <label>Assigned classes</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
     ${DB.classes.map(c=>`<label style="display:flex;align-items:center;gap:7px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" style="width:auto" class="t_class" value="${c.id}" ${(u.classes||[]).includes(c.id)?'checked':''}> ${esc(c.name)}</label>`).join('')}</div>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveTeacher('${id||''}')">Save</button>`);}
 function saveTeacher(id){const name=$('#t_name').value.trim(),username=$('#t_user').value.trim(),password=$('#t_pass').value.trim(),staffId=$('#t_sid').value.trim();
   if(!name||!username||!password){toast('Name, username, password required',true);return;}
   if(DB.users.some(u=>u.username.toLowerCase()===username.toLowerCase()&&u.id!==id)){toast('Username taken',true);return;}
-  const classes=[...document.querySelectorAll('.t_class:checked')].map(c=>c.value);
-  if(id)Object.assign(DB.users.find(x=>x.id===id),{name,username,password,classes,staffId,photo:_photo});
-  else DB.users.push({id:uid('u'),name,username,password,role:'teacher',classes,staffId,photo:_photo});
-  save();closeModal();vTeachers();toast('Teacher saved');}
+  const classes=[...document.querySelectorAll('.t_class:checked')].map(c=>c.value);const position=$('#t_pos').value.trim()||'Teacher';const rank=$('#t_rank').value!==''?Number($('#t_rank').value):null;
+  if(id)Object.assign(DB.users.find(x=>x.id===id),{name,username,password,classes,staffId,photo:_photo,position,rank});
+  else DB.users.push({id:uid('u'),name,username,password,role:'teacher',classes,staffId,photo:_photo,position,rank});
+  save();closeModal();vTeachers();toast('Staff saved');}
 function delTeacher(id){DB.users=DB.users.filter(x=>x.id!==id);save();vTeachers();toast('Teacher removed');}
 
 /* ===================== SCHOOL: ATTENDANCE ===================== */
@@ -2369,9 +2374,9 @@ function studentCardBack(s){return `<div class="idc"><div class="idc-back">
 function teacherCardHTML(u){const code=u.staffId||u.id;return `<div class="idc staff">
   <div class="idc-band"></div><div class="idc-head"><div class="idc-logo">${idLogo()}</div><div class="idc-school">${esc(DB.settings.schoolName)}<small>STAFF IDENTITY CARD</small></div></div>
   <div class="idc-photo">${u.photo?`<img src="${u.photo}">`:'👩‍🏫'}</div>
-  <div class="idc-name">${esc(u.name)}</div><div class="idc-role">TEACHER · ${esc(DB.settings.session)}</div>
+  <div class="idc-name">${esc(u.name)}</div><div class="idc-role">${esc((u.position||'TEACHER').toUpperCase())} · ${esc(DB.settings.session)}</div>
   <div class="idc-rows"><div class="r"><span>Staff ID</span><b>${esc(u.staffId||'—')}</b></div>
-    <div class="r"><span>Role</span><b>Teacher</b></div><div class="r"><span>Classes</span><b>${esc((u.classes||[]).map(className).join(', ')||'—')}</b></div></div>
+    <div class="r"><span>Position</span><b>${esc(u.position||'Teacher')}</b></div><div class="r"><span>Classes</span><b>${esc((u.classes||[]).map(className).join(', ')||'—')}</b></div></div>
   <div class="idc-bc"><svg class="bc" data-code="${esc(code)}"></svg><div class="bc-fallback" style="display:none">${esc(code)}</div></div>
   <div class="idc-foot">${addrTel()} · Authorised staff identification</div></div>`;}
 function teacherCardBack(u){return `<div class="idc staff"><div class="idc-back">
@@ -2415,7 +2420,7 @@ function showScanStudent(s){const due=Number((DB.fees[rkey(s.id)]||{}).due)||0,p
       <button class="btn sec" onclick="showStudentId('${s.id}')">ID card</button>${USER.role==='admin'?`<button class="btn sec" onclick="recordPayment('${s.id}')">Record payment</button>`:''}</div></div></div>`;
   r.scrollIntoView({behavior:'smooth',block:'nearest'});}
 function showScanTeacher(u){const r=$('#scanResult');r.innerHTML=`<div class="scan-result"><div class="card pad"><div class="flex gap mb">${u.photo?`<img src="${u.photo}" style="width:64px;height:64px;border-radius:10px;object-fit:cover">`:'<div style="width:64px;height:64px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:30px">👩‍🏫</div>'}
-    <div><span class="pill blue">STAFF VERIFIED</span><div style="font-size:18px;font-weight:800;margin-top:4px">${esc(u.name)}</div><div class="muted">Teacher · ${esc(u.staffId||'—')}</div><div class="muted">Classes: ${esc((u.classes||[]).map(className).join(', ')||'—')}</div></div></div>
+    <div><span class="pill blue">STAFF VERIFIED</span><div style="font-size:18px;font-weight:800;margin-top:4px">${esc(u.name)}</div><div class="muted">${esc(u.position||'Teacher')} · ${esc(u.staffId||'—')}</div><div class="muted">Classes: ${esc((u.classes||[]).map(className).join(', ')||'—')}</div></div></div>
     <button class="btn sec" onclick="showTeacherId('${u.id}')">ID card</button></div></div>`;r.scrollIntoView({behavior:'smooth',block:'nearest'});}
 function scanMarkPresent(sid){const s=DB.students.find(x=>x.id===sid);const t=today();const k=t+'|'+s.classId;DB.attendance[k]=DB.attendance[k]||{};DB.attendance[k][sid]='P';save();toast(s.name.split(' ')[0]+' marked present');showScanStudent(s);}
 
