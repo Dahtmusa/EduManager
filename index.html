@@ -605,6 +605,9 @@ function currentWeek(){const tb=DB.settings.dates&&DB.settings.dates.termBegin;
 function teacherClasses(){return USER.role==='admin'?DB.classes:DB.classes.filter(c=>(USER.classes||[]).includes(c.id));}
 const POSITION_RANK={'Proprietor / Director':1,'Director':1,'Proprietor':1,'Principal':2,'Vice Principal':3,'Head Teacher':4,'Assistant Head Teacher':5,'Senior Master / Mistress':6,'Head of Department':7,'Exam Officer':8,'Accountant / Bursar':9,'Counsellor':10,'Sports Master / Mistress':11,'ICT Teacher':12,'Mu’allim / Islamic Studies':13,'Imam / Chaplain':14,'Librarian':15,'Form Teacher':16,'Teacher':20};
 function rankOf(u){if(u.rank!=null&&u.rank!=='')return Number(u.rank);const p=u.position||'Teacher';return POSITION_RANK[p]!=null?POSITION_RANK[p]:22;}
+function classTeacher(classId){return DB.users.find(u=>u.role==='teacher'&&(u.classes||[]).includes(classId))||null;}
+function headTeacher(){const staff=DB.users.filter(u=>u.role==='teacher');const order=['Principal','Head Teacher','Proprietor / Director','Director','Proprietor','Vice Principal','Assistant Head Teacher'];for(const p of order){const m=staff.find(u=>u.position===p);if(m)return m;}return staff.slice().sort((a,b)=>rankOf(a)-rankOf(b))[0]||null;}
+function signCell(name,label){return `<div><div style="font-size:10px;font-weight:700;color:#333;min-height:14px">${name?esc(name):''}</div><div class="ln">${label}</div></div>`;}
 function avatar(p,f){return p?`<img class="avatar" src="${p}">`:`<span class="avatar">${f||'👤'}</span>`;}
 function pendingPayCount(){return DB.payments.filter(p=>p.status==='pending').length;}
 function pendingAppCount(){return DB.applicants.filter(a=>a.status==='applied'||a.status==='reviewing').length;}
@@ -758,7 +761,7 @@ function annualReportHTML(sid){const s=DB.students.find(x=>x.id===sid);const sub
       <div class="c"><b>Promotion Decision</b><div class="box"><span class="${p.cls}" style="font-weight:700">${esc(p.label)}</span></div></div>
       <div class="c"><b>Head Teacher's Remark</b><div class="box">${esc(autoHead(p.avg||0))}</div></div></div>
     <div class="rc-meta2"><div><span>Promotion mark:</span> ${promoteMark()}%</div><div><span>Next Session:</span> ${esc(nextSessionStr(DB.settings.session))}</div><div><span>Date of Issue:</span> ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}</div></div>
-    <div class="rc-sign"><div><div class="ln">Class Teacher's Signature</div></div><div><div class="ln">Principal's Signature</div></div><div><div class="ln">School Stamp</div></div></div>
+    <div class="rc-sign">${signCell((classTeacher(s.classId)||{}).name,"Class Teacher's Signature")}${(()=>{const h=headTeacher();return signCell(h?h.name:'',(h&&/principal/i.test(h.position||''))?"Principal's Signature":"Head Teacher's Signature");})()}${signCell('','School Stamp')}</div>
     <div class="rc-foot">${isl?`✦ “${esc(q.t)}” — ${esc(q.s)} ✦`:esc(DB.settings.motto||'')}</div>
   </div>`;}
 function openAnnual(sid){modal('Annual Report — '+DB.students.find(x=>x.id===sid).name,annualReportHTML(sid),
@@ -1516,7 +1519,7 @@ function renderSchoolHome(){
   const heroes=set.heroImages||[];
   const heroBg=heroes.length?`<div id="heroSlides" style="position:absolute;inset:0">${heroes.map((u,i)=>`<div class="hero-slide" style="background-image:url('${u}');opacity:${i===0?1:0}"></div>`).join('')}<div style="position:absolute;inset:0;background:linear-gradient(135deg,${t.rg}cc,${t.rgd}cc)"></div></div>`:'';
   const cv=set.coreValues||[];const houses=(hasModule('houses')&&DB.houses)?DB.houses:[];
-  const teachers=set.showTeachers!==false?DB.users.filter(u=>u.role==='teacher').sort((a,b)=>rankOf(a)-rankOf(b)||(a.name||'').localeCompare(b.name||'')):[];
+  const teachers=set.showTeachers!==false?DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false).sort((a,b)=>rankOf(a)-rankOf(b)||(a.name||'').localeCompare(b.name||'')):[];
   const aboutImg=heroes[1]||heroes[0]||((DB.gallery||[]).flatMap(a=>a.media||[]).find(m=>m.type==='image')||{}).url||'';
   sc.innerHTML=`<div class="home" style="--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}">
     <div class="home-top"><div class="b"><div class="lg">${logoTop}</div><span class="nm">${esc(set.shortName||set.schoolName)}</span></div>
@@ -2087,15 +2090,16 @@ function editTeacher(id){const u=id?DB.users.find(x=>x.id===id):{classes:[]};con
     <div class="fld"><label>Staff ID</label><input id="t_sid" value="${esc(sid)}"></div>
     <div class="fld"><label>Username *</label><input id="t_user" value="${esc(u.username||'')}" placeholder="e.g. mrs.bello"></div>
     <div class="fld full"><label>Password *</label><input id="t_pass" value="${esc(u.password||'')}"></div></div>
-    <label>Assigned classes</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" id="t_site" style="width:auto" ${u.showOnSite!==false?'checked':''}> Show this staff in <b>Meet Our Teachers</b> on the homepage</label>
+    <label class="mt">Assigned classes</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
     ${DB.classes.map(c=>`<label style="display:flex;align-items:center;gap:7px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" style="width:auto" class="t_class" value="${c.id}" ${(u.classes||[]).includes(c.id)?'checked':''}> ${esc(c.name)}</label>`).join('')}</div>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveTeacher('${id||''}')">Save</button>`);}
 function saveTeacher(id){const name=$('#t_name').value.trim(),username=$('#t_user').value.trim(),password=$('#t_pass').value.trim(),staffId=$('#t_sid').value.trim();
   if(!name||!username||!password){toast('Name, username, password required',true);return;}
   if(DB.users.some(u=>u.username.toLowerCase()===username.toLowerCase()&&u.id!==id)){toast('Username taken',true);return;}
-  const classes=[...document.querySelectorAll('.t_class:checked')].map(c=>c.value);const position=$('#t_pos').value.trim()||'Teacher';const rank=$('#t_rank').value!==''?Number($('#t_rank').value):null;
-  if(id)Object.assign(DB.users.find(x=>x.id===id),{name,username,password,classes,staffId,photo:_photo,position,rank});
-  else DB.users.push({id:uid('u'),name,username,password,role:'teacher',classes,staffId,photo:_photo,position,rank});
+  const classes=[...document.querySelectorAll('.t_class:checked')].map(c=>c.value);const position=$('#t_pos').value.trim()||'Teacher';const rank=$('#t_rank').value!==''?Number($('#t_rank').value):null;const showOnSite=$('#t_site').checked;
+  if(id)Object.assign(DB.users.find(x=>x.id===id),{name,username,password,classes,staffId,photo:_photo,position,rank,showOnSite});
+  else DB.users.push({id:uid('u'),name,username,password,role:'teacher',classes,staffId,photo:_photo,position,rank,showOnSite});
   save();closeModal();vTeachers();toast('Staff saved');}
 function delTeacher(id){DB.users=DB.users.filter(x=>x.id!==id);save();vTeachers();toast('Teacher removed');}
 
@@ -2212,7 +2216,7 @@ function reportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid);const
       <div class="c"><b>Class Teacher's Comment</b><div class="box">${esc(rem.teacher||autoRemark(row.avg,row.marks))}</div></div>
       <div class="c"><b>Principal's Recommendation</b><div class="box">${esc(rem.head||autoHead(row.avg))}</div></div></div>
     <div class="rc-meta2"><div><span>Next Term Begins:</span> ${esc(DB.settings.nextResumption||'—')}</div><div><span>School Fees:</span> ${naira(Number((DB.fees[rkey(sid,sess,term)]||{}).due)||0)}</div><div><span>Date of Issue:</span> ${issue}</div></div>
-    <div class="rc-sign"><div><div class="ln">Class Teacher's Signature</div></div><div><div class="ln">Date</div></div><div><div class="ln">Principal's Signature</div></div><div><div class="ln">School Stamp</div></div></div>
+    <div class="rc-sign">${signCell((classTeacher(s.classId)||{}).name,"Class Teacher's Signature")}${signCell('','Date')}${(()=>{const h=headTeacher();return signCell(h?h.name:'',(h&&/principal/i.test(h.position||''))?"Principal's Signature":"Head Teacher's Signature");})()}${signCell('','School Stamp')}</div>
     <div class="rc-foot">${isl?`✦ “${esc(q.t)}” — ${esc(q.s)} ✦`:esc(DB.settings.motto||'')}</div>
   </div>`;}
 function openReport(sid){modal('Report Card — '+DB.students.find(x=>x.id===sid).name,reportHTML(sid),
