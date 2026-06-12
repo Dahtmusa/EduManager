@@ -427,6 +427,28 @@ tbody tr:hover{background:#fafbfa}
 .lb-count{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);color:#fff;font-size:13px;background:rgba(0,0,0,.5);padding:4px 12px;border-radius:20px}
 .wa-fab{position:fixed;right:18px;bottom:84px;z-index:58;width:56px;height:56px;border-radius:50%;background:#25d366;color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 6px 20px rgba(0,0,0,.3);text-decoration:none}
 .wa-fab:hover{filter:brightness(1.05)}
+/* ===== A4 print for report card / documents ===== */
+@media print{
+  @page{size:A4 portrait;margin:8mm}
+  html,body{width:210mm;background:#fff}
+  .home,.home-top,.wa-fab,#devBadge,.controls{display:none!important}
+  .rc{width:100%!important;max-width:100%!important;margin:0 auto!important;border:none!important;box-shadow:none!important;border-radius:0!important}
+  #checkPrint{box-shadow:none!important;padding:0!important;background:#fff!important;border:none!important}
+  /* compact so everything fits one page, still readable */
+  .rc-top{padding:7px 16px 9px}.rc-sch h2{font-size:19px}
+  .rc-title{font-size:10.5px;padding:4px}
+  .rc-info{padding:9px 16px}.rc-fields{gap:6px 14px}
+  .rc-att{padding:5px 16px;font-size:10px}
+  .rc-tbl{font-size:11px}.rc-tbl th{padding:4px 5px;font-size:8px}.rc-tbl td{padding:4px 6px}
+  .rc-sum{padding:6px 16px;font-size:10.5px}
+  .rc-scale,.rc-perf{padding:8px 16px}.rc-scale{font-size:9.5px}
+  .rc-comments{padding:8px 16px;gap:10px}.rc-comments .c .box{min-height:36px;padding:6px}
+  .rc-meta2{padding:6px 16px;font-size:10px}
+  .rc-sign{padding:10px 16px 6px}
+  .rc-foot{padding:6px}
+  .rc,.rc-tbl,.rc-comments,.rc-sign,.rc-two{break-inside:avoid;page-break-inside:avoid}
+  .receipt,.invoice,.letter,.cert,.idc,.idgrid{break-inside:avoid}
+}
 .home-hero h1{font-size:30px;margin-bottom:6px;line-height:1.15}
 .home-sec{max-width:1100px;margin:0 auto;padding:22px 18px}
 .home-sec h2{font-size:20px;margin-bottom:14px}
@@ -526,6 +548,8 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(!Array.isArray(d.quranQuestions))d.quranQuestions=[];
   if(!Array.isArray(d.ledger))d.ledger=[];
   if(!Array.isArray(d.gallery))d.gallery=[];
+  if(!d.affective||typeof d.affective!=='object')d.affective={};
+  if(!Array.isArray(d.announcements))d.announcements=[];
   if(!Array.isArray(d.settings.heroImages))d.settings.heroImages=[];
   if(d.settings.about==null)d.settings.about='';
   if(d.settings.onlineAdmission==null)d.settings.onlineAdmission=false;
@@ -595,7 +619,10 @@ function gradeOf(t){if(t>=75)return{g:'A',r:'Distinction'};if(t>=65)return{g:'B'
 const THEMES={green:{n:'Green & Gold',rg:'#0b5e3a',rgd:'#08482c',gold:'#caa64e'},blue:{n:'Royal Blue & Gold',rg:'#15366e',rgd:'#0f2750',gold:'#d4af37'},maroon:{n:'Maroon & Gold',rg:'#6e1f2a',rgd:'#54141d',gold:'#d4af37'},teal:{n:'Teal & Gold',rg:'#0c5b56',rgd:'#084540',gold:'#c9a24b'},purple:{n:'Purple & Gold',rg:'#4a2a6e',rgd:'#371f52',gold:'#d4af37'}};
 function theme(){return THEMES[(DB&&DB.settings&&DB.settings.theme)||'green']||THEMES.green;}
 function themeVars(){const t=theme();return `--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}`;}
-const MODULES=[['gradPry5','Graduate at Primary 5'],['staffAttendance','Staff attendance & charges'],['weeks','School weeks (inspection basis)'],['lessonPlans','Lesson plans (manual + AI draft)'],['houses','Houses & activities'],['quran','Qur’an competition'],['finance','School accounts & finance'],['gallery','Events gallery (photos/videos)']];
+const MODULES=[['gradPry5','Graduate at Primary 5'],['staffAttendance','Staff attendance & charges'],['weeks','School weeks (inspection basis)'],['lessonPlans','Lesson plans (manual + AI draft)'],['houses','Houses & activities'],['quran','Qur’an competition'],['finance','School accounts & finance'],['gallery','Events gallery (photos/videos)'],['affective','Affective & Psychomotor on report cards'],['broadsheet','Class broadsheet (master-sheet)'],['parentPortal','Parent portal + announcements']];
+const AFFECTIVE=['Punctuality','Attendance','Neatness','Politeness','Honesty','Cooperation','Attentiveness','Leadership','Self-control','Relationship with others'];
+const PSYCHO=['Handwriting','Drawing & Painting','Sports & Games','Handling of tools','Musical skills','Verbal fluency','Physical fitness'];
+const RATEWORD={5:'Excellent',4:'Very Good',3:'Good',2:'Fair',1:'Poor'};
 function hasModule(m){return !!(DB&&DB.settings&&DB.settings.modules&&DB.settings.modules[m]);}
 function gradClassName(){return (DB.settings.modules&&DB.settings.modules.gradPry5)?'Primary 5':'Primary 6';}
 function termWeeks(){return Number(DB.settings.termWeeks)||13;}
@@ -942,6 +969,93 @@ function setStaffAtt(uid,st){const ch=DB.settings.charges||{late:200,absent:500}
   save();vStaffAtt();}
 function setStaffReason(uid,v){const r=(DB.staffAtt[staffDate]||{})[uid];if(r){r.reason=v;save();}}
 function staffDecision(uid,dec){const r=(DB.staffAtt[staffDate]||{})[uid];if(r){r.decision=dec;save();vStaffAtt();}}
+
+/* ===================== AFFECTIVE / PSYCHOMOTOR ===================== */
+function affGet(sid){return DB.affective[rkey(sid)]||{};}
+function editRatings(sid){const s=DB.students.find(x=>x.id===sid);const r=affGet(sid);
+  const grp=(title,list)=>`<h4 style="color:var(--green-dark);margin:8px 0 4px;font-size:13px">${title}</h4>${list.map(tr=>`<div class="flex" style="justify-content:space-between;padding:3px 0"><span style="font-size:13px">${esc(tr)}</span>
+    <div class="flex gap">${[5,4,3,2,1].map(n=>`<button class="btn sm ${r[tr]===n?'':'sec'}" style="padding:3px 8px" onclick="setRating('${sid}','${jq(tr)}',${n})">${n}</button>`).join('')}</div></div>`).join('')}`;
+  modal('Affective & Psychomotor — '+s.name,`<p class="muted mb">Rate 5 = Excellent · 4 = Very Good · 3 = Good · 2 = Fair · 1 = Poor</p>
+    ${grp('Affective Domain (behaviour)',AFFECTIVE)}${grp('Psychomotor Domain (skills)',PSYCHO)}`,
+    `<button class="btn" onclick="closeModal()">Done</button>`,true);}
+function setRating(sid,tr,n){const k=rkey(sid);DB.affective[k]=DB.affective[k]||{};if(DB.affective[k][tr]===n)delete DB.affective[k][tr];else DB.affective[k][tr]=n;save();editRatings(sid);}
+function affectiveBlock(sid){if(!hasModule('affective'))return '';const r=affGet(sid);if(!Object.keys(r).length&&true){}
+  const tbl=(title,list)=>`<div style="flex:1"><div style="background:var(--rg);color:#fff;font-size:9px;font-weight:800;padding:4px 7px;text-transform:uppercase">${title}</div>
+    ${list.map(tr=>`<div style="display:flex;justify-content:space-between;font-size:11px;border:1px solid #e7dec0;border-top:none;padding:3px 7px"><span>${esc(tr)}</span><b>${r[tr]?r[tr]+' '+RATEWORD[r[tr]]:'–'}</b></div>`).join('')}</div>`;
+  return `<div style="display:flex;gap:12px;padding:6px 16px">${tbl('Affective Domain',AFFECTIVE)}${tbl('Psychomotor Domain',PSYCHO)}</div>`;}
+
+/* ===================== BROADSHEET ===================== */
+let bsClass='';
+function vBroadsheet(){const cls=DB.classes;if(!bsClass||!cls.find(c=>c.id===bsClass))bsClass=cls[0]?cls[0].id:'';
+  $('#view').innerHTML=`<div class="page-head"><div><h2>📊 Broadsheet</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)} — class master-sheet</p></div>
+    <button class="btn gold no-print" onclick="printBroadsheet()">🖨 Print</button></div>
+  <div class="toolbar no-print"><div><label>Class</label><select onchange="bsClass=this.value;vBroadsheet()">${cls.map(c=>`<option value="${c.id}" ${bsClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div></div>
+  <div id="bsArea">${broadsheetHTML(bsClass)}</div>`;
+}
+function broadsheetHTML(cid){const subs=DB.subjects[cid]||[];const {rows}=computeClassResults(cid);
+  if(!rows.length)return '<div class="card"><div class="empty"><div class="big">📊</div>No pupils in this class.</div></div>';
+  return `<div class="t-wrap"><table style="font-size:11.5px"><thead><tr><th>#</th><th>Pupil</th>${subs.map(s=>`<th class="center" title="${esc(s)}">${esc(s.length>10?s.slice(0,9)+'…':s)}</th>`).join('')}<th class="center">Total</th><th class="center">Avg</th><th class="center">Pos</th><th class="center">Grade</th></tr></thead><tbody>
+  ${rows.map((r,i)=>`<tr><td>${i+1}</td><td><b>${esc(r.s.name)}</b></td>${r.marks.map(m=>`<td class="center">${m.has?m.total:'–'}</td>`).join('')}
+    <td class="center"><b>${r.count?r.total:'–'}</b></td><td class="center">${r.count?r.avg.toFixed(1):'–'}</td><td class="center">${r.pos?ord(r.pos):'–'}</td><td class="center">${r.count?gradeOf(r.avg).g:'–'}</td></tr>`).join('')}
+  </tbody></table></div>`;}
+function printBroadsheet(){const subs=DB.subjects[bsClass]||[];const logo=DB.settings.logo?`<img src="${DB.settings.logo}" style="width:100%;height:100%;object-fit:cover">`:'🎓';
+  modal('Broadsheet — '+className(bsClass),`<div class="rc" style="${themeVars()};max-width:none"><div class="rc-top"><div class="rc-head"><div class="rc-crest">${logo}</div><div class="rc-sch"><h2>${esc(DB.settings.schoolName)}</h2><div class="addr">${addrTel()}</div></div></div></div>
+    <div class="rc-title">✦ BROADSHEET — ${esc(className(bsClass))} · ${esc(DB.settings.term)} ${esc(DB.settings.session)} ✦</div>
+    <div style="padding:10px">${broadsheetHTML(bsClass)}</div></div>`,
+    `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print / PDF</button>`,true);}
+
+/* ===================== ANNOUNCEMENTS ===================== */
+function vAnnounce(){
+  $('#view').innerHTML=`<div class="page-head"><div><h2>📢 Announcements</h2><p>Shown on your homepage and to parents</p></div><button class="btn" onclick="editAnnounce()">＋ New announcement</button></div>
+  ${DB.announcements.length?`<div class="t-wrap"><table><thead><tr><th>Date</th><th>Title</th><th>Message</th><th></th></tr></thead><tbody>
+    ${DB.announcements.slice().reverse().map(a=>`<tr><td class="muted">${esc(a.date)}</td><td><b>${esc(a.title)}</b></td><td>${esc(a.body)}</td>
+      <td class="right" style="white-space:nowrap"><button class="btn icon" onclick="editAnnounce('${a.id}')">✏️</button><button class="btn icon" onclick="delAnnounce('${a.id}')">🗑️</button></td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">📢</div>No announcements yet.</div></div>`}`;
+}
+function editAnnounce(id){const a=id?DB.announcements.find(x=>x.id===id):{date:today()};
+  modal(id?'Edit announcement':'New announcement',`<div class="fld"><label>Title *</label><input id="an_t" value="${esc(a.title||'')}" placeholder="e.g. Resumption Date"></div>
+    <div class="fld"><label>Date</label><input id="an_d" type="date" value="${esc(a.date||today())}"></div>
+    <div class="fld"><label>Message *</label><textarea id="an_b" rows="3">${esc(a.body||'')}</textarea></div>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveAnnounce('${id||''}')">Save</button>`);}
+function saveAnnounce(id){const title=$('#an_t').value.trim(),body=$('#an_b').value.trim();if(!title||!body){toast('Title & message required',true);return;}
+  const obj={title,body,date:$('#an_d').value};if(id)Object.assign(DB.announcements.find(x=>x.id===id),obj);else{obj.id=uid('an');DB.announcements.push(obj);}save();closeModal();vAnnounce();toast('Announcement saved');}
+function delAnnounce(id){DB.announcements=DB.announcements.filter(x=>x.id!==id);save();vAnnounce();toast('Removed');}
+
+/* ===================== PARENT PORTAL ===================== */
+function renderParent(){$('#app').style.display='none';$('#screen').style.display='';const t=theme();
+  if(!DB){$('#screen').innerHTML=`<div class="auth check"><div class="acard"><div class="crest b">🚫</div><h1>School not found</h1></div></div>`;return;}
+  $('#screen').innerHTML=`<div class="auth" style="background:linear-gradient(135deg,${t.rg},${t.rgd})"><div class="acard"><div class="crest g">👪</div>
+    <h1>${esc(DB.settings.schoolName)}</h1><div class="sub">Parent Portal</div>
+    <div class="auth-err" id="pperr"></div>
+    <div class="field"><label>Pupil Admission Number</label><input id="pp_adm" placeholder="ADM/2025/001"></div>
+    <div class="field"><label>Password</label><input id="pp_pw" type="password" placeholder="Guardian phone number" onkeydown="if(event.key==='Enter')parentLogin()"></div>
+    <button class="btn" style="width:100%;justify-content:center;background:${t.rg}" onclick="parentLogin()">Sign in</button>
+    <div class="swlink"><a onclick="MODE='school';renderAuth()">← Back to homepage</a></div>
+    <div class="hint">Use your child's admission number and the guardian phone number on record.</div></div></div>`;}
+function parentLogin(){const adm=$('#pp_adm').value.trim(),pw=$('#pp_pw').value.trim();const err=$('#pperr');err.style.display='none';
+  const s=DB.students.find(x=>(x.admissionNo||'').toLowerCase()===adm.toLowerCase()&&!x.graduated);
+  if(!s){err.style.display='block';err.textContent='Admission number not found.';return;}
+  const pwd=pw.replace(/\D/g,'');const gp=(s.guardianPhone||'').replace(/\D/g,'');
+  const ok=(s.parentPin&&s.parentPin===pw)||(gp&&gp.length>=7&&gp===pwd);
+  if(!ok){err.style.display='block';err.textContent=gp?'Wrong password. Use the guardian phone number on file.':'No password on file — please contact the school.';return;}
+  renderParentDash(s);}
+function renderParentDash(s){const t=theme();const due=Number((DB.fees[rkey(s.id)]||{}).due)||0,paid=approvedPaid(s.id),bal=due-paid;
+  let pres=0,tot=0;Object.keys(DB.attendance).forEach(k=>{const cid=k.split('|')[1];if(cid===s.classId){const v=DB.attendance[k][s.id];if(v!==undefined){tot++;if(v==='P')pres++;}}});
+  $('#screen').innerHTML=`<div style="min-height:100vh;background:#eef3f8;padding:18px 14px">
+    <div style="max-width:760px;margin:0 auto">
+      <div class="flex no-print" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px"><div><b>${esc(DB.settings.schoolName)}</b> — Parent Portal</div>
+        <button class="btn sec sm" onclick="MODE='school';renderAuth()">← Home</button></div>
+      <div class="card pad mb"><div class="flex gap">${s.photo?`<img src="${s.photo}" style="width:64px;height:64px;border-radius:12px;object-fit:cover">`:'<div style="width:64px;height:64px;border-radius:12px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:30px">👧</div>'}
+        <div><div style="font-size:19px;font-weight:800">${esc(s.name)}</div><div class="muted">${esc(className(s.classId))} · Adm ${esc(s.admissionNo||'—')}</div></div></div></div>
+      <div class="cards-row">
+        <div class="stat"><div class="lbl">Fees due</div><div class="num" style="font-size:20px">${naira(due)}</div></div>
+        <div class="stat"><div class="lbl">Paid</div><div class="num" style="font-size:20px;color:var(--green)">${naira(paid)}</div></div>
+        <div class="stat"><div class="lbl">Balance</div><div class="num" style="font-size:20px;color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</div></div>
+        <div class="stat"><div class="lbl">Attendance</div><div class="num" style="font-size:20px">${tot?Math.round(pres/tot*100)+'%':'—'}</div><div class="meta">${pres}/${tot} present</div></div></div>
+      <div class="card pad mb"><h3 class="mb">📄 Results</h3><p class="muted mb">View & print your child's termly result with the PIN provided by the school.</p>
+        <button class="btn" onclick="MODE='check';renderChecker()">Check Result (PIN)</button></div>
+      <div class="card pad"><h3 class="mb">📢 Announcements</h3>${DB.announcements.length?DB.announcements.slice().reverse().slice(0,6).map(a=>`<div class="ev-item" style="display:block"><b>${esc(a.title)}</b> <span class="muted" style="font-size:11px">${esc(a.date)}</span><div style="font-size:13px">${esc(a.body)}</div></div>`).join(''):'<p class="muted">No announcements.</p>'}</div>
+    </div></div>`;window.scrollTo(0,0);}
 
 /* ===================== ACCOUNTS & FINANCE ===================== */
 let finTab='overview';
@@ -1494,6 +1608,7 @@ function printClassInvoices(){const list=studentsIn(invClass);if(!list.length){t
 function renderAuth(){
   const sc=$('#screen');sc.style.display='';$('#app').style.display='none';if(window.setManifest)setManifest();
   if(MODE==='check'){renderChecker();return;}
+  if(MODE==='parent'){renderParent();return;}
   if(MODE==='owner'){
     sc.innerHTML=`<div class="auth owner"><div class="acard"><div class="crest p">🛰️</div>
       <h1>${esc((MASTER&&MASTER.platform.name)||'EduManager Cloud')}</h1><div class="sub">Owner Console</div>
@@ -1523,7 +1638,7 @@ function renderSchoolHome(){
   const aboutImg=heroes[1]||heroes[0]||((DB.gallery||[]).flatMap(a=>a.media||[]).find(m=>m.type==='image')||{}).url||'';
   sc.innerHTML=`<div class="home" style="--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}">
     <div class="home-top"><div class="b"><div class="lg">${logoTop}</div><span class="nm">${esc(set.shortName||set.schoolName)}</span></div>
-      <div class="nav"><a class="active" onclick="hgo('home')">🏠 Home</a><a onclick="hgo('about')">ℹ️ About</a><a onclick="hgo('admission')">📥 Admission</a><a onclick="hgo('contact')">📞 Contact</a><a class="login" onclick="staffLoginModal()">🔐 Login</a></div></div>
+      <div class="nav"><a class="active" onclick="hgo('home')">🏠 Home</a><a onclick="hgo('about')">ℹ️ About</a><a onclick="hgo('admission')">📥 Admission</a><a onclick="hgo('contact')">📞 Contact</a>${hasModule('parentPortal')?`<a onclick="MODE='parent';renderParent()">👪 Parents</a>`:''}<a class="login" onclick="staffLoginModal()">🔐 Login</a></div></div>
     <div id="home" class="home-hero" style="position:relative;${heroes.length?'':`background:linear-gradient(135deg,${t.rg},${t.rgd})`}">${heroBg}
       <div style="position:relative">${set.logo?`<div class="hero-crest">${logoTop}</div>`:''}${set.islamic?`<div class="bismillah" style="color:${t.gold};font-size:17px;margin-bottom:8px">${BISMILLAH.a}</div>`:''}
         <h1>${esc(set.schoolName)}</h1><div class="tag">${esc(set.motto||'')}</div>
@@ -1545,7 +1660,9 @@ function renderSchoolHome(){
         <div style="height:150px;background:#eef2ef;display:flex;align-items:center;justify-content:center;font-size:40px">${cover?`<img src="${cover.url}" style="width:100%;height:100%;object-fit:cover">`:'🖼️'}</div>
         <div style="padding:12px"><div class="flex" style="justify-content:space-between"><b>${esc(a.title)}</b><span class="pill grey">${(a.media||[]).length}</span></div><div class="muted" style="font-size:12px">${esc(a.category||'')}${a.date?' · '+esc(a.date):''}</div></div></div>`;}).join('')}
     </div></div>`:''}
+    ${(DB.announcements||[]).length?`<div class="home-sec"><div class="sec-h"><h2>📢 News & Announcements</h2><div class="u"></div></div><div class="card pad" style="max-width:720px;margin:0 auto">${DB.announcements.slice().reverse().slice(0,5).map(a=>`<div class="ev-item" style="display:block"><b>${esc(a.title)}</b> <span class="muted" style="font-size:11px">${esc(a.date)}</span><div style="font-size:13.5px;margin-top:2px">${esc(a.body)}</div></div>`).join('')}</div></div>`:''}
     ${ev.length?`<div class="home-sec"><div class="sec-h"><h2>Upcoming Events</h2><div class="u"></div></div><div class="card pad" style="max-width:680px;margin:0 auto">${ev.map(e=>`<div class="ev-item"><div class="ev-date"><div class="d">${dayNum(e.date)}</div><div class="m">${monthAbbr(e.date)}</div></div><div style="flex:1"><b>${esc(e.title)}</b><br><span class="muted" style="font-size:12px">${esc(e.date)}</span></div></div>`).join('')}</div></div>`:''}
+    ${hasModule('parentPortal')?`<div class="home-sec" style="text-align:center"><button class="btn gold" onclick="MODE='parent';renderParent()">👪 Parent Portal Login</button></div>`:''}
     <div id="contact" class="sec-dark" style="background:${t.rgd}"><div class="home-sec" style="text-align:center"><div class="sec-h"><h2>Contact Us</h2><div class="u"></div></div>
       <div style="font-size:14px;line-height:1.9">📍 ${esc(set.address||'')}<br>${set.phone?'☎ '+esc(set.phone)+'<br>':''}${set.email?'✉ '+esc(set.email):''}</div>
       <div class="flex gap" style="justify-content:center;margin-top:16px;flex-wrap:wrap">${set.whatsapp?`<a class="btn" style="background:#25d366" href="${waLink(set.whatsapp)}" target="_blank">💬 WhatsApp</a>`:''}${set.facebookUrl?`<a class="btn" style="background:#1877f2" href="${esc(set.facebookUrl)}" target="_blank">📘 Facebook</a>`:''}<button class="btn gold" onclick="MODE='check';renderChecker()">Check Result</button><button class="btn btn-ghost" onclick="staffLoginModal()">Staff Login</button></div></div></div>
@@ -1615,6 +1732,8 @@ function buildNav(){
     if(hasModule('finance'))items.push(['finance','💵','Accounts']);
     if(hasModule('gallery'))items.push(['gallery','🖼️','Gallery']);
     if(hasModule('lessonPlans'))items.push(['lessons','📚','Lesson Plans']);
+    if(hasModule('broadsheet'))items.splice(10,0,['broadsheet','📊','Broadsheet']);
+    if(hasModule('parentPortal'))items.push(['announce','📢','Announcements']);
     items.push(['website','🌐','Website']);}
   else {items=[['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
     if(hasModule('lessonPlans'))items.splice(4,0,['lessons','📚','Lesson Plans']);}
@@ -1627,7 +1746,7 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
   const map={odash:vODash,schools:vSchools,pins:vPins,revenue:vRevenue,osettings:vOSettings,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
-    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite};
+    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce};
   (map[p]||vDashboard)();}
 
 /* ===================== OWNER: DASHBOARD ===================== */
@@ -2175,7 +2294,7 @@ function renderRepList(){const list=studentsIn(repClass);
   $('#repList').innerHTML=`<div class="t-wrap"><table><thead><tr><th>Name</th><th class="center">Subjects</th><th class="center">Total</th><th class="center">Average</th><th class="center">Position</th><th></th></tr></thead><tbody>
   ${rows.map(r=>`<tr><td><b>${esc(r.s.name)}</b></td><td class="center">${r.count}/${r.marks.length}</td><td class="center">${r.count?r.total:'—'}</td>
     <td class="center">${r.count?r.avg.toFixed(1)+'%':'—'}</td><td class="center">${r.pos?'<span class="pill green">'+ord(r.pos)+'</span>':'—'}</td>
-    <td class="right"><button class="btn sm" onclick="openReport('${r.s.id}')">View</button></td></tr>`).join('')}
+    <td class="right" style="white-space:nowrap">${hasModule('affective')?`<button class="btn sm sec" onclick="editRatings('${r.s.id}')">⭐ Ratings</button>`:''}<button class="btn sm" onclick="openReport('${r.s.id}')">View</button></td></tr>`).join('')}
   </tbody></table></div>`;}
 function reportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid);const {rows,size}=computeClassResults(s.classId,sess,term);const row=rows.find(r=>r.s.id===sid);
   const g=G();const subsList=DB.subjects[s.classId]||[];const rem=DB.remarks[rkey(sid,sess,term)]||{};const isl=isIslamic();
@@ -2212,6 +2331,7 @@ function reportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid);const
       <div class="rc-perf"><h4>Performance</h4>
         <div class="row"><span>Total Score</span><b>${row.count?row.total:'–'}</b></div><div class="row"><span>Average</span><b>${row.count?row.avg.toFixed(1):'–'}</b></div>
         <div class="row"><span>Class Position</span><b>${row.pos?ord(row.pos)+' of '+size:'–'}</b></div><div class="row"><span>Overall Grade</span><b>${row.count?gradeOf(row.avg).g:'–'}</b></div></div></div>
+    ${affectiveBlock(sid)}
     <div class="rc-comments">
       <div class="c"><b>Class Teacher's Comment</b><div class="box">${esc(rem.teacher||autoRemark(row.avg,row.marks))}</div></div>
       <div class="c"><b>Principal's Recommendation</b><div class="box">${esc(rem.head||autoHead(row.avg))}</div></div></div>
@@ -2480,7 +2600,8 @@ function renderCheckResult(){
       <div class="subtabs no-print"><button class="subtab${_ckTab==='term'?' active':''}" onclick="setCkTab('term')">Termly Result</button>
         <button class="subtab${_ckTab==='annual'?' active':''}" onclick="setCkTab('annual')">Annual / Promotion</button>
         ${fin?`<button class="subtab${_ckTab==='cert'?' active':''}" onclick="setCkTab('cert')">Leaving Certificate</button>`:''}</div>
-      <div id="checkPrint" ${_ckTab==='cert'?'':'class="card pad"'} style="${_ckTab==='cert'?'':'box-shadow:0 6px 24px rgba(0,0,0,.1)'}">${body}</div>
+      <div class="no-print muted" style="text-align:center;font-size:12px;margin-bottom:8px">📄 For a clean, easy-to-read copy, tap <b>Print / Save PDF</b> — it prints neatly on one A4 page.</div>
+      <div id="checkPrint" ${_ckTab==='cert'?'':'class="card pad"'} style="${_ckTab==='cert'?'':'box-shadow:0 6px 24px rgba(0,0,0,.1)'};overflow-x:auto;-webkit-overflow-scrolling:touch">${body}</div>
     </div></div>`;
   window.scrollTo(0,0);renderVisuals();
 }
