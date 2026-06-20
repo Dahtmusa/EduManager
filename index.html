@@ -15,6 +15,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script>
 /* ╔══════════════════════════════════════════════════════════════╗
    ║  OWNER: PASTE YOUR SUPABASE KEYS HERE (once, before hosting).   ║
@@ -2685,13 +2686,13 @@ let PH_CART=[], PH_FROM='', PH_TO='', PH_SFROM='', PH_STO='', PH_SQ='';
 function seedPharmacy(code,name){return{kind:'pharmacy',
   settings:{code,storeName:name,shortName:'',address:'Nigeria',phone:'',email:'',logo:'',theme:'teal',currency:'₦',lowStock:10,expiryDays:60,status:'active',receiptSeq:0},
   users:[{id:'u1',name:'Pharmacy Manager',username:'admin',password:'admin123',role:'admin'}],
-  products:[],suppliers:[],sales:[],purchases:[],adjustments:[],supplierPayments:[]};}
+  products:[],suppliers:[],sales:[],purchases:[],adjustments:[],supplierPayments:[],expenses:[]};}
 function ensurePharmacy(d){d.kind='pharmacy';d.settings=d.settings||{};const s=d.settings;
   if(!s.currency)s.currency='₦';if(s.lowStock==null)s.lowStock=10;if(s.expiryDays==null)s.expiryDays=60;
   if(!s.theme)s.theme='teal';if(!s.status)s.status='active';if(s.receiptSeq==null)s.receiptSeq=0;
   if(!s.storeName)s.storeName=s.schoolName||'Pharmacy';
   if(s.supPaySeq==null)s.supPaySeq=0;if(s.custPaySeq==null)s.custPaySeq=0;
-  ['products','suppliers','sales','purchases','adjustments','supplierPayments'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
+  ['products','suppliers','sales','purchases','adjustments','supplierPayments','expenses'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
   if(!Array.isArray(d.users)||!d.users.length)d.users=[{id:'u1',name:'Pharmacist',username:'admin',password:'admin123',role:'admin'}];
   return d;}
 /* ---- helpers ---- */
@@ -2849,7 +2850,7 @@ function phReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="$
     <div style="text-align:center;font-size:11px;margin-top:10px;border-top:1px dashed #999;padding-top:8px">Thank you. Goods sold in good faith.<br>Powered by Muscode</div>
   </div>`;}
 function phShowReceipt(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;
-  modal('Receipt — '+s.receiptNo,phReceiptHTML(s),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#25d366" onclick="storeWaReceipt('${s.id}')">💬 WhatsApp</button><button class="btn no-print" style="background:#0c5b56" onclick="window.print()">🖨 Print</button>`);}
+  modal('Receipt — '+s.receiptNo,phReceiptHTML(s),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#25d366" onclick="storeShareReceipt('${s.id}')">💬 WhatsApp image</button><button class="btn no-print" style="background:#0c5b56" onclick="window.print()">🖨 Print</button>`);}
 /* POS scan reuses Html5Qrcode */
 function phScanToggle(){const box=$('#posScan');if(!box)return;if(box.style.display==='none'){box.style.display='block';phStartPosScan();}else{stopScan();box.style.display='none';}}
 function phStartPosScan(){if(!window.Html5Qrcode){toast('Scanner not loaded',true);return;}if(window._scanner)return;
@@ -3132,7 +3133,7 @@ function phSavePurchase(){const sup=$('#pu_sup').value;const items=[];
 /* ---- Reports ---- */
 function vPhReports(){const t=today();if(!PH_FROM){PH_FROM=t.slice(0,8)+'01';}if(!PH_TO)PH_TO=t;
   $('#view').innerHTML=`<div class="page-head"><div><h2>Reports</h2><p>Sales, profit & stock</p></div>
-    <button class="btn gold no-print" onclick="window.print()">🖨 Print</button></div>
+    <div class="flex gap"><button class="btn no-print" style="background:#0c5b56" onclick="storeEOD()">🧾 End-of-day</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button></div></div>
   <div class="toolbar no-print"><div><label>From</label><input id="rp_from" type="date" value="${PH_FROM}" onchange="PH_FROM=this.value;phRenderReports()"></div>
     <div><label>To</label><input id="rp_to" type="date" value="${PH_TO}" onchange="PH_TO=this.value;phRenderReports()"></div>
     <div style="align-self:flex-end"><button class="btn sm sec" onclick="phRange('today')">Today</button>
@@ -3149,12 +3150,14 @@ function phRenderReports(){const sales=phSalesIn(PH_FROM,PH_TO);
   const agg={};sales.forEach(s=>(s.items||[]).forEach(i=>{const a=agg[i.productId]||(agg[i.productId]={name:i.name,qty:0,rev:0});a.qty+=Number(i.qty||0);a.rev+=Number(i.price||0)*Number(i.qty||0);}));
   const best=Object.values(agg).sort((a,b)=>b.qty-a.qty).slice(0,10);
   const low=phLow(),exp=phExpiring();
+  const expTotal=storeExpensesIn(PH_FROM,PH_TO).reduce((a,e)=>a+Number(e.amount||0),0);const net=profit-expTotal;
   const el=$('#rpArea');if(!el)return;
   el.innerHTML=`<div class="cards-row">
     ${phStat('Transactions',sales.length,PH_FROM+' → '+PH_TO)}
     ${phStat('Gross sales',pmoney(gross),'','#0c5b56')}
-    ${phStat('Cost of goods',pmoney(cost),'')}
-    ${phStat('Profit',pmoney(profit),gross?((profit/gross*100).toFixed(1)+'% margin'):'','#0a7d33')}
+    ${phStat('Gross profit',pmoney(profit),gross?((profit/gross*100).toFixed(1)+'% margin'):'','#0a7d33')}
+    ${phStat('Expenses',pmoney(expTotal),'',expTotal?'#c0392b':'')}
+    ${phStat('NET PROFIT',pmoney(net),'after expenses',net>=0?'#0a7d33':'#c0392b')}
   </div>
   <div class="flex gap" style="flex-wrap:wrap;align-items:flex-start">
     <div class="card pad" style="flex:1;min-width:280px"><h3 class="mb">Best sellers</h3>
@@ -3171,7 +3174,8 @@ function phRenderReports(){const sales=phSalesIn(PH_FROM,PH_TO);
       ${low.length?`<div class="t-wrap"><table><thead><tr><th>Product</th><th class="right">Stock</th><th class="right">Reorder ≤</th></tr></thead><tbody>${low.map(p=>`<tr><td>${esc(p.name)}</td><td class="right">${Number(p.stock||0)}</td><td class="right">${phReorder(p)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">All good 👍</div>`}</div>
     <div class="card pad" style="flex:1;min-width:280px"><h3 class="mb">⏳ Expiring / expired (${exp.length})</h3>
       ${exp.length?`<div class="t-wrap"><table><thead><tr><th>Product</th><th>Expiry</th><th class="right">Stock</th></tr></thead><tbody>${exp.map(p=>{const es=phExpStatus(p);return `<tr><td>${esc(p.name)}</td><td>${esc(p.expiry||'')} <span class="pill ${es.cls}">${es.txt}</span></td><td class="right">${Number(p.stock||0)}</td></tr>`;}).join('')}</tbody></table></div>`:`<div class="empty">None 👍</div>`}</div>
-  </div>`;}
+  </div>
+  ${storeExpensesCardHTML(PH_FROM,PH_TO,'phRenderReports')}`;}
 
 /* ---- Settings (pharmacy admin) ---- */
 function vPhSettings(){if(USER.role!=='admin'){vPhDash();return;}const s=DB.settings;
@@ -3322,12 +3326,12 @@ const AU_CATS=['Engine','Brakes','Suspension','Electrical','Transmission','Cooli
 function seedAuto(code,name){return{kind:'autoparts',
   settings:{code,storeName:name,shortName:'',address:'Nigeria',phone:'',email:'',logo:'',theme:'blue',currency:'₦',lowStock:3,status:'active',receiptSeq:0},
   users:[{id:'u1',name:'Store Operator',username:'admin',password:'admin123',role:'admin'}],
-  products:[],suppliers:[],sales:[],purchases:[],adjustments:[],supplierPayments:[]};}
+  products:[],suppliers:[],sales:[],purchases:[],adjustments:[],supplierPayments:[],expenses:[]};}
 function ensureAuto(d){d.kind='autoparts';d.settings=d.settings||{};const s=d.settings;
   if(!s.currency)s.currency='₦';if(s.lowStock==null)s.lowStock=3;if(!s.theme)s.theme='blue';
   if(!s.status)s.status='active';if(s.receiptSeq==null)s.receiptSeq=0;if(!s.storeName)s.storeName=s.schoolName||'Auto Parts';
   if(s.supPaySeq==null)s.supPaySeq=0;if(s.custPaySeq==null)s.custPaySeq=0;
-  ['products','suppliers','sales','purchases','adjustments','supplierPayments'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
+  ['products','suppliers','sales','purchases','adjustments','supplierPayments','expenses'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
   if(!Array.isArray(d.users)||!d.users.length)d.users=[{id:'u1',name:'Store Operator',username:'admin',password:'admin123',role:'admin'}];
   return d;}
 /* ---- helpers ---- */
@@ -3471,7 +3475,7 @@ function auReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="$
     <div style="text-align:center;font-size:11px;margin-top:10px;border-top:1px dashed #999;padding-top:8px">Thank you. Goods sold in good faith.<br>Powered by Muscode</div>
   </div>`;}
 function auShowReceipt(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;
-  modal('Receipt — '+s.receiptNo,auReceiptHTML(s),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#25d366" onclick="storeWaReceipt('${s.id}')">💬 WhatsApp</button><button class="btn no-print" style="background:#15366e" onclick="window.print()">🖨 Print</button>`);}
+  modal('Receipt — '+s.receiptNo,auReceiptHTML(s),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#25d366" onclick="storeShareReceipt('${s.id}')">💬 WhatsApp image</button><button class="btn no-print" style="background:#15366e" onclick="window.print()">🖨 Print</button>`);}
 function auScanToggle(){const box=$('#auposScan');if(!box)return;if(box.style.display==='none'){box.style.display='block';auStartPosScan();}else{stopScan();box.style.display='none';}}
 function auStartPosScan(){if(!window.Html5Qrcode){toast('Scanner not loaded',true);return;}if(window._scanner)return;
   const fmts=window.Html5QrcodeSupportedFormats?[Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.QR_CODE]:undefined;
@@ -3751,7 +3755,7 @@ function auSavePurchase(){const sup=$('#aupu_sup').value;const items=[];
 /* ---- Reports ---- */
 function vAuReports(){const t=today();if(!AU_FROM)AU_FROM=t.slice(0,8)+'01';if(!AU_TO)AU_TO=t;
   $('#view').innerHTML=`<div class="page-head"><div><h2>Reports</h2><p>Sales, profit & stock</p></div>
-    <button class="btn gold no-print" onclick="window.print()">🖨 Print</button></div>
+    <div class="flex gap"><button class="btn no-print" style="background:#15366e" onclick="storeEOD()">🧾 End-of-day</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button></div></div>
   <div class="toolbar no-print"><div><label>From</label><input id="aurp_from" type="date" value="${AU_FROM}" onchange="AU_FROM=this.value;auRenderReports()"></div>
     <div><label>To</label><input id="aurp_to" type="date" value="${AU_TO}" onchange="AU_TO=this.value;auRenderReports()"></div>
     <div style="align-self:flex-end"><button class="btn sm sec" onclick="auRange('today')">Today</button><button class="btn sm sec" onclick="auRange('month')">This month</button><button class="btn sm sec" onclick="auRange('all')">All time</button></div></div>
@@ -3763,12 +3767,14 @@ function auRenderReports(){const sales=auSalesIn(AU_FROM,AU_TO);
   const byPay={};sales.forEach(s=>{byPay[s.payment||'Cash']=(byPay[s.payment||'Cash']||0)+Number(s.total||0);});
   const agg={};sales.forEach(s=>(s.items||[]).forEach(i=>{const a=agg[i.productId]||(agg[i.productId]={name:i.name,qty:0,rev:0});a.qty+=Number(i.qty||0);a.rev+=Number(i.price||0)*Number(i.qty||0);}));
   const best=Object.values(agg).sort((a,b)=>b.qty-a.qty).slice(0,10);const low=auLow();
+  const expTotal=storeExpensesIn(AU_FROM,AU_TO).reduce((a,e)=>a+Number(e.amount||0),0);const net=profit-expTotal;
   const el=$('#aurpArea');if(!el)return;
   el.innerHTML=`<div class="cards-row">
     ${phStat('Transactions',sales.length,AU_FROM+' → '+AU_TO)}
     ${phStat('Gross sales',amoney(gross),'','#15366e')}
-    ${phStat('Cost of goods',amoney(cost),'')}
-    ${phStat('Profit',amoney(profit),gross?((profit/gross*100).toFixed(1)+'% margin'):'','#0a7d33')}
+    ${phStat('Gross profit',amoney(profit),gross?((profit/gross*100).toFixed(1)+'% margin'):'','#0a7d33')}
+    ${phStat('Expenses',amoney(expTotal),'',expTotal?'#c0392b':'')}
+    ${phStat('NET PROFIT',amoney(net),'after expenses',net>=0?'#0a7d33':'#c0392b')}
   </div>
   <div class="flex gap" style="flex-wrap:wrap;align-items:flex-start">
     <div class="card pad" style="flex:1;min-width:280px"><h3 class="mb">Best sellers</h3>
@@ -3781,7 +3787,8 @@ function auRenderReports(){const sales=auSalesIn(AU_FROM,AU_TO);
     </div>
   </div>
   <div class="card pad"><h3 class="mb">⚠️ Low stock (${low.length})</h3>
-    ${low.length?`<div class="t-wrap"><table><thead><tr><th>Part</th><th>Fits</th><th class="right">Stock</th><th class="right">Reorder ≤</th></tr></thead><tbody>${low.map(p=>`<tr><td>${esc(p.name)}</td><td><span class="muted">${esc(p.fitment||'—')}</span></td><td class="right">${Number(p.stock||0)}</td><td class="right">${auReorder(p)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">All good 👍</div>`}</div>`;}
+    ${low.length?`<div class="t-wrap"><table><thead><tr><th>Part</th><th>Fits</th><th class="right">Stock</th><th class="right">Reorder ≤</th></tr></thead><tbody>${low.map(p=>`<tr><td>${esc(p.name)}</td><td><span class="muted">${esc(p.fitment||'—')}</span></td><td class="right">${Number(p.stock||0)}</td><td class="right">${auReorder(p)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">All good 👍</div>`}</div>
+  ${storeExpensesCardHTML(AU_FROM,AU_TO,'auRenderReports')}`;}
 
 /* ---- Settings ---- */
 function vAuSettings(){const s=DB.settings;
@@ -3919,6 +3926,71 @@ async function confirmDelAuto(code){MASTER.schools=MASTER.schools.filter(s=>s.co
   if(supa){try{await supa.from('school_data').delete().eq('id',code);}catch(e){}}closeModal();toast('Store deleted');vAutos();}
 
 /* ===================== SHARED STORE FEATURES (pharmacy + auto) ===================== */
+/* ---- share a receipt as an IMAGE (PNG) to WhatsApp / share sheet ---- */
+function storeShareImage(html,filename,shareText){
+  if(!window.html2canvas){toast('Image tool still loading — try again in a moment',true);return;}
+  const wrap=document.createElement('div');wrap.style.cssText='position:fixed;left:-10000px;top:0;background:#fff;z-index:-1';
+  wrap.innerHTML=html;document.body.appendChild(wrap);const node=wrap.firstElementChild||wrap;toast('Preparing image…');
+  html2canvas(node,{scale:2,backgroundColor:'#ffffff',useCORS:true}).then(canvas=>{
+    if(wrap.parentNode)document.body.removeChild(wrap);
+    canvas.toBlob(blob=>{if(!blob){toast('Could not create image',true);return;}
+      const file=new File([blob],filename+'.png',{type:'image/png'});
+      if(navigator.canShare&&navigator.canShare({files:[file]})){navigator.share({files:[file],text:shareText||''}).catch(()=>{});}
+      else{const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=file.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),4000);toast('Receipt image saved — attach it in WhatsApp');}
+    },'image/png');
+  }).catch(()=>{if(wrap.parentNode)document.body.removeChild(wrap);toast('Image failed — try Print instead',true);});
+}
+function storeShareReceipt(saleId){const s=DB.sales.find(x=>x.id===saleId);if(!s)return;
+  const html=(DB.kind==='autoparts'?auReceiptHTML(s):phReceiptHTML(s));
+  storeShareImage(html,(DB.settings.shortName||DB.settings.storeName||'receipt')+'-'+s.receiptNo,DB.settings.storeName+' — receipt '+s.receiptNo);}
+/* ---- expenses (true net profit) ---- */
+const EXP_CATS=['Rent','Salaries / Wages','Utilities (power/water)','Transport / Fuel','Supplies','Repairs / Maintenance','Bank / Charges','Marketing','Miscellaneous'];
+function storeExpensesIn(from,to){return (DB.expenses||[]).filter(e=>{const d=(e.date||'').slice(0,10);return (!from||d>=from)&&(!to||d<=to);});}
+function storeAddExpense(refreshName){window._exRefresh=refreshName||'';
+  modal('Add expense',`<div class="grid2">
+    <div class="fld"><label>Date</label><input id="ex_date" type="date" value="${today()}"></div>
+    <div class="fld"><label>Category</label><select id="ex_cat">${EXP_CATS.map(c=>`<option>${c}</option>`).join('')}</select></div>
+    <div class="fld"><label>Amount (${(DB.settings.currency||'₦')})</label><input id="ex_amt" type="number" min="0" step="0.01" value="0"></div>
+    <div class="fld"><label>Note</label><input id="ex_note" placeholder="optional"></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="storeSaveExpense()">Save expense</button>`);}
+function storeSaveExpense(){const amt=Math.max(0,Number($('#ex_amt').value)||0);if(amt<=0){toast('Enter an amount',true);return;}
+  DB.expenses=DB.expenses||[];DB.expenses.push({id:uid('ex'),date:($('#ex_date').value?new Date($('#ex_date').value).toISOString():new Date().toISOString()),category:$('#ex_cat').value,amount:amt,note:$('#ex_note').value.trim()});
+  save();closeModal();toast('Expense saved');if(window._exRefresh&&window[window._exRefresh])window[window._exRefresh]();}
+function storeDelExpense(id,refreshName){DB.expenses=(DB.expenses||[]).filter(e=>e.id!==id);save();toast('Removed');if(refreshName&&window[refreshName])window[refreshName]();}
+function storeExpensesCardHTML(from,to,refreshName){const exps=storeExpensesIn(from,to).slice().sort((a,b)=>(b.date||'').localeCompare(a.date||''));const tot=exps.reduce((a,e)=>a+Number(e.amount||0),0);
+  return `<div class="card pad"><div class="flex" style="justify-content:space-between"><h3>Expenses <span class="muted" style="font-size:13px">(${pmoney(tot)})</span></h3><button class="btn sm" onclick="storeAddExpense('${refreshName}')">＋ Add expense</button></div>
+  ${exps.length?`<div class="t-wrap mt"><table><thead><tr><th>Date</th><th>Category</th><th>Note</th><th class="right">Amount</th><th></th></tr></thead><tbody>
+    ${exps.map(e=>`<tr><td>${esc((e.date||'').slice(0,10))}</td><td>${esc(e.category||'')}</td><td><span class="muted">${esc(e.note||'')}</span></td><td class="right">${pmoney(e.amount)}</td><td class="right"><button class="btn sm danger" onclick="storeDelExpense('${e.id}','${refreshName}')">✕</button></td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="empty mt">No expenses in range.</div>`}</div>`;}
+/* ---- end-of-day (Z) report ---- */
+function storeEOD(date){const d=date||today();const set=DB.settings;
+  const sales=(DB.sales||[]).filter(s=>!s.voided&&(s.date||'').slice(0,10)===d);
+  const gross=sales.reduce((a,s)=>a+Number(s.total||0),0);const cogs=sales.reduce((a,s)=>a+Number(s.cost||0),0);const gp=gross-cogs;
+  const collected={};DB.sales.forEach(s=>{if(s.voided)return;(s.payments||[]).forEach(p=>{if((p.date||'').slice(0,10)===d)collected[p.method||'Cash']=(collected[p.method||'Cash']||0)+Number(p.amount||0);});});
+  const totalCollected=Object.values(collected).reduce((a,b)=>a+b,0);
+  const creditToday=sales.reduce((a,s)=>a+Number(s.balance||0),0);
+  const exps=storeExpensesIn(d,d);const expTotal=exps.reduce((a,e)=>a+Number(e.amount||0),0);
+  const net=gp-expTotal;const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover">`:(DB.kind==='autoparts'?'🔧':'💊');
+  const html=`<div class="rc" style="${themeVars()};max-width:none"><div class="rc-top"><div class="rc-head"><div class="rc-crest">${logo}</div><div class="rc-sch"><h2>${esc(set.storeName)}</h2>${set.slogan?`<div class="nick">${esc(set.slogan)}</div>`:''}<div class="addr">${esc(set.address||'')}${set.phone?' · ☎ '+esc(set.phone):''}</div></div></div></div>
+    <div class="rc-title">✦ END-OF-DAY REPORT — ${esc(d)} ✦</div>
+    <div style="padding:10px 16px">
+      <table class="rc-tbl"><tbody>
+        <tr><td>Number of sales</td><td class="right"><b>${sales.length}</b></td></tr>
+        <tr><td>Gross sales</td><td class="right"><b>${pmoney(gross)}</b></td></tr>
+        <tr><td>Cost of goods sold</td><td class="right">${pmoney(cogs)}</td></tr>
+        <tr><td>Gross profit</td><td class="right"><b style="color:#0a7d33">${pmoney(gp)}</b></td></tr>
+        <tr><td>Expenses today</td><td class="right" style="color:#c0392b">${pmoney(expTotal)}</td></tr>
+        <tr><td><b>NET PROFIT (day)</b></td><td class="right"><b style="color:${net>=0?'#0a7d33':'#c0392b'}">${pmoney(net)}</b></td></tr>
+      </tbody></table>
+      <h4 style="margin:12px 0 4px">Money collected today (by method)</h4>
+      <table class="rc-tbl"><tbody>${Object.keys(collected).length?Object.entries(collected).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="right">${pmoney(v)}</td></tr>`).join(''):'<tr><td colspan=2 class="center muted">No money collected.</td></tr>'}
+        <tr><td><b>Total collected</b></td><td class="right"><b>${pmoney(totalCollected)}</b></td></tr>
+        <tr><td>New credit given today</td><td class="right" style="color:#c0392b">${pmoney(creditToday)}</td></tr></tbody></table>
+      ${exps.length?`<h4 style="margin:12px 0 4px">Expenses</h4><table class="rc-tbl"><tbody>${exps.map(e=>`<tr><td>${esc(e.category)}${e.note?' — '+esc(e.note):''}</td><td class="right">${pmoney(e.amount)}</td></tr>`).join('')}</tbody></table>`:''}
+      <p class="muted" style="font-size:11.5px;margin-top:10px">Use “Total collected” to reconcile your cash drawer and transfers. Powered by Muscode.</p>
+    </div></div>`;
+  modal('End-of-Day — '+d,`<div class="toolbar no-print"><div><label>Date</label><input type="date" value="${d}" onchange="storeEOD(this.value)"></div></div>`+html,
+    `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button>`,true);}
 function storeReorderLevel(p){return (p.reorder!=null&&p.reorder!=='')?Number(p.reorder):Number(DB.settings.lowStock||0);}
 function storeLowList(){return DB.products.filter(p=>!p.archived&&Number(p.stock||0)<=storeReorderLevel(p));}
 function storeReceiptText(s){const set=DB.settings;let t='*'+set.storeName+'*\n';if(set.slogan)t+='_'+set.slogan+'_\n';if(set.address)t+=set.address+'\n';if(set.phone)t+='Tel: '+set.phone+'\n';
