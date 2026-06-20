@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Loading…</title>
+<style>html,body{height:100%;margin:0;font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif;background:#f4f6f5;color:#555;display:flex;align-items:center;justify-content:center}</style>
+<script>
+/* Single-page-app fallback for Netlify, Cloudflare Pages and GitHub Pages.
+   Any unknown path (e.g. /SISTYOLA or /BNFODIO/check) lands here; we turn it
+   into the app's ?s=CODE link and load the real app. This file is tiny and
+   NEVER needs updating when you change index.html. */
+(function(){
+  try{
+    var segs=location.pathname.split('/').filter(Boolean)
+      .filter(function(x){return !/\.html?$/i.test(x) && !/^index$/i.test(x);});
+    var base=location.origin+'/';
+    if(!segs.length){location.replace(base);return;}
+    var code=segs[0];
+    var check=(segs[1]&&segs[1].toLowerCase()==='check')?'&check=1':'';
+    location.replace(base+'?s='+encodeURIComponent(code)+check);
+  }catch(e){location.replace(location.origin+'/');}
+})();
+</script>
+</head>
+<body>Loading…</body>
+</html>
