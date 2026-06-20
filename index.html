@@ -46,6 +46,7 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
 .pill.green{background:var(--green-light);color:var(--green-dark)}.pill.red{background:var(--red-bg);color:var(--red)}
 .pill.amber{background:#fdf3d7;color:var(--amber)}.pill.blue{background:#e3eefb;color:var(--blue)}
 .pill.purple{background:var(--purple-light);color:var(--purple)}.pill.grey{background:#eef2ef;color:var(--muted)}
+.pill.gold{background:#fdf3d7;color:#9a6b00}
 
 #screen{min-height:100vh}
 .auth{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -448,6 +449,13 @@ tbody tr:hover{background:#fafbfa}
   .rc-foot{padding:6px}
   .rc,.rc-tbl,.rc-comments,.rc-sign,.rc-two{break-inside:avoid;page-break-inside:avoid}
   .receipt,.invoice,.letter,.cert,.idc,.idgrid{break-inside:avoid}
+  /* wide master-sheet prints A4 landscape */
+  @page land{size:A4 landscape;margin:8mm}
+  .rc-land{page:land}
+  .rc-land .t-wrap{overflow:visible!important}
+  .rc-land table{width:100%!important;font-size:8.5px!important;border-collapse:collapse;table-layout:fixed}
+  .rc-land th,.rc-land td{padding:2px 3px!important;word-break:break-word;text-align:center}
+  .rc-land td:nth-child(2),.rc-land th:nth-child(2){text-align:left}
 }
 .home-hero h1{font-size:30px;margin-bottom:6px;line-height:1.15}
 .home-sec{max-width:1100px;margin:0 auto;padding:22px 18px}
@@ -999,7 +1007,7 @@ function broadsheetHTML(cid){const subs=DB.subjects[cid]||[];const {rows}=comput
     <td class="center"><b>${r.count?r.total:'–'}</b></td><td class="center">${r.count?r.avg.toFixed(1):'–'}</td><td class="center">${r.pos?ord(r.pos):'–'}</td><td class="center">${r.count?gradeOf(r.avg).g:'–'}</td></tr>`).join('')}
   </tbody></table></div>`;}
 function printBroadsheet(){const subs=DB.subjects[bsClass]||[];const logo=DB.settings.logo?`<img src="${DB.settings.logo}" style="width:100%;height:100%;object-fit:cover">`:'🎓';
-  modal('Broadsheet — '+className(bsClass),`<div class="rc" style="${themeVars()};max-width:none"><div class="rc-top"><div class="rc-head"><div class="rc-crest">${logo}</div><div class="rc-sch"><h2>${esc(DB.settings.schoolName)}</h2><div class="addr">${addrTel()}</div></div></div></div>
+  modal('Broadsheet — '+className(bsClass),`<div class="rc rc-land" style="${themeVars()};max-width:none"><div class="rc-top"><div class="rc-head"><div class="rc-crest">${logo}</div><div class="rc-sch"><h2>${esc(DB.settings.schoolName)}</h2><div class="addr">${addrTel()}</div></div></div></div>
     <div class="rc-title">✦ BROADSHEET — ${esc(className(bsClass))} · ${esc(DB.settings.term)} ${esc(DB.settings.session)} ✦</div>
     <div style="padding:10px">${broadsheetHTML(bsClass)}</div></div>`,
     `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print / PDF</button>`,true);}
@@ -1607,6 +1615,7 @@ function printClassInvoices(){const list=studentsIn(invClass);if(!list.length){t
 /* ===================== AUTH SCREENS ===================== */
 function renderAuth(){
   const sc=$('#screen');sc.style.display='';$('#app').style.display='none';if(window.setManifest)setManifest();
+  if(MODE!=='owner'&&DB&&DB.kind==='pharmacy'){renderPharmacyAuth();return;}
   if(MODE==='check'){renderChecker();return;}
   if(MODE==='parent'){renderParent();return;}
   if(MODE==='owner'){
@@ -1713,6 +1722,7 @@ let CURRENT='';
 function enterApp(){
   closeModal();clearInterval(window._heroT);clearInterval(window._houseT);$('#screen').innerHTML='';$('#screen').style.display='none';$('#app').style.display='block';window.scrollTo(0,0);
   const owner=USER.role==='owner';
+  if(!owner&&DB&&DB.kind==='pharmacy'){return enterPharmacy();}
   $('#topbar').className='topbar'+(owner?' owner':'');
   $('#brandName').textContent=owner?((MASTER.platform.name)||'EduManager Cloud'):DB.settings.schoolName;
   $('#topLogo').textContent=owner?'🛰️':'🎓';
@@ -1724,7 +1734,13 @@ function enterApp(){
 }
 function buildNav(){
   let items;
-  if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
+  if(USER.role!=='owner'&&DB&&DB.kind==='pharmacy'){
+    items=[['phdash','📊','Dashboard'],['pos','🛒','Sell (POS)'],['saleshist','🧾','Sales'],['inventory','💊','Inventory'],['suppliers','🚚','Suppliers'],['phreports','📈','Reports'],['phsettings','⚙️','Settings']];
+    const owp='';
+    $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${owp}${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
+    return;
+  }
+  if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['stores','💊','Pharmacies'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
   else if(USER.role==='admin'){items=[['dashboard','📊','Dashboard'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👩‍🏫','Teachers'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['calendar','🗓️','Calendar'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
     if(hasModule('staffAttendance'))items.splice(7,0,['staffatt','👔','Staff Att.']);
     if(hasModule('houses'))items.push(['houses','🏠','Houses']);
@@ -1743,7 +1759,8 @@ function buildNav(){
 function toggleNav(open){const sb=document.querySelector('.sidebar'),sc=$('#navScrim');const show=open===undefined?!sb.classList.contains('show'):open;
   sb.classList.toggle('show',show);if(sc)sc.classList.toggle('show',show);}
 function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(false);
-  const map={odash:vODash,schools:vSchools,pins:vPins,revenue:vRevenue,osettings:vOSettings,
+  const map={odash:vODash,schools:vSchools,stores:vPharmacies,pins:vPins,revenue:vRevenue,osettings:vOSettings,
+    phdash:vPhDash,pos:vPhPOS,saleshist:vPhSales,inventory:vPhInventory,suppliers:vPhSuppliers,phreports:vPhReports,phsettings:vPhSettings,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
     promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce};
@@ -1751,16 +1768,17 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
 
 /* ===================== OWNER: DASHBOARD ===================== */
 function vODash(){
-  const schools=MASTER.schools, active=schools.filter(s=>s.status!=='suspended').length;
+  const schools=MASTER.schools.filter(s=>s.type!=='pharmacy'), active=schools.filter(s=>s.status!=='suspended').length;
+  const pharmacies=MASTER.schools.filter(s=>s.type==='pharmacy');
   const pinsGen=MASTER.pins.length, pinsUsed=MASTER.pins.filter(p=>p.uses>0).length;
   const revenue=MASTER.batches.reduce((a,b)=>a+(Number(b.price)||0)*(Number(b.qty)||0),0);
   $('#view').innerHTML=`
-  <div class="page-head"><div><h2>Owner Dashboard</h2><p>${esc(MASTER.platform.name)} — your school SaaS</p></div>
-    <button class="btn purple" onclick="editSchool()">＋ Register School</button></div>
+  <div class="page-head"><div><h2>Owner Dashboard</h2><p>${esc(MASTER.platform.name)} — your SaaS</p></div>
+    <div class="flex gap"><button class="btn purple" onclick="editSchool()">＋ Register School</button><button class="btn" onclick="editPharmacy()">＋ Register Pharmacy</button></div></div>
   <div class="cards-row">
     <div class="stat accent purple"><div class="lbl">Schools</div><div class="num">${schools.length}</div><div class="meta">${active} active</div></div>
-    <div class="stat"><div class="lbl">PINs Generated</div><div class="num">${pinsGen}</div><div class="meta">${pinsUsed} used</div></div>
-    <div class="stat"><div class="lbl">PIN Revenue</div><div class="num" style="color:var(--green)">${naira(revenue)}</div><div class="meta">all batches</div></div>
+    <div class="stat accent"><div class="lbl">Pharmacies</div><div class="num">${pharmacies.length}</div><div class="meta">${pharmacies.filter(s=>s.status!=='suspended').length} active</div></div>
+    <div class="stat"><div class="lbl">PIN Revenue</div><div class="num" style="color:var(--green)">${naira(revenue)}</div><div class="meta">${pinsGen} PINs · ${pinsUsed} used</div></div>
     <div class="stat"><div class="lbl">Cloud</div><div class="num" style="font-size:20px">${supa?'Connected':'Local only'}</div><div class="meta">${supa?'shared live':'set keys in file'}</div></div>
   </div>
   ${!supa?`<div class="card pad mb" style="border-left:4px solid var(--gold)"><b>You're in local demo mode.</b> Paste your Supabase keys at the top of <code>index.html</code> (or in Settings) so schools can share live data. See the deploy guide.</div>`:''}
@@ -1775,10 +1793,11 @@ function vODash(){
 }
 /* ===================== OWNER: SCHOOLS ===================== */
 function vSchools(){
-  $('#view').innerHTML=`<div class="page-head"><div><h2>Schools</h2><p>${MASTER.schools.length} registered — admin logins shown below</p></div>
+  const list=MASTER.schools.filter(s=>s.type!=='pharmacy');
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Schools</h2><p>${list.length} registered — admin logins shown below</p></div>
     <button class="btn purple" onclick="editSchool()">＋ Register School</button></div>
   <div class="t-wrap"><table><thead><tr><th>School</th><th>Code</th><th>Pupils</th><th>Admin login (username / password)</th><th>Status</th><th></th></tr></thead><tbody>
-  ${MASTER.schools.map(s=>{const d=STORE[s.code];const np=d?(d.students||[]).length:'–';const ad=d&&d.users?d.users.find(u=>u.role==='admin'):null;return `<tr>
+  ${list.map(s=>{const d=STORE[s.code];const np=d?(d.students||[]).length:'–';const ad=d&&d.users?d.users.find(u=>u.role==='admin'):null;return `<tr>
     <td><b>${esc(s.name)}</b></td><td class="muted">${esc(s.code)}</td><td class="center">${np}</td>
     <td>${ad?`<b>${esc(ad.username)}</b> / <span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(ad.password)}</span> <button class="btn icon" title="Reset password" onclick="resetCred('${s.code}','${ad.id}')">🔑</button>`:'<span class="muted">—</span>'}</td>
     <td><span class="pill ${s.status==='suspended'?'red':'green'}">${s.status==='suspended'?'Suspended':'Active'}</span></td>
@@ -1787,13 +1806,15 @@ function vSchools(){
   <p class="muted mt" style="font-size:12px">🔑 resets a password. Open <b>Manage</b> on a school to reset teacher passwords too.</p>`;
 }
 function resetCred(code,userId){const d=STORE[code];const u=d.users.find(x=>x.id===userId);if(!u){toast('User not found',true);return;}
-  modal('Reset password — '+u.name,`<p class="muted mb">Set a new password for <b>${esc(u.name)}</b> (${esc(u.username)}) at <b>${esc(d.settings.schoolName)}</b>.</p>
+  modal('Reset password — '+u.name,`<p class="muted mb">Set a new password for <b>${esc(u.name)}</b> (${esc(u.username)}) at <b>${esc(d.settings.schoolName||d.settings.storeName||'')}</b>.</p>
     <div class="fld"><label>New password</label><input id="rp_pass" value="${esc(u.password)}"></div>
     <button class="btn sec sm" onclick="document.getElementById('rp_pass').value=Math.random().toString(36).slice(2,8)">🎲 Generate random</button>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn purple" onclick="doResetCred('${code}','${userId}')">Save password</button>`);}
 function doResetCred(code,userId){const p=$('#rp_pass').value.trim();if(!p){toast('Enter a password',true);return;}
   const d=STORE[code];d.users.find(x=>x.id===userId).password=p;STORE[code]=d;saveStoreLocal();saveSchoolRow(code);
-  closeModal();toast('Password updated');if(CURRENT==='schools')vSchools();else if(CURRENT==='odash')vODash();else manageSchool(code);}
+  closeModal();toast('Password updated');const reg=MASTER.schools.find(s=>s.code===code);
+  if(CURRENT==='schools')vSchools();else if(CURRENT==='stores')vPharmacies();else if(CURRENT==='odash')vODash();
+  else if(reg&&reg.type==='pharmacy')managePharmacy(code);else manageSchool(code);}
 function editSchool(code){
   const reg=code?MASTER.schools.find(s=>s.code===code):null;const d=code?STORE[code]:null;
   const g=(d&&d.settings.grade)||{ca1:20,ca2:20,exam:60};
@@ -2631,7 +2652,9 @@ async function boot(){
   if(SCHOOL_CODE){
     MODE=wantCheck?'check':'school';
     if(supa){await pullRow(SCHOOL_CODE);if(MASTER&&!STORE[SCHOOL_CODE]){}}
-    DB=STORE[SCHOOL_CODE]?ensureSchool(STORE[SCHOOL_CODE]):null;
+    const _reg=MASTER&&MASTER.schools&&MASTER.schools.find(s=>s.code===SCHOOL_CODE);
+    const _isPh=(_reg&&_reg.type==='pharmacy')||(STORE[SCHOOL_CODE]&&STORE[SCHOOL_CODE].kind==='pharmacy');
+    DB=STORE[SCHOOL_CODE]?(_isPh?ensurePharmacy(STORE[SCHOOL_CODE]):ensureSchool(STORE[SCHOOL_CODE])):null;
     if(DB){STORE[SCHOOL_CODE]=DB;}
     setSync(supa?'on':'off',supa?'Synced':'Local');
     // restore session
@@ -2645,6 +2668,547 @@ async function boot(){
   }
 }
 boot();
+
+/* ===================================================================== */
+/* ===================== PHARMACY STORE MODULE ========================= */
+/* ===================================================================== */
+let PH_CART=[], PH_FROM='', PH_TO='', PH_SFROM='', PH_STO='', PH_SQ='';
+function seedPharmacy(code,name){return{kind:'pharmacy',
+  settings:{code,storeName:name,shortName:'',address:'Nigeria',phone:'',email:'',logo:'',theme:'teal',currency:'₦',lowStock:10,expiryDays:60,status:'active',receiptSeq:0},
+  users:[{id:'u1',name:'Pharmacy Manager',username:'admin',password:'admin123',role:'admin'}],
+  products:[],suppliers:[],sales:[],purchases:[]};}
+function ensurePharmacy(d){d.kind='pharmacy';d.settings=d.settings||{};const s=d.settings;
+  if(!s.currency)s.currency='₦';if(s.lowStock==null)s.lowStock=10;if(s.expiryDays==null)s.expiryDays=60;
+  if(!s.theme)s.theme='teal';if(!s.status)s.status='active';if(s.receiptSeq==null)s.receiptSeq=0;
+  if(!s.storeName)s.storeName=s.schoolName||'Pharmacy';
+  ['products','suppliers','sales','purchases','adjustments'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
+  if(!Array.isArray(d.users)||!d.users.length)d.users=[{id:'u1',name:'Pharmacist',username:'admin',password:'admin123',role:'admin'}];
+  return d;}
+/* ---- helpers ---- */
+function phCur(){return (DB.settings.currency||'₦');}
+function pmoney(n){return phCur()+(Math.round((Number(n)||0)*100)/100).toLocaleString('en-NG');}
+function phProd(id){return DB.products.find(p=>p.id===id);}
+function phReorder(p){return (p.reorder!=null&&p.reorder!=='')?Number(p.reorder):Number(DB.settings.lowStock||0);}
+function phLow(){return DB.products.filter(p=>!p.archived&&Number(p.stock||0)<=phReorder(p));}
+function phDaysTo(date){if(!date)return null;const d=new Date(date);if(isNaN(d))return null;return Math.round((d.getTime()-new Date(today()).getTime())/86400000);}
+function phExpStatus(p){const dt=phDaysTo(p.expiry);if(dt==null)return null;if(dt<0)return{cls:'red',txt:'Expired'};if(dt<=Number(DB.settings.expiryDays||60))return{cls:'gold',txt:dt+'d left'};return null;}
+function phExpiring(){return DB.products.filter(p=>!p.archived&&phExpStatus(p));}
+function phStockValue(){return DB.products.reduce((a,p)=>a+Number(p.stock||0)*Number(p.cost||0),0);}
+function phRetailValue(){return DB.products.reduce((a,p)=>a+Number(p.stock||0)*Number(p.sell||0),0);}
+function phSalesIn(from,to){return DB.sales.filter(s=>{if(s.voided)return false;const d=(s.date||'').slice(0,10);return (!from||d>=from)&&(!to||d<=to);});}
+function phSupplier(id){return DB.suppliers.find(x=>x.id===id);}
+function phStat(lbl,num,meta,color){return `<div class="stat"><div class="lbl">${lbl}</div><div class="num"${color?` style="color:${color}"`:''}>${num}</div>${meta?`<div class="meta">${meta}</div>`:''}</div>`;}
+
+/* ---- auth + shell ---- */
+function renderPharmacyAuth(){const sc=$('#screen');sc.style.display='';$('#app').style.display='none';const set=DB.settings;
+  if(set.status==='suspended'){sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest">⏸️</div><h1>${esc(set.storeName)}</h1><div class="sub">This account is currently suspended. Please contact your provider to renew.</div></div></div>`;return;}
+  const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`:'💊';
+  sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest" style="background:#0c5b56">${logo}</div>
+    <h1>${esc(set.storeName)}</h1><div class="sub">Pharmacy — Staff Login</div>
+    <div class="auth-err" id="aerr"></div>
+    <div class="field"><label>Username</label><input id="su" placeholder="admin"></div>
+    <div class="field"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>
+    <button class="btn" style="width:100%;justify-content:center;background:#0c5b56" onclick="schoolLogin()">Sign in</button>
+    <div class="hint">Use the login your provider gave you.</div></div></div>`;
+  setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);}
+function enterPharmacy(){const set=DB.settings;
+  $('#topbar').className='topbar';
+  $('#brandName').textContent=set.storeName;$('#topLogo').textContent='💊';
+  $('#whoName').textContent=USER.name;$('#whoRole').textContent='Pharmacist';
+  $('#termBadge').textContent=set.shortName||'Pharmacy';
+  setSync(supa?'on':'off',supa?'Synced':'Local');
+  buildNav();go('phdash');setManifest();}
+
+/* ---- dashboard ---- */
+function vPhDash(){const t=today();const todaySales=phSalesIn(t,t);
+  const todayTotal=todaySales.reduce((a,s)=>a+Number(s.total||0),0);
+  const todayProfit=todaySales.reduce((a,s)=>a+Number(s.profit||0),0);
+  const low=phLow(),exp=phExpiring();
+  const recent=DB.sales.slice(-8).reverse();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Dashboard</h2><p>${esc(DB.settings.storeName)} — ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p></div>
+    <button class="btn" style="background:#0c5b56" onclick="go('pos')">🛒 New Sale</button></div>
+  <div class="cards-row">
+    ${phStat("Today's Sales",pmoney(todayTotal),todaySales.length+' transaction(s)','#0c5b56')}
+    ${phStat("Today's Profit",pmoney(todayProfit),'gross margin','#0a7d33')}
+    ${phStat('Products',DB.products.filter(p=>!p.archived).length,'in catalogue')}
+    ${phStat('Stock Value',pmoney(phStockValue()),'at cost')}
+  </div>
+  ${(low.length||exp.length)?`<div class="cards-row">
+    ${low.length?`<div class="card pad" style="border-left:4px solid #c8881b"><div class="flex" style="justify-content:space-between"><b>⚠️ Low stock (${low.length})</b><button class="btn sm sec" onclick="go('inventory')">View</button></div>
+      <div class="muted" style="font-size:12.5px;margin-top:6px">${low.slice(0,6).map(p=>esc(p.name)+' ('+Number(p.stock||0)+')').join(', ')}${low.length>6?'…':''}</div></div>`:''}
+    ${exp.length?`<div class="card pad" style="border-left:4px solid #c0392b"><div class="flex" style="justify-content:space-between"><b>⏳ Expiring / expired (${exp.length})</b><button class="btn sm sec" onclick="go('inventory')">View</button></div>
+      <div class="muted" style="font-size:12.5px;margin-top:6px">${exp.slice(0,6).map(p=>esc(p.name)+' — '+esc(p.expiry||'')).join(', ')}${exp.length>6?'…':''}</div></div>`:''}
+  </div>`:''}
+  <div class="card pad"><h3 class="mb">Recent sales</h3>
+  ${recent.length?`<div class="t-wrap"><table><thead><tr><th>Receipt</th><th>Date</th><th>Items</th><th class="right">Total</th><th class="right">Profit</th><th></th></tr></thead><tbody>
+    ${recent.map(s=>`<tr><td><b>${esc(s.receiptNo||'')}</b></td><td>${esc((s.date||'').replace('T',' ').slice(0,16))}</td><td>${(s.items||[]).reduce((a,i)=>a+Number(i.qty||0),0)}</td>
+      <td class="right">${pmoney(s.total)}</td><td class="right" style="color:#0a7d33">${pmoney(s.profit)}</td>
+      <td class="right"><button class="btn sm sec" onclick="phShowReceipt('${s.id}')">Receipt</button></td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="empty"><div class="big">🛒</div>No sales yet. <button class="btn sm mt" style="background:#0c5b56;color:#fff" onclick="go('pos')">Make your first sale</button></div>`}
+  </div>`;}
+
+/* ---- POS ---- */
+function vPhPOS(){
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Sell (POS)</h2><p>Search or scan a product, build the cart, then checkout</p></div></div>
+  <div class="flex gap" style="align-items:flex-start;flex-wrap:wrap">
+    <div class="card pad" style="flex:1;min-width:300px">
+      <div class="flex gap mb"><input id="pos_q" placeholder="🔎 Search name / category / barcode" oninput="phRenderPosList()" style="flex:1" onkeydown="if(event.key==='Enter')phQuickAdd()">
+        <button class="btn sec" onclick="phScanToggle()" id="posScanBtn">📷 Scan</button></div>
+      <div id="posScan" style="display:none"><div id="reader"></div><div class="muted center mb" style="font-size:12px">Point at the barcode.</div></div>
+      <div id="posList"></div>
+    </div>
+    <div class="card pad" style="flex:1;min-width:300px">
+      <h3 class="mb">🛒 Cart</h3><div id="posCart"></div>
+    </div>
+  </div>`;
+  phRenderPosList();phRenderCart();}
+function phRenderPosList(){const q=($('#pos_q')?$('#pos_q').value:'').toLowerCase().trim();
+  let list=DB.products.filter(p=>!p.archived);
+  if(q)list=list.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q)||(p.barcode||'').toLowerCase()===q||(p.barcode||'').toLowerCase().includes(q));
+  list=list.slice(0,60);
+  const el=$('#posList');if(!el)return;
+  el.innerHTML=list.length?`<div class="t-wrap" style="max-height:60vh;overflow:auto"><table><tbody>
+    ${list.map(p=>{const out=Number(p.stock||0)<=0;const es=phExpStatus(p);return `<tr>
+      <td><b>${esc(p.name)}</b>${es?` <span class="pill ${es.cls}">${es.txt}</span>`:''}<br><span class="muted" style="font-size:11px">${esc(p.category||'')}${p.unit?' · '+esc(p.unit):''} · Stock ${Number(p.stock||0)}</span></td>
+      <td class="right" style="white-space:nowrap"><b>${pmoney(p.sell)}</b></td>
+      <td class="right"><button class="btn sm ${out?'sec':''}" ${out?'disabled':''} style="${out?'':'background:#0c5b56;color:#fff'}" onclick="phAddCart('${p.id}')">${out?'Out':'＋ Add'}</button></td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="empty"><div class="big">💊</div>${DB.products.length?'No match.':'No products yet. Add them in Inventory.'}</div>`;}
+function phQuickAdd(){const q=($('#pos_q').value||'').toLowerCase().trim();if(!q)return;
+  const p=DB.products.find(x=>!x.archived&&((x.barcode||'').toLowerCase()===q))||DB.products.find(x=>!x.archived&&(x.name||'').toLowerCase().includes(q));
+  if(p){phAddCart(p.id);$('#pos_q').value='';phRenderPosList();}}
+function phAddCart(id){const p=phProd(id);if(!p)return;const stock=Number(p.stock||0);
+  const line=PH_CART.find(c=>c.id===id);
+  if(line){if(line.qty>=stock){toast('Only '+stock+' in stock',true);return;}line.qty++;}
+  else{if(stock<=0){toast('Out of stock',true);return;}PH_CART.push({id,qty:1});}
+  phRenderCart();}
+function phCartQty(id,delta){const line=PH_CART.find(c=>c.id===id);if(!line)return;const p=phProd(id);const stock=Number(p.stock||0);
+  line.qty+=delta;if(line.qty<=0){PH_CART=PH_CART.filter(c=>c.id!==id);}else if(line.qty>stock){line.qty=stock;toast('Only '+stock+' in stock',true);}
+  phRenderCart();}
+function phCartSet(id,val){const line=PH_CART.find(c=>c.id===id);if(!line)return;const p=phProd(id);const stock=Number(p.stock||0);let q=Math.floor(Number(val)||0);if(q>stock){q=stock;toast('Only '+stock+' in stock',true);}if(q<=0){PH_CART=PH_CART.filter(c=>c.id!==id);}else line.qty=q;phRenderCart();}
+function phRemoveCart(id){PH_CART=PH_CART.filter(c=>c.id!==id);phRenderCart();}
+function phCartTotal(){return PH_CART.reduce((a,c)=>{const p=phProd(c.id);return a+(p?Number(p.sell||0)*c.qty:0);},0);}
+function phRenderCart(){const el=$('#posCart');if(!el)return;
+  if(!PH_CART.length){el.innerHTML=`<div class="empty"><div class="big">🛒</div>Cart is empty.</div>`;return;}
+  const total=phCartTotal();
+  el.innerHTML=`<div class="t-wrap"><table><tbody>
+    ${PH_CART.map(c=>{const p=phProd(c.id);if(!p)return '';return `<tr>
+      <td><b>${esc(p.name)}</b><br><span class="muted" style="font-size:11px">${pmoney(p.sell)} each</span></td>
+      <td style="white-space:nowrap"><button class="btn icon sm" onclick="phCartQty('${c.id}',-1)">−</button>
+        <input value="${c.qty}" onchange="phCartSet('${c.id}',this.value)" style="width:46px;text-align:center;display:inline-block;padding:4px">
+        <button class="btn icon sm" onclick="phCartQty('${c.id}',1)">＋</button></td>
+      <td class="right"><b>${pmoney(p.sell*c.qty)}</b></td>
+      <td class="right"><button class="btn icon sm danger" onclick="phRemoveCart('${c.id}')">✕</button></td></tr>`;}).join('')}
+  </tbody></table></div>
+  <div class="flex" style="justify-content:space-between;align-items:center;font-size:20px;font-weight:800;margin:10px 0;padding-top:8px;border-top:2px solid #eee"><span>Total</span><span style="color:#0c5b56">${pmoney(total)}</span></div>
+  <div class="grid2"><div class="fld"><label>Payment</label><select id="pos_pay"><option>Cash</option><option>Transfer</option><option>POS / Card</option><option>Credit</option></select></div>
+    <div class="fld"><label>Customer (optional)</label><input id="pos_cust" placeholder="Walk-in"></div></div>
+  <div class="flex gap"><button class="btn" style="flex:1;justify-content:center;background:#0c5b56" onclick="phCheckout()">✓ Checkout · ${pmoney(total)}</button>
+    <button class="btn sec" onclick="PH_CART=[];phRenderCart()">Clear</button></div>`;}
+function phCheckout(){if(!PH_CART.length){toast('Cart is empty',true);return;}
+  for(const c of PH_CART){const p=phProd(c.id);if(!p||c.qty>Number(p.stock||0)){toast('Not enough stock for '+(p?p.name:'item'),true);return;}}
+  const items=PH_CART.map(c=>{const p=phProd(c.id);return{productId:p.id,name:p.name,qty:c.qty,price:Number(p.sell||0),cost:Number(p.cost||0)};});
+  const total=items.reduce((a,i)=>a+i.price*i.qty,0);const cost=items.reduce((a,i)=>a+i.cost*i.qty,0);
+  DB.settings.receiptSeq=(DB.settings.receiptSeq||0)+1;
+  const sale={id:uid('sl'),receiptNo:'PH/'+String(DB.settings.receiptSeq).padStart(4,'0'),date:new Date().toISOString(),
+    items,total,cost,profit:total-cost,payment:$('#pos_pay').value,customer:($('#pos_cust').value||'').trim(),cashier:USER.name};
+  items.forEach(i=>{const p=phProd(i.productId);if(p)p.stock=Number(p.stock||0)-i.qty;});
+  DB.sales.push(sale);save();PH_CART=[];
+  toast('Sale recorded · '+pmoney(total));phShowReceipt(sale.id);vPhPOS();}
+function phReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="${set.logo}" style="width:46px;height:46px;border-radius:8px;object-fit:cover">`:'<div style="font-size:34px">💊</div>';
+  return `<div class="receipt" style="max-width:330px;margin:0 auto;font-family:'Courier New',monospace;color:#111;background:#fff;padding:14px 16px;border:1px solid #ddd">
+    <div style="text-align:center;border-bottom:1px dashed #999;padding-bottom:8px;margin-bottom:8px">${logo}
+      <div style="font-weight:800;font-size:15px">${esc(set.storeName)}</div>
+      <div style="font-size:11px">${esc(set.address||'')}</div>${set.phone?`<div style="font-size:11px">☎ ${esc(set.phone)}</div>`:''}</div>
+    <div style="font-size:11.5px;display:flex;justify-content:space-between"><span>${esc(s.receiptNo)}</span><span>${esc((s.date||'').replace('T',' ').slice(0,16))}</span></div>
+    <div style="font-size:11.5px;margin-bottom:6px">Cashier: ${esc(s.cashier||'')}${s.customer?' · '+esc(s.customer):''}</div>
+    <table style="width:100%;font-size:11.5px;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid #000"><th style="text-align:left">Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Amt</th></tr></thead>
+      <tbody>${(s.items||[]).map(i=>`<tr><td style="text-align:left">${esc(i.name)}<br><span style="color:#666">@${pmoney(i.price)}</span></td><td style="text-align:center">${i.qty}</td><td style="text-align:right">${pmoney(i.price*i.qty)}</td></tr>`).join('')}</tbody>
+    </table>
+    <div style="border-top:1px dashed #999;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between;font-weight:800;font-size:15px"><span>TOTAL</span><span>${pmoney(s.total)}</span></div>
+    <div style="font-size:11.5px;display:flex;justify-content:space-between"><span>Payment</span><span>${esc(s.payment||'')}</span></div>
+    <div style="text-align:center;font-size:11px;margin-top:10px;border-top:1px dashed #999;padding-top:8px">Thank you. Goods sold in good faith.<br>Powered by Muscode</div>
+  </div>`;}
+function phShowReceipt(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;
+  modal('Receipt — '+s.receiptNo,phReceiptHTML(s),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#0c5b56" onclick="window.print()">🖨 Print</button>`);}
+/* POS scan reuses Html5Qrcode */
+function phScanToggle(){const box=$('#posScan');if(!box)return;if(box.style.display==='none'){box.style.display='block';phStartPosScan();}else{stopScan();box.style.display='none';}}
+function phStartPosScan(){if(!window.Html5Qrcode){toast('Scanner not loaded',true);return;}if(window._scanner)return;
+  const fmts=window.Html5QrcodeSupportedFormats?[Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.QR_CODE]:undefined;
+  window._scanner=new Html5Qrcode('reader');
+  window._scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:240,height:140},formatsToSupport:fmts},txt=>phScanned(txt),()=>{}).catch(()=>{toast('Camera failed',true);window._scanner=null;});}
+function phScanned(code){code=(code||'').trim();const p=DB.products.find(x=>!x.archived&&(x.barcode||'')===code);if(p){phAddCart(p.id);toast('Added '+p.name);}else{toast('No product with barcode '+code,true);}}
+
+/* ---- Sales history + debtors ---- */
+function phCreditOutstanding(){return DB.sales.filter(s=>!s.voided&&s.payment==='Credit'&&!s.settled).reduce((a,s)=>a+Number(s.total||0),0);}
+function vPhSales(){const t=today();if(!PH_SFROM)PH_SFROM=t.slice(0,8)+'01';if(!PH_STO)PH_STO=t;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Sales</h2><p>History, receipts, refunds & debtors</p></div>
+    <button class="btn" style="background:#0c5b56" onclick="go('pos')">🛒 New Sale</button></div>
+  <div class="toolbar no-print"><div><label>From</label><input id="sl_from" type="date" value="${PH_SFROM}" onchange="PH_SFROM=this.value;phRenderSales()"></div>
+    <div><label>To</label><input id="sl_to" type="date" value="${PH_STO}" onchange="PH_STO=this.value;phRenderSales()"></div>
+    <div style="flex:1"><label>Search</label><input id="sl_q" value="${esc(PH_SQ)}" placeholder="receipt / customer" oninput="PH_SQ=this.value;phRenderSales()"></div>
+    <div style="align-self:flex-end"><button class="btn sm sec" onclick="phSRange('today')">Today</button><button class="btn sm sec" onclick="phSRange('all')">All</button></div></div>
+  <div id="slArea"></div>`;phRenderSales();}
+function phSRange(k){const t=today();if(k==='today'){PH_SFROM=t;PH_STO=t;}else{PH_SFROM='2000-01-01';PH_STO=t;}
+  const f=$('#sl_from'),to=$('#sl_to');if(f)f.value=PH_SFROM;if(to)to.value=PH_STO;phRenderSales();}
+function phRenderSales(){const q=PH_SQ.toLowerCase().trim();
+  let list=DB.sales.filter(s=>{const d=(s.date||'').slice(0,10);return (!PH_SFROM||d>=PH_SFROM)&&(!PH_STO||d<=PH_STO);});
+  if(q)list=list.filter(s=>(s.receiptNo||'').toLowerCase().includes(q)||(s.customer||'').toLowerCase().includes(q));
+  list=list.slice().reverse();
+  const valid=list.filter(s=>!s.voided);
+  const gross=valid.reduce((a,s)=>a+Number(s.total||0),0),profit=valid.reduce((a,s)=>a+Number(s.profit||0),0);
+  const debt=phCreditOutstanding();
+  const el=$('#slArea');if(!el)return;
+  el.innerHTML=`<div class="cards-row">
+    ${phStat('Transactions',valid.length,'in range')}
+    ${phStat('Gross sales',pmoney(gross),'','#0c5b56')}
+    ${phStat('Profit',pmoney(profit),'','#0a7d33')}
+    ${phStat('Debtors (credit)',pmoney(debt),'unpaid',debt?'#c0392b':'')}
+  </div>
+  ${list.length?`<div class="t-wrap"><table><thead><tr><th>Receipt</th><th>Date</th><th>Customer</th><th>Pay</th><th class="right">Total</th><th class="right">Profit</th><th></th></tr></thead><tbody>
+    ${list.map(s=>{const credit=s.payment==='Credit'&&!s.settled&&!s.voided;return `<tr${s.voided?' style="opacity:.5"':''}>
+      <td><b>${esc(s.receiptNo||'')}</b>${s.voided?' <span class="pill red">VOID</span>':''}</td>
+      <td>${esc((s.date||'').replace('T',' ').slice(0,16))}</td>
+      <td>${esc(s.customer||'—')}</td>
+      <td>${esc(s.payment||'')}${credit?' <span class="pill gold">unpaid</span>':''}</td>
+      <td class="right">${pmoney(s.total)}</td><td class="right" style="color:#0a7d33">${pmoney(s.profit)}</td>
+      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="phShowReceipt('${s.id}')">Receipt</button>${credit?`<button class="btn sm" style="background:#0a7d33" onclick="phSettleCredit('${s.id}')">Settle</button>`:''}${!s.voided?`<button class="btn sm danger" onclick="phVoidSale('${s.id}')">Void</button>`:''}</td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">🧾</div>No sales in range.</div></div>`}`;}
+function phSettleCredit(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;s.settled=true;s.settledDate=today();save();toast('Marked as paid');phRenderSales();}
+function phVoidSale(id){const s=DB.sales.find(x=>x.id===id);if(!s||s.voided)return;
+  modal('Void / refund sale?',`<p>Void <b>${esc(s.receiptNo)}</b> (${pmoney(s.total)})? Stock for each item will be returned to inventory. The record is kept but excluded from totals.</p>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="phDoVoid('${id}')">Void & restock</button>`);}
+function phDoVoid(id){const s=DB.sales.find(x=>x.id===id);if(!s||s.voided)return;
+  (s.items||[]).forEach(i=>{const p=phProd(i.productId);if(p)p.stock=Number(p.stock||0)+Number(i.qty||0);});
+  s.voided=true;s.voidDate=today();save();closeModal();toast('Sale voided & stock restored');phRenderSales();}
+
+/* ---- Inventory ---- */
+let PH_INVQ='';
+function vPhInventory(){const low=phLow(),exp=phExpiring();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Inventory</h2><p>Drugs & products — stock, prices, expiry</p></div>
+    <button class="btn" style="background:#0c5b56" onclick="phEditProduct()">＋ Add Product</button></div>
+  <div class="cards-row">
+    ${phStat('Products',DB.products.filter(p=>!p.archived).length,'')}
+    ${phStat('Stock value',pmoney(phStockValue()),'at cost')}
+    ${phStat('Low stock',low.length,'need reorder',low.length?'#c8881b':'')}
+    ${phStat('Expiring',exp.length,'within '+(DB.settings.expiryDays||60)+'d',exp.length?'#c0392b':'')}
+  </div>
+  <div class="toolbar"><div style="flex:1"><input id="inv_q" value="${esc(PH_INVQ)}" placeholder="🔎 Search products" oninput="PH_INVQ=this.value;phRenderInv()"></div></div>
+  <div id="invArea"></div>`;
+  phRenderInv();}
+function phRenderInv(){const q=PH_INVQ.toLowerCase().trim();
+  let list=DB.products.filter(p=>!p.archived);if(q)list=list.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q));
+  list=list.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const el=$('#invArea');if(!el)return;
+  el.innerHTML=list.length?`<div class="t-wrap"><table><thead><tr><th>Product</th><th>Category</th><th class="right">Stock</th><th class="right">Cost</th><th class="right">Sell</th><th>Expiry</th><th></th></tr></thead><tbody>
+    ${list.map(p=>{const lowB=Number(p.stock||0)<=phReorder(p);const es=phExpStatus(p);return `<tr>
+      <td><b>${esc(p.name)}</b>${p.barcode?`<br><span class="muted" style="font-size:10px">${esc(p.barcode)}</span>`:''}</td>
+      <td>${esc(p.category||'—')}${p.unit?`<br><span class="muted" style="font-size:11px">${esc(p.unit)}</span>`:''}</td>
+      <td class="right">${Number(p.stock||0)} ${lowB?`<span class="pill gold">low</span>`:''}</td>
+      <td class="right">${pmoney(p.cost)}</td><td class="right"><b>${pmoney(p.sell)}</b></td>
+      <td>${p.expiry?esc(p.expiry):'—'} ${es?`<span class="pill ${es.cls}">${es.txt}</span>`:''}</td>
+      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="phRestock('${p.id}')">↑ Restock</button>
+        <button class="btn sm sec" onclick="phAdjust('${p.id}')">⚖ Adjust</button>
+        <button class="btn sm sec" onclick="phLabel('${p.id}')">🏷 Label</button>
+        <button class="btn sm sec" onclick="phEditProduct('${p.id}')">Edit</button>
+        <button class="btn sm danger" onclick="phDelProduct('${p.id}')">✕</button></td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">💊</div>${DB.products.length?'No match.':'No products yet.'} <button class="btn sm mt" style="background:#0c5b56;color:#fff" onclick="phEditProduct()">Add a product</button></div></div>`;}
+function phSupplierOptions(sel){return `<option value="">— none —</option>`+DB.suppliers.map(s=>`<option value="${s.id}" ${sel===s.id?'selected':''}>${esc(s.name)}</option>`).join('');}
+function phEditProduct(id){const p=id?phProd(id):null;
+  modal(p?'Edit Product':'Add Product',`<div class="grid2">
+    <div class="fld full"><label>Product name *</label><input id="pr_name" value="${esc(p?p.name:'')}" placeholder="e.g. Paracetamol 500mg"></div>
+    <div class="fld"><label>Category</label><input id="pr_cat" value="${esc(p?(p.category||''):'')}" placeholder="e.g. Analgesic"></div>
+    <div class="fld"><label>Unit / pack</label><input id="pr_unit" value="${esc(p?(p.unit||''):'')}" placeholder="e.g. tablet, bottle, card"></div>
+    <div class="fld"><label>Cost price (${phCur()})</label><input id="pr_cost" type="number" min="0" step="0.01" value="${p?(p.cost||0):''}"></div>
+    <div class="fld"><label>Selling price (${phCur()}) *</label><input id="pr_sell" type="number" min="0" step="0.01" value="${p?(p.sell||0):''}"></div>
+    <div class="fld"><label>${p?'Current stock':'Opening stock'}</label><input id="pr_stock" type="number" min="0" step="1" value="${p?(p.stock||0):0}"></div>
+    <div class="fld"><label>Reorder level</label><input id="pr_reorder" type="number" min="0" step="1" value="${p&&p.reorder!=null?p.reorder:''}" placeholder="default ${DB.settings.lowStock||10}"></div>
+    <div class="fld"><label>Expiry date</label><input id="pr_exp" type="date" value="${esc(p?(p.expiry||''):'')}"></div>
+    <div class="fld"><label>Batch no.</label><input id="pr_batch" value="${esc(p?(p.batch||''):'')}"></div>
+    <div class="fld"><label>Barcode</label><input id="pr_bc" value="${esc(p?(p.barcode||''):'')}" placeholder="scan/type"></div>
+    <div class="fld full"><label>Supplier</label><select id="pr_sup">${phSupplierOptions(p?p.supplierId:'')}</select></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0c5b56" onclick="phSaveProduct('${id||''}')">${p?'Save':'Add product'}</button>`,true);}
+function phSaveProduct(id){const name=$('#pr_name').value.trim(),sell=Number($('#pr_sell').value);
+  if(!name){toast('Product name required',true);return;}if(!(sell>=0)||$('#pr_sell').value===''){toast('Selling price required',true);return;}
+  const rl=$('#pr_reorder').value;
+  const data={name,category:$('#pr_cat').value.trim(),unit:$('#pr_unit').value.trim(),cost:Number($('#pr_cost').value)||0,sell,
+    stock:Math.max(0,Math.floor(Number($('#pr_stock').value)||0)),reorder:rl===''?null:Math.max(0,Math.floor(Number(rl)||0)),
+    expiry:$('#pr_exp').value,batch:$('#pr_batch').value.trim(),barcode:$('#pr_bc').value.trim(),supplierId:$('#pr_sup').value};
+  if(id){Object.assign(phProd(id),data);}else{DB.products.push({id:uid('pr'),...data});}
+  save();closeModal();toast('Saved');phRenderInv?phRenderInv():null;if(CURRENT==='inventory')vPhInventory();}
+function phDelProduct(id){const p=phProd(id);if(!p)return;
+  modal('Delete product?',`<p>Delete <b>${esc(p.name)}</b>? Past sales records keep their history.</p>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="phDoDelProduct('${id}')">Delete</button>`);}
+function phDoDelProduct(id){DB.products=DB.products.filter(p=>p.id!==id);save();closeModal();toast('Deleted');vPhInventory();}
+function phRestock(id){const p=phProd(id);if(!p)return;
+  modal('Restock — '+p.name,`<p class="muted mb">Current stock: <b>${Number(p.stock||0)}</b></p><div class="grid2">
+    <div class="fld"><label>Quantity received *</label><input id="rs_qty" type="number" min="1" step="1" value="0"></div>
+    <div class="fld"><label>Unit cost (${phCur()})</label><input id="rs_cost" type="number" min="0" step="0.01" value="${p.cost||0}"></div>
+    <div class="fld"><label>New expiry (optional)</label><input id="rs_exp" type="date" value="${esc(p.expiry||'')}"></div>
+    <div class="fld"><label>Supplier</label><select id="rs_sup">${phSupplierOptions(p.supplierId)}</select></div>
+    </div><label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500"><input type="checkbox" id="rs_log" style="width:auto" checked> Record as a purchase (for reports)</label>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0c5b56" onclick="phSaveRestock('${id}')">Add stock</button>`);}
+function phSaveRestock(id){const p=phProd(id);const qty=Math.floor(Number($('#rs_qty').value)||0);if(qty<=0){toast('Enter a quantity',true);return;}
+  const cost=Number($('#rs_cost').value)||0;const sup=$('#rs_sup').value;const exp=$('#rs_exp').value;
+  p.stock=Number(p.stock||0)+qty;if(cost)p.cost=cost;if(exp)p.expiry=exp;if(sup)p.supplierId=sup;
+  if($('#rs_log').checked){DB.purchases.push({id:uid('pu'),date:new Date().toISOString(),supplierId:sup,items:[{productId:p.id,name:p.name,qty,cost}],total:qty*cost,paid:qty*cost,note:'Restock'});}
+  save();closeModal();toast('Stock updated');vPhInventory();}
+function phAdjust(id){const p=phProd(id);if(!p)return;
+  modal('Adjust stock — '+p.name,`<p class="muted mb">Use for damage, expiry write-off, or correcting a miscount. Current stock: <b>${Number(p.stock||0)}</b></p><div class="grid2">
+    <div class="fld"><label>New stock count *</label><input id="aj_new" type="number" min="0" step="1" value="${Number(p.stock||0)}"></div>
+    <div class="fld"><label>Reason</label><select id="aj_reason"><option>Damaged</option><option>Expired write-off</option><option>Miscount correction</option><option>Theft/loss</option><option>Other</option></select></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0c5b56" onclick="phSaveAdjust('${id}')">Save adjustment</button>`);}
+function phSaveAdjust(id){const p=phProd(id);const nw=Math.max(0,Math.floor(Number($('#aj_new').value)||0));const old=Number(p.stock||0);const delta=nw-old;
+  if(delta===0){closeModal();return;}p.stock=nw;
+  DB.adjustments.push({id:uid('aj'),date:new Date().toISOString(),productId:p.id,name:p.name,from:old,to:nw,delta,reason:$('#aj_reason').value});
+  save();closeModal();toast('Stock adjusted ('+(delta>0?'+':'')+delta+')');vPhInventory();}
+function phLabel(id){const p=phProd(id);if(!p)return;const code=p.barcode||p.id;
+  modal('Shelf label — '+p.name,`<div class="receipt" style="max-width:260px;margin:0 auto;text-align:center;background:#fff;border:1px solid #ddd;padding:12px">
+    <div style="font-weight:800;font-size:13px">${esc(DB.settings.storeName)}</div>
+    <div style="font-size:14px;font-weight:700;margin:4px 0">${esc(p.name)}</div>
+    <div style="font-size:18px;font-weight:900;color:#0c5b56">${pmoney(p.sell)}</div>
+    <svg class="bc" data-code="${esc(code)}" style="max-width:100%"></svg>
+    ${p.expiry?`<div style="font-size:10px;color:#666">Exp: ${esc(p.expiry)}${p.batch?' · Batch '+esc(p.batch):''}</div>`:''}
+  </div>`,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#0c5b56" onclick="window.print()">🖨 Print label</button>`);
+  setTimeout(renderBarcodes,60);}
+
+/* ---- Suppliers & Purchases ---- */
+function vPhSuppliers(){const recent=DB.purchases.slice(-10).reverse();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Suppliers & Purchases</h2><p>Vendors and stock you buy in</p></div>
+    <div class="flex gap"><button class="btn sec" onclick="phEditSupplier()">＋ Supplier</button><button class="btn" style="background:#0c5b56" onclick="phNewPurchase()">＋ Record Purchase</button></div></div>
+  <div class="card pad mb"><h3 class="mb">Suppliers</h3>
+  ${DB.suppliers.length?`<div class="t-wrap"><table><thead><tr><th>Supplier</th><th>Phone</th><th>Address</th><th class="right">Balance owed</th><th></th></tr></thead><tbody>
+    ${DB.suppliers.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.phone||'—')}</td><td>${esc(s.address||'—')}</td>
+      <td class="right" style="color:${Number(s.balance||0)>0?'#c0392b':'#0a7d33'}">${pmoney(s.balance||0)}</td>
+      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="phEditSupplier('${s.id}')">Edit</button><button class="btn sm danger" onclick="phDelSupplier('${s.id}')">✕</button></td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="empty"><div class="big">🚚</div>No suppliers yet.</div>`}</div>
+  <div class="card pad"><h3 class="mb">Recent purchases</h3>
+  ${recent.length?`<div class="t-wrap"><table><thead><tr><th>Date</th><th>Supplier</th><th>Items</th><th class="right">Total</th><th class="right">Paid</th></tr></thead><tbody>
+    ${recent.map(pu=>{const sp=phSupplier(pu.supplierId);return `<tr><td>${esc((pu.date||'').replace('T',' ').slice(0,16))}</td><td>${esc(sp?sp.name:'—')}</td>
+      <td>${(pu.items||[]).length} line(s), ${(pu.items||[]).reduce((a,i)=>a+Number(i.qty||0),0)} units</td><td class="right">${pmoney(pu.total)}</td><td class="right">${pmoney(pu.paid)}</td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="empty"><div class="big">📦</div>No purchases recorded.</div>`}</div>`;}
+function phEditSupplier(id){const s=id?phSupplier(id):null;
+  modal(s?'Edit Supplier':'Add Supplier',`<div class="grid2">
+    <div class="fld full"><label>Name *</label><input id="sp_name" value="${esc(s?s.name:'')}"></div>
+    <div class="fld"><label>Phone</label><input id="sp_phone" value="${esc(s?(s.phone||''):'')}"></div>
+    <div class="fld"><label>Balance owed (${phCur()})</label><input id="sp_bal" type="number" step="0.01" value="${s?(s.balance||0):0}"></div>
+    <div class="fld full"><label>Address</label><input id="sp_addr" value="${esc(s?(s.address||''):'')}"></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0c5b56" onclick="phSaveSupplier('${id||''}')">Save</button>`);}
+function phSaveSupplier(id){const name=$('#sp_name').value.trim();if(!name){toast('Name required',true);return;}
+  const data={name,phone:$('#sp_phone').value.trim(),address:$('#sp_addr').value.trim(),balance:Number($('#sp_bal').value)||0};
+  if(id){Object.assign(phSupplier(id),data);}else{DB.suppliers.push({id:uid('sp'),...data});}
+  save();closeModal();toast('Saved');vPhSuppliers();}
+function phDelSupplier(id){const s=phSupplier(id);if(!s)return;
+  modal('Delete supplier?',`<p>Delete <b>${esc(s.name)}</b>?</p>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="phDoDelSupplier('${id}')">Delete</button>`);}
+function phDoDelSupplier(id){DB.suppliers=DB.suppliers.filter(s=>s.id!==id);save();closeModal();toast('Deleted');vPhSuppliers();}
+function phNewPurchase(){if(!DB.suppliers.length){toast('Add a supplier first',true);phEditSupplier();return;}
+  if(!DB.products.length){toast('Add products first',true);phEditProduct();return;}
+  const prods=DB.products.filter(p=>!p.archived).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  modal('Record Purchase',`<div class="grid2">
+    <div class="fld"><label>Supplier *</label><select id="pu_sup">${DB.suppliers.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></div>
+    <div class="fld"><label>Date</label><input id="pu_date" type="date" value="${today()}"></div>
+  </div>
+  <label>Enter quantity received and unit cost for items you bought:</label>
+  <div class="t-wrap" style="max-height:46vh;overflow:auto;margin:6px 0"><table><thead><tr><th>Product</th><th class="right">In stock</th><th>Qty in</th><th>Unit cost</th></tr></thead><tbody>
+    ${prods.map(p=>`<tr><td><b>${esc(p.name)}</b></td><td class="right">${Number(p.stock||0)}</td>
+      <td><input id="pu_q_${p.id}" type="number" min="0" step="1" value="0" style="width:70px;padding:4px"></td>
+      <td><input id="pu_c_${p.id}" type="number" min="0" step="0.01" value="${p.cost||0}" style="width:84px;padding:4px"></td></tr>`).join('')}
+  </tbody></table></div>
+  <div class="grid2"><div class="fld"><label>Amount paid now (${phCur()})</label><input id="pu_paid" type="number" min="0" step="0.01" value="0"></div>
+    <div class="fld"><label>Note</label><input id="pu_note" placeholder="invoice no. etc"></div></div>
+  <p class="muted" style="font-size:12px">Unpaid balance is added to the supplier's account.</p>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0c5b56" onclick="phSavePurchase()">Save purchase</button>`,true);}
+function phSavePurchase(){const sup=$('#pu_sup').value;const items=[];
+  DB.products.forEach(p=>{const qel=$('#pu_q_'+p.id);if(!qel)return;const q=Math.floor(Number(qel.value)||0);if(q>0){const c=Number($('#pu_c_'+p.id).value)||0;items.push({productId:p.id,name:p.name,qty:q,cost:c});}});
+  if(!items.length){toast('Enter at least one quantity',true);return;}
+  const total=items.reduce((a,i)=>a+i.qty*i.cost,0);const paid=Math.max(0,Number($('#pu_paid').value)||0);
+  const date=$('#pu_date').value?new Date($('#pu_date').value).toISOString():new Date().toISOString();
+  items.forEach(i=>{const p=phProd(i.productId);if(p){p.stock=Number(p.stock||0)+i.qty;if(i.cost)p.cost=i.cost;p.supplierId=sup;}});
+  const s=phSupplier(sup);if(s)s.balance=Number(s.balance||0)+(total-paid);
+  DB.purchases.push({id:uid('pu'),date,supplierId:sup,items,total,paid,note:$('#pu_note').value.trim()});
+  save();closeModal();toast('Purchase recorded · '+pmoney(total));vPhSuppliers();}
+
+/* ---- Reports ---- */
+function vPhReports(){const t=today();if(!PH_FROM){PH_FROM=t.slice(0,8)+'01';}if(!PH_TO)PH_TO=t;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Reports</h2><p>Sales, profit & stock</p></div>
+    <button class="btn gold no-print" onclick="window.print()">🖨 Print</button></div>
+  <div class="toolbar no-print"><div><label>From</label><input id="rp_from" type="date" value="${PH_FROM}" onchange="PH_FROM=this.value;phRenderReports()"></div>
+    <div><label>To</label><input id="rp_to" type="date" value="${PH_TO}" onchange="PH_TO=this.value;phRenderReports()"></div>
+    <div style="align-self:flex-end"><button class="btn sm sec" onclick="phRange('today')">Today</button>
+      <button class="btn sm sec" onclick="phRange('month')">This month</button>
+      <button class="btn sm sec" onclick="phRange('all')">All time</button></div></div>
+  <div id="rpArea"></div>`;phRenderReports();}
+function phRange(k){const t=today();if(k==='today'){PH_FROM=t;PH_TO=t;}else if(k==='month'){PH_FROM=t.slice(0,8)+'01';PH_TO=t;}else if(k==='all'){PH_FROM='2000-01-01';PH_TO=t;}
+  const f=$('#rp_from'),to=$('#rp_to');if(f)f.value=PH_FROM;if(to)to.value=PH_TO;phRenderReports();}
+function phRenderReports(){const sales=phSalesIn(PH_FROM,PH_TO);
+  const gross=sales.reduce((a,s)=>a+Number(s.total||0),0);
+  const cost=sales.reduce((a,s)=>a+Number(s.cost||0),0);
+  const profit=gross-cost;
+  const byPay={};sales.forEach(s=>{byPay[s.payment||'Cash']=(byPay[s.payment||'Cash']||0)+Number(s.total||0);});
+  const agg={};sales.forEach(s=>(s.items||[]).forEach(i=>{const a=agg[i.productId]||(agg[i.productId]={name:i.name,qty:0,rev:0});a.qty+=Number(i.qty||0);a.rev+=Number(i.price||0)*Number(i.qty||0);}));
+  const best=Object.values(agg).sort((a,b)=>b.qty-a.qty).slice(0,10);
+  const low=phLow(),exp=phExpiring();
+  const el=$('#rpArea');if(!el)return;
+  el.innerHTML=`<div class="cards-row">
+    ${phStat('Transactions',sales.length,PH_FROM+' → '+PH_TO)}
+    ${phStat('Gross sales',pmoney(gross),'','#0c5b56')}
+    ${phStat('Cost of goods',pmoney(cost),'')}
+    ${phStat('Profit',pmoney(profit),gross?((profit/gross*100).toFixed(1)+'% margin'):'','#0a7d33')}
+  </div>
+  <div class="flex gap" style="flex-wrap:wrap;align-items:flex-start">
+    <div class="card pad" style="flex:1;min-width:280px"><h3 class="mb">Best sellers</h3>
+      ${best.length?`<div class="t-wrap"><table><thead><tr><th>Product</th><th class="right">Qty</th><th class="right">Revenue</th></tr></thead><tbody>
+        ${best.map(b=>`<tr><td>${esc(b.name)}</td><td class="right">${b.qty}</td><td class="right">${pmoney(b.rev)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">No sales in range.</div>`}</div>
+    <div class="card pad" style="flex:1;min-width:240px"><h3 class="mb">Payment methods</h3>
+      ${Object.keys(byPay).length?`<div class="t-wrap"><table><tbody>${Object.entries(byPay).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="right"><b>${pmoney(v)}</b></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">—</div>`}
+      <hr><div class="flex" style="justify-content:space-between"><span class="muted">Stock value (cost)</span><b>${pmoney(phStockValue())}</b></div>
+      <div class="flex" style="justify-content:space-between"><span class="muted">Stock value (retail)</span><b>${pmoney(phRetailValue())}</b></div>
+    </div>
+  </div>
+  <div class="flex gap" style="flex-wrap:wrap;align-items:flex-start">
+    <div class="card pad" style="flex:1;min-width:280px"><h3 class="mb">⚠️ Low stock (${low.length})</h3>
+      ${low.length?`<div class="t-wrap"><table><thead><tr><th>Product</th><th class="right">Stock</th><th class="right">Reorder ≤</th></tr></thead><tbody>${low.map(p=>`<tr><td>${esc(p.name)}</td><td class="right">${Number(p.stock||0)}</td><td class="right">${phReorder(p)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">All good 👍</div>`}</div>
+    <div class="card pad" style="flex:1;min-width:280px"><h3 class="mb">⏳ Expiring / expired (${exp.length})</h3>
+      ${exp.length?`<div class="t-wrap"><table><thead><tr><th>Product</th><th>Expiry</th><th class="right">Stock</th></tr></thead><tbody>${exp.map(p=>{const es=phExpStatus(p);return `<tr><td>${esc(p.name)}</td><td>${esc(p.expiry||'')} <span class="pill ${es.cls}">${es.txt}</span></td><td class="right">${Number(p.stock||0)}</td></tr>`;}).join('')}</tbody></table></div>`:`<div class="empty">None 👍</div>`}</div>
+  </div>`;}
+
+/* ---- Settings (pharmacy admin) ---- */
+function vPhSettings(){if(USER.role!=='admin'){vPhDash();return;}const s=DB.settings;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Settings</h2><p>Store details & staff</p></div></div>
+  <div class="card pad mb"><h3 class="mb">Store details</h3><div class="grid2">
+    <div class="fld"><label>Store name</label><input id="st_name" value="${esc(s.storeName||'')}"></div>
+    <div class="fld"><label>Short name</label><input id="st_short" value="${esc(s.shortName||'')}"></div>
+    <div class="fld full"><label>Address</label><input id="st_addr" value="${esc(s.address||'')}"></div>
+    <div class="fld"><label>Phone</label><input id="st_phone" value="${esc(s.phone||'')}"></div>
+    <div class="fld"><label>Email</label><input id="st_email" value="${esc(s.email||'')}"></div>
+    <div class="fld"><label>Currency symbol</label><input id="st_cur" value="${esc(s.currency||'₦')}" style="max-width:90px"></div>
+    <div class="fld"><label>Theme</label><select id="st_theme">${Object.entries(THEMES).map(([k,t])=>`<option value="${k}" ${(s.theme||'teal')===k?'selected':''}>${t.n}</option>`).join('')}</select></div>
+    <div class="fld"><label>Default low-stock level</label><input id="st_low" type="number" min="0" value="${s.lowStock||10}"></div>
+    <div class="fld"><label>Expiry warning (days)</label><input id="st_exp" type="number" min="0" value="${s.expiryDays||60}"></div>
+  </div>${logoField(s.logo||'')}
+  <div class="mt"><button class="btn" style="background:#0c5b56" onclick="phSaveSettings()">💾 Save settings</button></div></div>
+  <div class="card pad mb"><h3 class="mb">Your login</h3><div class="grid2">
+    <div class="fld"><label>Your name</label><input id="my_name" value="${esc(USER.name||'')}"></div>
+    <div class="fld"><label>Username</label><input id="my_user" value="${esc(USER.username||'')}"></div>
+    <div class="fld full"><label>Password</label><input id="my_pass" value="${esc(USER.password||'')}"></div>
+  </div><div class="mt"><button class="btn" style="background:#0c5b56" onclick="phSaveMyLogin()">💾 Update login</button></div>
+  <p class="muted mt" style="font-size:12px">One login controls everything for now. Separate cashier accounts can be added later as a module.</p></div>
+  <div class="card pad"><h3 class="mb">Data</h3><div class="flex gap"><button class="btn sec" onclick="phExportCSV('inventory')">⬇ Export inventory (CSV)</button><button class="btn sec" onclick="phExportCSV('sales')">⬇ Export sales (CSV)</button></div></div>`;}
+function phSaveSettings(){const s=DB.settings;_logo=_logo||s.logo||'';
+  s.storeName=$('#st_name').value.trim()||s.storeName;s.shortName=$('#st_short').value.trim();s.address=$('#st_addr').value.trim();
+  s.phone=$('#st_phone').value.trim();s.email=$('#st_email').value.trim();s.currency=$('#st_cur').value.trim()||'₦';
+  s.theme=$('#st_theme').value;s.lowStock=Math.max(0,Number($('#st_low').value)||10);s.expiryDays=Math.max(0,Number($('#st_exp').value)||60);
+  if(typeof _logo==='string')s.logo=_logo;
+  save();toast('Settings saved');enterPharmacy();}
+function phSaveMyLogin(){const name=$('#my_name').value.trim(),user=$('#my_user').value.trim().toLowerCase(),pass=$('#my_pass').value.trim();
+  if(!name||!user||!pass){toast('All fields required',true);return;}
+  USER.name=name;USER.username=user;USER.password=pass;
+  const u=DB.users.find(x=>x.id===USER.id);if(u){u.name=name;u.username=user;u.password=pass;}
+  sessionStorage.setItem('sms_su',SCHOOL_CODE+'|'+USER.id);save();toast('Login updated');enterPharmacy();}
+function phExportCSV(type){let rows,name;
+  if(type==='inventory'){name='inventory';rows=[['Name','Category','Unit','Stock','Cost','Sell','Reorder','Expiry','Batch','Barcode']];
+    DB.products.filter(p=>!p.archived).forEach(p=>rows.push([p.name,p.category||'',p.unit||'',p.stock||0,p.cost||0,p.sell||0,phReorder(p),p.expiry||'',p.batch||'',p.barcode||'']));}
+  else{name='sales';rows=[['Receipt','Date','Items','Total','Cost','Profit','Payment','Customer','Voided']];
+    DB.sales.forEach(s=>rows.push([s.receiptNo,(s.date||'').replace('T',' ').slice(0,16),(s.items||[]).reduce((a,i)=>a+Number(i.qty||0),0),s.total||0,s.cost||0,s.profit||0,s.payment||'',s.customer||'',s.voided?'YES':'']));}
+  const csv=rows.map(r=>r.map(c=>{c=String(c==null?'':c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=(DB.settings.shortName||DB.settings.storeName||'pharmacy')+'-'+name+'-'+today()+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);toast('CSV downloaded');}
+
+/* ===================== OWNER: PHARMACIES ===================== */
+function phSubInfo(reg){const sub=reg.sub||{};if(!sub.fee){return{cls:'grey',txt:'No fee set'};}
+  const due=sub.due;if(!due)return{cls:'grey',txt:pmoneyOwner(sub.fee)+'/mo'};
+  const days=Math.round((new Date(due).getTime()-new Date(today()).getTime())/86400000);
+  if(days<0)return{cls:'red',txt:'Overdue '+(-days)+'d'};if(days<=7)return{cls:'gold',txt:'Due in '+days+'d'};return{cls:'green',txt:'Paid · due '+due};}
+function pmoneyOwner(n){return '₦'+(Number(n)||0).toLocaleString('en-NG');}
+function vPharmacies(){const list=MASTER.schools.filter(s=>s.type==='pharmacy');
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Pharmacies</h2><p>${list.length} registered — subscription clients</p></div>
+    <button class="btn" onclick="editPharmacy()">＋ Register Pharmacy</button></div>
+  <div class="t-wrap"><table><thead><tr><th>Pharmacy</th><th>Code</th><th>Admin login</th><th>Subscription</th><th>Status</th><th></th></tr></thead><tbody>
+  ${list.map(s=>{const d=STORE[s.code];const ad=d&&d.users?d.users.find(u=>u.role==='admin'):null;const si=phSubInfo(s);return `<tr>
+    <td><b>${esc(s.name)}</b></td><td class="muted">${esc(s.code)}</td>
+    <td>${ad?`<b>${esc(ad.username)}</b> / <span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(ad.password)}</span>`:'<span class="muted">—</span>'}</td>
+    <td><span class="pill ${si.cls}">${si.txt}</span></td>
+    <td><span class="pill ${s.status==='suspended'?'red':'green'}">${s.status==='suspended'?'Suspended':'Active'}</span></td>
+    <td class="right"><button class="btn sm" onclick="managePharmacy('${s.code}')">Manage</button></td></tr>`;}).join('')||`<tr><td colspan=6><div class="empty"><div class="big">💊</div>No pharmacies yet. <button class="btn sm mt" onclick="editPharmacy()">Register one</button></div></td></tr>`}
+  </tbody></table></div>`;}
+function editPharmacy(code){const reg=code?MASTER.schools.find(s=>s.code===code):null;const d=code?STORE[code]:null;const sub=(reg&&reg.sub)||{};
+  modal(code?'Edit Pharmacy':'Register New Pharmacy',`<div class="grid2">
+    <div class="fld"><label>Pharmacy name *</label><input id="ph_name" value="${esc(reg?reg.name:'')}"></div>
+    <div class="fld"><label>Short name</label><input id="ph_short" value="${esc(d?(d.settings.shortName||''):'')}"></div>
+    <div class="fld"><label>Link name / code *</label><input id="ph_code" value="${esc(code||'')}" ${code?'disabled':''} placeholder="e.g. cityrx"></div>
+    <div class="fld full" style="margin-top:-6px"><span class="muted" style="font-size:12px">Login link: <b>${esc(location.origin)}/</b><b>${esc((code||'').toLowerCase())}</b></span></div>
+    <div class="fld full"><label>Address *</label><input id="ph_addr" value="${esc(d?(d.settings.address||''):'')}"></div>
+    <div class="fld"><label>Phone *</label><input id="ph_phone" value="${esc(d?(d.settings.phone||''):'')}"></div>
+    <div class="fld"><label>Email</label><input id="ph_email" value="${esc(d?(d.settings.email||''):'')}"></div>
+    <div class="fld"><label>Currency symbol</label><input id="ph_cur" value="${esc(d?(d.settings.currency||'₦'):'₦')}" style="max-width:90px"></div>
+    <div class="fld"><label>Theme</label><select id="ph_theme">${Object.entries(THEMES).map(([k,t])=>`<option value="${k}" ${(d&&d.settings.theme||'teal')===k?'selected':''}>${t.n}</option>`).join('')}</select></div>
+  </div>
+  <hr><label>Subscription (flat fee you charge)</label><div class="grid2">
+    <div class="fld"><label>Monthly fee (₦)</label><input id="ph_fee" type="number" min="0" value="${sub.fee||0}"></div>
+    <div class="fld"><label>Next due date</label><input id="ph_due" type="date" value="${esc(sub.due||'')}"></div>
+  </div>
+  ${code?'':`<hr><label>Operator login (one person controls everything)</label><div class="grid2">
+    <div class="fld"><label>Name</label><input id="ph_aname" value="Pharmacist"></div>
+    <div class="fld"><label>Username *</label><input id="ph_auser" value="admin"></div>
+    <div class="fld full"><label>Password *</label><input id="ph_apass" value="admin123"></div></div>`}
+  <div class="fld"><label>Status</label><select id="ph_status"><option value="active" ${reg&&reg.status!=='suspended'?'selected':''}>Active</option><option value="suspended" ${reg&&reg.status==='suspended'?'selected':''}>Suspended</option></select></div>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="savePharmacy('${code||''}')">${code?'Save changes':'Create pharmacy'}</button>`,true);}
+function savePharmacy(code){const name=$('#ph_name').value.trim(),addr=$('#ph_addr').value.trim(),phone=$('#ph_phone').value.trim();
+  if(!name){toast('Name required',true);return;}if(!addr){toast('Address required',true);return;}
+  if(!phone||phone.replace(/\D/g,'').length<7){toast('Valid phone required',true);return;}
+  const fee=Math.max(0,Number($('#ph_fee').value)||0),due=$('#ph_due').value,cur=$('#ph_cur').value.trim()||'₦',theme=$('#ph_theme').value,status=$('#ph_status').value;
+  if(code){const reg=MASTER.schools.find(s=>s.code===code);reg.name=name;reg.status=status;reg.sub=Object.assign(reg.sub||{},{fee,due});
+    const d=STORE[code];Object.assign(d.settings,{storeName:name,shortName:$('#ph_short').value.trim(),address:addr,phone,email:$('#ph_email').value.trim(),currency:cur,theme,status});
+    saveMaster();saveSchoolRow(code);closeModal();toast('Pharmacy updated');managePharmacy(code);return;}
+  const newCode=$('#ph_code').value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,'').replace(/^-+|-+$/g,'');
+  if(!newCode){toast('Code required',true);return;}
+  if(MASTER.schools.some(s=>s.code===newCode)){toast('Code already exists',true);return;}
+  const auser=$('#ph_auser').value.trim(),apass=$('#ph_apass').value.trim();if(!auser||!apass){toast('Manager login required',true);return;}
+  const d=seedPharmacy(newCode,name);Object.assign(d.settings,{shortName:$('#ph_short').value.trim(),address:addr,phone,email:$('#ph_email').value.trim(),currency:cur,theme,status});
+  d.users[0].name=$('#ph_aname').value.trim()||'Pharmacy Manager';d.users[0].username=auser;d.users[0].password=apass;
+  STORE[newCode]=d;MASTER.schools.push({code:newCode,name,type:'pharmacy',status,createdAt:today(),sub:{fee,due,lastPaid:'',history:[]}});
+  saveStoreLocal();saveMaster();saveSchoolRow(newCode);closeModal();toast('Pharmacy created');managePharmacy(newCode);}
+function managePharmacy(code){const reg=MASTER.schools.find(s=>s.code===code);const d=STORE[code];if(!d){toast('Data not loaded',true);return;}
+  const sub=reg.sub||(reg.sub={fee:0,due:'',lastPaid:'',history:[]});const si=phSubInfo(reg);
+  modal('Manage — '+reg.name,`
+    <div class="cards-row" style="margin-bottom:14px">
+      <div class="stat"><div class="lbl">Products</div><div class="num">${(d.products||[]).length}</div></div>
+      <div class="stat"><div class="lbl">Sales logged</div><div class="num">${(d.sales||[]).length}</div></div>
+      <div class="stat"><div class="lbl">Subscription</div><div class="num" style="font-size:16px"><span class="pill ${si.cls}">${si.txt}</span></div></div>
+    </div>
+    <label>Staff login link (give to the pharmacy)</label>
+    <div class="linkbox mb"><code>${esc(schoolLink(code))}</code><button class="btn sm sec" onclick="copyText('${jq(schoolLink(code))}')">Copy</button></div>
+    <label>Staff logins (passwords visible — reset any)</label>
+    <div class="t-wrap" style="margin-bottom:6px"><table><tbody>
+      ${d.users.map(u=>`<tr><td><b>${esc(u.name)}</b><br><span class="muted" style="font-size:11px">${u.role==='admin'?'Manager':'Cashier'}</span></td>
+        <td>${esc(u.username)}</td><td><span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(u.password)}</span></td>
+        <td class="right"><button class="btn sm sec" onclick="resetCred('${code}','${u.id}')">🔑 Reset</button></td></tr>`).join('')}
+    </tbody></table></div>
+    <hr><label>Subscription billing</label>
+    <div class="card pad" style="background:#f7faf8"><div class="grid2">
+      <div class="fld"><label>Monthly fee (₦)</label><input id="mp_fee" type="number" min="0" value="${sub.fee||0}"></div>
+      <div class="fld"><label>Next due date</label><input id="mp_due" type="date" value="${esc(sub.due||'')}"></div>
+    </div>
+    <div class="flex gap"><button class="btn sm sec" onclick="phSaveSub('${code}')">Save</button>
+      <button class="btn sm" style="background:#0a7d33" onclick="phMarkPaid('${code}')">✓ Mark paid (extend 1 month)</button></div>
+    ${(sub.history&&sub.history.length)?`<div class="muted mt" style="font-size:12px">Last payments: ${sub.history.slice(-4).reverse().map(h=>esc(h.date)+' '+pmoneyOwner(h.amount)).join(' · ')}</div>`:''}
+    </div>`,
+    `<button class="btn sec" onclick="closeModal()">Close</button>
+     <button class="btn ${reg.status==='suspended'?'':'sec'}" onclick="togglePharmacy('${code}')">${reg.status==='suspended'?'Re-activate':'Suspend'}</button>
+     <button class="btn sec" onclick="editPharmacy('${code}')">Edit details</button>
+     <button class="btn danger" onclick="delPharmacy('${code}')">Delete</button>`,true);}
+function phSaveSub(code){const reg=MASTER.schools.find(s=>s.code===code);reg.sub=reg.sub||{};reg.sub.fee=Math.max(0,Number($('#mp_fee').value)||0);reg.sub.due=$('#mp_due').value;saveMaster();toast('Subscription saved');managePharmacy(code);}
+function phMarkPaid(code){const reg=MASTER.schools.find(s=>s.code===code);const sub=reg.sub=reg.sub||{fee:0,history:[]};
+  const base=sub.due&&sub.due>today()?new Date(sub.due):new Date(today());base.setMonth(base.getMonth()+1);
+  sub.due=base.toISOString().slice(0,10);sub.lastPaid=today();sub.history=sub.history||[];sub.history.push({date:today(),amount:sub.fee||0});
+  if(reg.status==='suspended'){reg.status='active';if(STORE[code])STORE[code].settings.status='active';saveSchoolRow(code);}
+  saveMaster();toast('Payment recorded · next due '+sub.due);managePharmacy(code);}
+function togglePharmacy(code){const reg=MASTER.schools.find(s=>s.code===code);reg.status=reg.status==='suspended'?'active':'suspended';
+  if(STORE[code])STORE[code].settings.status=reg.status;saveMaster();saveSchoolRow(code);toast('Pharmacy '+reg.status);managePharmacy(code);}
+function delPharmacy(code){modal('Delete pharmacy?',`<p>Permanently delete <b>${esc(MASTER.schools.find(s=>s.code===code).name)}</b> and all its data? This cannot be undone.</p>`,
+  `<button class="btn sec" onclick="managePharmacy('${code}')">Cancel</button><button class="btn danger" onclick="confirmDelPharmacy('${code}')">Delete</button>`);}
+async function confirmDelPharmacy(code){MASTER.schools=MASTER.schools.filter(s=>s.code!==code);delete STORE[code];saveStoreLocal();saveMaster();
+  if(supa){try{await supa.from('school_data').delete().eq('id',code);}catch(e){}}closeModal();toast('Pharmacy deleted');vPharmacies();}
 
 /* ===================== PWA: offline + auto-update + install ===================== */
 function setManifest(){try{
