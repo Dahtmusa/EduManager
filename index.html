@@ -1616,6 +1616,7 @@ function printClassInvoices(){const list=studentsIn(invClass);if(!list.length){t
 function renderAuth(){
   const sc=$('#screen');sc.style.display='';$('#app').style.display='none';if(window.setManifest)setManifest();
   if(MODE!=='owner'&&DB&&DB.kind==='pharmacy'){renderPharmacyAuth();return;}
+  if(MODE!=='owner'&&DB&&DB.kind==='autoparts'){renderAutoAuth();return;}
   if(MODE==='check'){renderChecker();return;}
   if(MODE==='parent'){renderParent();return;}
   if(MODE==='owner'){
@@ -1723,6 +1724,7 @@ function enterApp(){
   closeModal();clearInterval(window._heroT);clearInterval(window._houseT);$('#screen').innerHTML='';$('#screen').style.display='none';$('#app').style.display='block';window.scrollTo(0,0);
   const owner=USER.role==='owner';
   if(!owner&&DB&&DB.kind==='pharmacy'){return enterPharmacy();}
+  if(!owner&&DB&&DB.kind==='autoparts'){return enterAuto();}
   $('#topbar').className='topbar'+(owner?' owner':'');
   $('#brandName').textContent=owner?((MASTER.platform.name)||'EduManager Cloud'):DB.settings.schoolName;
   $('#topLogo').textContent=owner?'🛰️':'🎓';
@@ -1736,11 +1738,15 @@ function buildNav(){
   let items;
   if(USER.role!=='owner'&&DB&&DB.kind==='pharmacy'){
     items=[['phdash','📊','Dashboard'],['pos','🛒','Sell (POS)'],['saleshist','🧾','Sales'],['inventory','💊','Inventory'],['suppliers','🚚','Suppliers'],['phreports','📈','Reports'],['phsettings','⚙️','Settings']];
-    const owp='';
-    $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${owp}${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
+    $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
     return;
   }
-  if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['stores','💊','Pharmacies'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
+  if(USER.role!=='owner'&&DB&&DB.kind==='autoparts'){
+    items=[['audash','📊','Dashboard'],['aupos','🛒','Sell (POS)'],['ausales','🧾','Sales'],['auinventory','🔧','Inventory'],['ausuppliers','🚚','Suppliers'],['aureports','📈','Reports'],['ausettings','⚙️','Settings']];
+    $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
+    return;
+  }
+  if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['stores','💊','Pharmacies'],['autostores','🔧','Auto Parts'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
   else if(USER.role==='admin'){items=[['dashboard','📊','Dashboard'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👩‍🏫','Teachers'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['calendar','🗓️','Calendar'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
     if(hasModule('staffAttendance'))items.splice(7,0,['staffatt','👔','Staff Att.']);
     if(hasModule('houses'))items.push(['houses','🏠','Houses']);
@@ -1759,8 +1765,9 @@ function buildNav(){
 function toggleNav(open){const sb=document.querySelector('.sidebar'),sc=$('#navScrim');const show=open===undefined?!sb.classList.contains('show'):open;
   sb.classList.toggle('show',show);if(sc)sc.classList.toggle('show',show);}
 function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(false);
-  const map={odash:vODash,schools:vSchools,stores:vPharmacies,pins:vPins,revenue:vRevenue,osettings:vOSettings,
+  const map={odash:vODash,schools:vSchools,stores:vPharmacies,autostores:vAutos,pins:vPins,revenue:vRevenue,osettings:vOSettings,
     phdash:vPhDash,pos:vPhPOS,saleshist:vPhSales,inventory:vPhInventory,suppliers:vPhSuppliers,phreports:vPhReports,phsettings:vPhSettings,
+    audash:vAuDash,aupos:vAuPOS,ausales:vAuSales,auinventory:vAuInventory,ausuppliers:vAuSuppliers,aureports:vAuReports,ausettings:vAuSettings,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
     promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce};
@@ -1768,18 +1775,19 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
 
 /* ===================== OWNER: DASHBOARD ===================== */
 function vODash(){
-  const schools=MASTER.schools.filter(s=>s.type!=='pharmacy'), active=schools.filter(s=>s.status!=='suspended').length;
+  const schools=MASTER.schools.filter(s=>s.type!=='pharmacy'&&s.type!=='autoparts'), active=schools.filter(s=>s.status!=='suspended').length;
   const pharmacies=MASTER.schools.filter(s=>s.type==='pharmacy');
+  const autos=MASTER.schools.filter(s=>s.type==='autoparts');
   const pinsGen=MASTER.pins.length, pinsUsed=MASTER.pins.filter(p=>p.uses>0).length;
   const revenue=MASTER.batches.reduce((a,b)=>a+(Number(b.price)||0)*(Number(b.qty)||0),0);
   $('#view').innerHTML=`
   <div class="page-head"><div><h2>Owner Dashboard</h2><p>${esc(MASTER.platform.name)} — your SaaS</p></div>
-    <div class="flex gap"><button class="btn purple" onclick="editSchool()">＋ Register School</button><button class="btn" onclick="editPharmacy()">＋ Register Pharmacy</button></div></div>
+    <div class="flex gap" style="flex-wrap:wrap"><button class="btn purple" onclick="editSchool()">＋ School</button><button class="btn" onclick="editPharmacy()">＋ Pharmacy</button><button class="btn" style="background:#15366e" onclick="editAuto()">＋ Auto Parts</button></div></div>
   <div class="cards-row">
     <div class="stat accent purple"><div class="lbl">Schools</div><div class="num">${schools.length}</div><div class="meta">${active} active</div></div>
     <div class="stat accent"><div class="lbl">Pharmacies</div><div class="num">${pharmacies.length}</div><div class="meta">${pharmacies.filter(s=>s.status!=='suspended').length} active</div></div>
+    <div class="stat"><div class="lbl">Auto Parts</div><div class="num" style="color:#15366e">${autos.length}</div><div class="meta">${autos.filter(s=>s.status!=='suspended').length} active</div></div>
     <div class="stat"><div class="lbl">PIN Revenue</div><div class="num" style="color:var(--green)">${naira(revenue)}</div><div class="meta">${pinsGen} PINs · ${pinsUsed} used</div></div>
-    <div class="stat"><div class="lbl">Cloud</div><div class="num" style="font-size:20px">${supa?'Connected':'Local only'}</div><div class="meta">${supa?'shared live':'set keys in file'}</div></div>
   </div>
   ${!supa?`<div class="card pad mb" style="border-left:4px solid var(--gold)"><b>You're in local demo mode.</b> Paste your Supabase keys at the top of <code>index.html</code> (or in Settings) so schools can share live data. See the deploy guide.</div>`:''}
   <div class="card pad"><h3 class="mb">Your schools & admin logins</h3>
@@ -1793,7 +1801,7 @@ function vODash(){
 }
 /* ===================== OWNER: SCHOOLS ===================== */
 function vSchools(){
-  const list=MASTER.schools.filter(s=>s.type!=='pharmacy');
+  const list=MASTER.schools.filter(s=>s.type!=='pharmacy'&&s.type!=='autoparts');
   $('#view').innerHTML=`<div class="page-head"><div><h2>Schools</h2><p>${list.length} registered — admin logins shown below</p></div>
     <button class="btn purple" onclick="editSchool()">＋ Register School</button></div>
   <div class="t-wrap"><table><thead><tr><th>School</th><th>Code</th><th>Pupils</th><th>Admin login (username / password)</th><th>Status</th><th></th></tr></thead><tbody>
@@ -1813,8 +1821,8 @@ function resetCred(code,userId){const d=STORE[code];const u=d.users.find(x=>x.id
 function doResetCred(code,userId){const p=$('#rp_pass').value.trim();if(!p){toast('Enter a password',true);return;}
   const d=STORE[code];d.users.find(x=>x.id===userId).password=p;STORE[code]=d;saveStoreLocal();saveSchoolRow(code);
   closeModal();toast('Password updated');const reg=MASTER.schools.find(s=>s.code===code);
-  if(CURRENT==='schools')vSchools();else if(CURRENT==='stores')vPharmacies();else if(CURRENT==='odash')vODash();
-  else if(reg&&reg.type==='pharmacy')managePharmacy(code);else manageSchool(code);}
+  if(CURRENT==='schools')vSchools();else if(CURRENT==='stores')vPharmacies();else if(CURRENT==='autostores')vAutos();else if(CURRENT==='odash')vODash();
+  else if(reg&&reg.type==='pharmacy')managePharmacy(code);else if(reg&&reg.type==='autoparts')manageAuto(code);else manageSchool(code);}
 function editSchool(code){
   const reg=code?MASTER.schools.find(s=>s.code===code):null;const d=code?STORE[code]:null;
   const g=(d&&d.settings.grade)||{ca1:20,ca2:20,exam:60};
@@ -2653,8 +2661,8 @@ async function boot(){
     MODE=wantCheck?'check':'school';
     if(supa){await pullRow(SCHOOL_CODE);if(MASTER&&!STORE[SCHOOL_CODE]){}}
     const _reg=MASTER&&MASTER.schools&&MASTER.schools.find(s=>s.code===SCHOOL_CODE);
-    const _isPh=(_reg&&_reg.type==='pharmacy')||(STORE[SCHOOL_CODE]&&STORE[SCHOOL_CODE].kind==='pharmacy');
-    DB=STORE[SCHOOL_CODE]?(_isPh?ensurePharmacy(STORE[SCHOOL_CODE]):ensureSchool(STORE[SCHOOL_CODE])):null;
+    const _t=(_reg&&_reg.type)||(STORE[SCHOOL_CODE]&&STORE[SCHOOL_CODE].kind)||'school';
+    DB=STORE[SCHOOL_CODE]?(_t==='pharmacy'?ensurePharmacy(STORE[SCHOOL_CODE]):_t==='autoparts'?ensureAuto(STORE[SCHOOL_CODE]):ensureSchool(STORE[SCHOOL_CODE])):null;
     if(DB){STORE[SCHOOL_CODE]=DB;}
     setSync(supa?'on':'off',supa?'Synced':'Local');
     // restore session
@@ -2704,7 +2712,7 @@ function renderPharmacyAuth(){const sc=$('#screen');sc.style.display='';$('#app'
   if(set.status==='suspended'){sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest">⏸️</div><h1>${esc(set.storeName)}</h1><div class="sub">This account is currently suspended. Please contact your provider to renew.</div></div></div>`;return;}
   const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`:'💊';
   sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest" style="background:#0c5b56">${logo}</div>
-    <h1>${esc(set.storeName)}</h1><div class="sub">Pharmacy — Staff Login</div>
+    <h1>${esc(set.storeName)}</h1>${set.slogan?`<div class="muted" style="font-style:italic;margin-bottom:4px">“${esc(set.slogan)}”</div>`:''}<div class="sub">Pharmacy — Staff Login</div>
     <div class="auth-err" id="aerr"></div>
     <div class="field"><label>Username</label><input id="su" placeholder="admin"></div>
     <div class="field"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>
@@ -2818,6 +2826,7 @@ function phReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="$
   return `<div class="receipt" style="max-width:330px;margin:0 auto;font-family:'Courier New',monospace;color:#111;background:#fff;padding:14px 16px;border:1px solid #ddd">
     <div style="text-align:center;border-bottom:1px dashed #999;padding-bottom:8px;margin-bottom:8px">${logo}
       <div style="font-weight:800;font-size:15px">${esc(set.storeName)}</div>
+      ${set.slogan?`<div style="font-size:10px;font-style:italic">${esc(set.slogan)}</div>`:''}
       <div style="font-size:11px">${esc(set.address||'')}</div>${set.phone?`<div style="font-size:11px">☎ ${esc(set.phone)}</div>`:''}</div>
     <div style="font-size:11.5px;display:flex;justify-content:space-between"><span>${esc(s.receiptNo)}</span><span>${esc((s.date||'').replace('T',' ').slice(0,16))}</span></div>
     <div style="font-size:11.5px;margin-bottom:6px">Cashier: ${esc(s.cashier||'')}${s.customer?' · '+esc(s.customer):''}</div>
@@ -3078,6 +3087,7 @@ function vPhSettings(){if(USER.role!=='admin'){vPhDash();return;}const s=DB.sett
   <div class="card pad mb"><h3 class="mb">Store details</h3><div class="grid2">
     <div class="fld"><label>Store name</label><input id="st_name" value="${esc(s.storeName||'')}"></div>
     <div class="fld"><label>Short name</label><input id="st_short" value="${esc(s.shortName||'')}"></div>
+    <div class="fld full"><label>Slogan / motto</label><input id="st_slogan" value="${esc(s.slogan||'')}" placeholder="e.g. Your health, our priority"></div>
     <div class="fld full"><label>Address</label><input id="st_addr" value="${esc(s.address||'')}"></div>
     <div class="fld"><label>Phone</label><input id="st_phone" value="${esc(s.phone||'')}"></div>
     <div class="fld"><label>Email</label><input id="st_email" value="${esc(s.email||'')}"></div>
@@ -3097,7 +3107,7 @@ function vPhSettings(){if(USER.role!=='admin'){vPhDash();return;}const s=DB.sett
 function phSaveSettings(){const s=DB.settings;_logo=_logo||s.logo||'';
   s.storeName=$('#st_name').value.trim()||s.storeName;s.shortName=$('#st_short').value.trim();s.address=$('#st_addr').value.trim();
   s.phone=$('#st_phone').value.trim();s.email=$('#st_email').value.trim();s.currency=$('#st_cur').value.trim()||'₦';
-  s.theme=$('#st_theme').value;s.lowStock=Math.max(0,Number($('#st_low').value)||10);s.expiryDays=Math.max(0,Number($('#st_exp').value)||60);
+  s.slogan=$('#st_slogan').value.trim();s.theme=$('#st_theme').value;s.lowStock=Math.max(0,Number($('#st_low').value)||10);s.expiryDays=Math.max(0,Number($('#st_exp').value)||60);
   if(typeof _logo==='string')s.logo=_logo;
   save();toast('Settings saved');enterPharmacy();}
 function phSaveMyLogin(){const name=$('#my_name').value.trim(),user=$('#my_user').value.trim().toLowerCase(),pass=$('#my_pass').value.trim();
@@ -3142,7 +3152,9 @@ function editPharmacy(code){const reg=code?MASTER.schools.find(s=>s.code===code)
     <div class="fld"><label>Email</label><input id="ph_email" value="${esc(d?(d.settings.email||''):'')}"></div>
     <div class="fld"><label>Currency symbol</label><input id="ph_cur" value="${esc(d?(d.settings.currency||'₦'):'₦')}" style="max-width:90px"></div>
     <div class="fld"><label>Theme</label><select id="ph_theme">${Object.entries(THEMES).map(([k,t])=>`<option value="${k}" ${(d&&d.settings.theme||'teal')===k?'selected':''}>${t.n}</option>`).join('')}</select></div>
+    <div class="fld full"><label>Slogan / motto</label><input id="ph_slogan" value="${esc(d?(d.settings.slogan||''):'')}" placeholder="e.g. Your health, our priority"></div>
   </div>
+  <hr>${logoField(d?(d.settings.logo||''):'')}
   <hr><label>Subscription (flat fee you charge)</label><div class="grid2">
     <div class="fld"><label>Monthly fee (₦)</label><input id="ph_fee" type="number" min="0" value="${sub.fee||0}"></div>
     <div class="fld"><label>Next due date</label><input id="ph_due" type="date" value="${esc(sub.due||'')}"></div>
@@ -3158,13 +3170,13 @@ function savePharmacy(code){const name=$('#ph_name').value.trim(),addr=$('#ph_ad
   if(!phone||phone.replace(/\D/g,'').length<7){toast('Valid phone required',true);return;}
   const fee=Math.max(0,Number($('#ph_fee').value)||0),due=$('#ph_due').value,cur=$('#ph_cur').value.trim()||'₦',theme=$('#ph_theme').value,status=$('#ph_status').value;
   if(code){const reg=MASTER.schools.find(s=>s.code===code);reg.name=name;reg.status=status;reg.sub=Object.assign(reg.sub||{},{fee,due});
-    const d=STORE[code];Object.assign(d.settings,{storeName:name,shortName:$('#ph_short').value.trim(),address:addr,phone,email:$('#ph_email').value.trim(),currency:cur,theme,status});
+    const d=STORE[code];Object.assign(d.settings,{storeName:name,shortName:$('#ph_short').value.trim(),address:addr,phone,email:$('#ph_email').value.trim(),currency:cur,theme,status,slogan:$('#ph_slogan').value.trim(),logo:(typeof _logo==='string'?_logo:d.settings.logo)});
     saveMaster();saveSchoolRow(code);closeModal();toast('Pharmacy updated');managePharmacy(code);return;}
   const newCode=$('#ph_code').value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,'').replace(/^-+|-+$/g,'');
   if(!newCode){toast('Code required',true);return;}
   if(MASTER.schools.some(s=>s.code===newCode)){toast('Code already exists',true);return;}
   const auser=$('#ph_auser').value.trim(),apass=$('#ph_apass').value.trim();if(!auser||!apass){toast('Manager login required',true);return;}
-  const d=seedPharmacy(newCode,name);Object.assign(d.settings,{shortName:$('#ph_short').value.trim(),address:addr,phone,email:$('#ph_email').value.trim(),currency:cur,theme,status});
+  const d=seedPharmacy(newCode,name);Object.assign(d.settings,{shortName:$('#ph_short').value.trim(),address:addr,phone,email:$('#ph_email').value.trim(),currency:cur,theme,status,slogan:$('#ph_slogan').value.trim(),logo:(typeof _logo==='string'?_logo:'')});
   d.users[0].name=$('#ph_aname').value.trim()||'Pharmacy Manager';d.users[0].username=auser;d.users[0].password=apass;
   STORE[newCode]=d;MASTER.schools.push({code:newCode,name,type:'pharmacy',status,createdAt:today(),sub:{fee,due,lastPaid:'',history:[]}});
   saveStoreLocal();saveMaster();saveSchoolRow(newCode);closeModal();toast('Pharmacy created');managePharmacy(newCode);}
@@ -3209,6 +3221,517 @@ function delPharmacy(code){modal('Delete pharmacy?',`<p>Permanently delete <b>${
   `<button class="btn sec" onclick="managePharmacy('${code}')">Cancel</button><button class="btn danger" onclick="confirmDelPharmacy('${code}')">Delete</button>`);}
 async function confirmDelPharmacy(code){MASTER.schools=MASTER.schools.filter(s=>s.code!==code);delete STORE[code];saveStoreLocal();saveMaster();
   if(supa){try{await supa.from('school_data').delete().eq('id',code);}catch(e){}}closeModal();toast('Pharmacy deleted');vPharmacies();}
+
+/* ===================================================================== */
+/* ===================== AUTOMOBILE SPARE PARTS MODULE ================= */
+/* ===================================================================== */
+let AU_CART=[], AU_FROM='', AU_TO='', AU_SFROM='', AU_STO='', AU_SQ='', AU_INVQ='';
+const AU_CATS=['Engine','Brakes','Suspension','Electrical','Transmission','Cooling','Filters','Body & Exterior','Interior','Tyres & Wheels','Lubricants & Fluids','Belts & Hoses','Lighting','Exhaust','Steering','Accessories','Other'];
+function seedAuto(code,name){return{kind:'autoparts',
+  settings:{code,storeName:name,shortName:'',address:'Nigeria',phone:'',email:'',logo:'',theme:'blue',currency:'₦',lowStock:3,status:'active',receiptSeq:0},
+  users:[{id:'u1',name:'Store Operator',username:'admin',password:'admin123',role:'admin'}],
+  products:[],suppliers:[],sales:[],purchases:[],adjustments:[]};}
+function ensureAuto(d){d.kind='autoparts';d.settings=d.settings||{};const s=d.settings;
+  if(!s.currency)s.currency='₦';if(s.lowStock==null)s.lowStock=3;if(!s.theme)s.theme='blue';
+  if(!s.status)s.status='active';if(s.receiptSeq==null)s.receiptSeq=0;if(!s.storeName)s.storeName=s.schoolName||'Auto Parts';
+  ['products','suppliers','sales','purchases','adjustments'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
+  if(!Array.isArray(d.users)||!d.users.length)d.users=[{id:'u1',name:'Store Operator',username:'admin',password:'admin123',role:'admin'}];
+  return d;}
+/* ---- helpers ---- */
+function auCur(){return (DB.settings.currency||'₦');}
+function amoney(n){return auCur()+(Math.round((Number(n)||0)*100)/100).toLocaleString('en-NG');}
+function auProd(id){return DB.products.find(p=>p.id===id);}
+function auReorder(p){return (p.reorder!=null&&p.reorder!=='')?Number(p.reorder):Number(DB.settings.lowStock||0);}
+function auLow(){return DB.products.filter(p=>!p.archived&&Number(p.stock||0)<=auReorder(p));}
+function auStockValue(){return DB.products.reduce((a,p)=>a+Number(p.stock||0)*Number(p.cost||0),0);}
+function auRetailValue(){return DB.products.reduce((a,p)=>a+Number(p.stock||0)*Number(p.sell||0),0);}
+function auSalesIn(from,to){return DB.sales.filter(s=>{if(s.voided)return false;const d=(s.date||'').slice(0,10);return (!from||d>=from)&&(!to||d<=to);});}
+function auSupplier(id){return DB.suppliers.find(x=>x.id===id);}
+function auPartLine(p){return [p.partNo,p.brand].filter(Boolean).join(' · ');}
+
+/* ---- auth + shell ---- */
+function renderAutoAuth(){const sc=$('#screen');sc.style.display='';$('#app').style.display='none';const set=DB.settings;
+  if(set.status==='suspended'){sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest">⏸️</div><h1>${esc(set.storeName)}</h1><div class="sub">This account is currently suspended. Please contact your provider to renew.</div></div></div>`;return;}
+  const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`:'🔧';
+  sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest" style="background:#15366e">${logo}</div>
+    <h1>${esc(set.storeName)}</h1>${set.slogan?`<div class="muted" style="font-style:italic;margin-bottom:4px">“${esc(set.slogan)}”</div>`:''}<div class="sub">Spare Parts — Staff Login</div>
+    <div class="auth-err" id="aerr"></div>
+    <div class="field"><label>Username</label><input id="su" placeholder="admin"></div>
+    <div class="field"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>
+    <button class="btn" style="width:100%;justify-content:center;background:#15366e" onclick="schoolLogin()">Sign in</button>
+    <div class="hint">Use the login your provider gave you.</div></div></div>`;
+  setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);}
+function enterAuto(){const set=DB.settings;
+  $('#topbar').className='topbar';
+  $('#brandName').textContent=set.storeName;$('#topLogo').textContent='🔧';
+  $('#whoName').textContent=USER.name;$('#whoRole').textContent='Operator';
+  $('#termBadge').textContent=set.shortName||'Auto Parts';
+  setSync(supa?'on':'off',supa?'Synced':'Local');
+  buildNav();go('audash');setManifest();}
+
+/* ---- dashboard ---- */
+function vAuDash(){const t=today();const todaySales=auSalesIn(t,t);
+  const todayTotal=todaySales.reduce((a,s)=>a+Number(s.total||0),0);
+  const todayProfit=todaySales.reduce((a,s)=>a+Number(s.profit||0),0);
+  const low=auLow();const recent=DB.sales.slice(-8).reverse();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Dashboard</h2><p>${esc(DB.settings.storeName)} — ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p></div>
+    <button class="btn" style="background:#15366e" onclick="go('aupos')">🛒 New Sale</button></div>
+  <div class="cards-row">
+    ${phStat("Today's Sales",amoney(todayTotal),todaySales.length+' transaction(s)','#15366e')}
+    ${phStat("Today's Profit",amoney(todayProfit),'gross margin','#0a7d33')}
+    ${phStat('Parts',DB.products.filter(p=>!p.archived).length,'in catalogue')}
+    ${phStat('Stock Value',amoney(auStockValue()),'at cost')}
+  </div>
+  ${low.length?`<div class="card pad mb" style="border-left:4px solid #c8881b"><div class="flex" style="justify-content:space-between"><b>⚠️ Low stock (${low.length})</b><button class="btn sm sec" onclick="go('auinventory')">View</button></div>
+    <div class="muted" style="font-size:12.5px;margin-top:6px">${low.slice(0,8).map(p=>esc(p.name)+' ('+Number(p.stock||0)+')').join(', ')}${low.length>8?'…':''}</div></div>`:''}
+  <div class="card pad"><h3 class="mb">Recent sales</h3>
+  ${recent.length?`<div class="t-wrap"><table><thead><tr><th>Receipt</th><th>Date</th><th>Items</th><th class="right">Total</th><th class="right">Profit</th><th></th></tr></thead><tbody>
+    ${recent.map(s=>`<tr><td><b>${esc(s.receiptNo||'')}</b></td><td>${esc((s.date||'').replace('T',' ').slice(0,16))}</td><td>${(s.items||[]).reduce((a,i)=>a+Number(i.qty||0),0)}</td>
+      <td class="right">${amoney(s.total)}</td><td class="right" style="color:#0a7d33">${amoney(s.profit)}</td>
+      <td class="right"><button class="btn sm sec" onclick="auShowReceipt('${s.id}')">Receipt</button></td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="empty"><div class="big">🛒</div>No sales yet. <button class="btn sm mt" style="background:#15366e;color:#fff" onclick="go('aupos')">Make your first sale</button></div>`}
+  </div>`;}
+
+/* ---- POS ---- */
+function vAuPOS(){
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Sell (POS)</h2><p>Search by name, part number or brand — or scan</p></div></div>
+  <div class="flex gap" style="align-items:flex-start;flex-wrap:wrap">
+    <div class="card pad" style="flex:1;min-width:300px">
+      <div class="flex gap mb"><input id="aupos_q" placeholder="🔎 Name / part no. / brand / barcode" oninput="auRenderPosList()" style="flex:1" onkeydown="if(event.key==='Enter')auQuickAdd()">
+        <button class="btn sec" onclick="auScanToggle()" id="auposScanBtn">📷 Scan</button></div>
+      <div id="auposScan" style="display:none"><div id="reader"></div><div class="muted center mb" style="font-size:12px">Point at the barcode.</div></div>
+      <div id="auposList"></div>
+    </div>
+    <div class="card pad" style="flex:1;min-width:300px"><h3 class="mb">🛒 Cart</h3><div id="auposCart"></div></div>
+  </div>`;
+  auRenderPosList();auRenderCart();}
+function auRenderPosList(){const q=($('#aupos_q')?$('#aupos_q').value:'').toLowerCase().trim();
+  let list=DB.products.filter(p=>!p.archived);
+  if(q)list=list.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.partNo||'').toLowerCase().includes(q)||(p.brand||'').toLowerCase().includes(q)||(p.fitment||'').toLowerCase().includes(q)||(p.barcode||'').toLowerCase().includes(q));
+  list=list.slice(0,60);const el=$('#auposList');if(!el)return;
+  el.innerHTML=list.length?`<div class="t-wrap" style="max-height:60vh;overflow:auto"><table><tbody>
+    ${list.map(p=>{const out=Number(p.stock||0)<=0;return `<tr>
+      <td><b>${esc(p.name)}</b><br><span class="muted" style="font-size:11px">${esc(auPartLine(p)||p.category||'')} · Stock ${Number(p.stock||0)}</span></td>
+      <td class="right" style="white-space:nowrap"><b>${amoney(p.sell)}</b></td>
+      <td class="right"><button class="btn sm ${out?'sec':''}" ${out?'disabled':''} style="${out?'':'background:#15366e;color:#fff'}" onclick="auAddCart('${p.id}')">${out?'Out':'＋ Add'}</button></td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="empty"><div class="big">🔧</div>${DB.products.length?'No match.':'No parts yet. Add them in Inventory.'}</div>`;}
+function auQuickAdd(){const q=($('#aupos_q').value||'').toLowerCase().trim();if(!q)return;
+  const p=DB.products.find(x=>!x.archived&&((x.barcode||'').toLowerCase()===q||(x.partNo||'').toLowerCase()===q))||DB.products.find(x=>!x.archived&&(x.name||'').toLowerCase().includes(q));
+  if(p){auAddCart(p.id);$('#aupos_q').value='';auRenderPosList();}}
+function auAddCart(id){const p=auProd(id);if(!p)return;const stock=Number(p.stock||0);const line=AU_CART.find(c=>c.id===id);
+  if(line){if(line.qty>=stock){toast('Only '+stock+' in stock',true);return;}line.qty++;}else{if(stock<=0){toast('Out of stock',true);return;}AU_CART.push({id,qty:1});}auRenderCart();}
+function auCartQty(id,delta){const line=AU_CART.find(c=>c.id===id);if(!line)return;const p=auProd(id);const stock=Number(p.stock||0);
+  line.qty+=delta;if(line.qty<=0){AU_CART=AU_CART.filter(c=>c.id!==id);}else if(line.qty>stock){line.qty=stock;toast('Only '+stock+' in stock',true);}auRenderCart();}
+function auCartSet(id,val){const line=AU_CART.find(c=>c.id===id);if(!line)return;const p=auProd(id);const stock=Number(p.stock||0);let q=Math.floor(Number(val)||0);if(q>stock){q=stock;toast('Only '+stock+' in stock',true);}if(q<=0){AU_CART=AU_CART.filter(c=>c.id!==id);}else line.qty=q;auRenderCart();}
+function auRemoveCart(id){AU_CART=AU_CART.filter(c=>c.id!==id);auRenderCart();}
+function auCartTotal(){return AU_CART.reduce((a,c)=>{const p=auProd(c.id);return a+(p?Number(p.sell||0)*c.qty:0);},0);}
+function auRenderCart(){const el=$('#auposCart');if(!el)return;
+  if(!AU_CART.length){el.innerHTML=`<div class="empty"><div class="big">🛒</div>Cart is empty.</div>`;return;}
+  const total=auCartTotal();
+  el.innerHTML=`<div class="t-wrap"><table><tbody>
+    ${AU_CART.map(c=>{const p=auProd(c.id);if(!p)return '';return `<tr>
+      <td><b>${esc(p.name)}</b><br><span class="muted" style="font-size:11px">${amoney(p.sell)} each</span></td>
+      <td style="white-space:nowrap"><button class="btn icon sm" onclick="auCartQty('${c.id}',-1)">−</button>
+        <input value="${c.qty}" onchange="auCartSet('${c.id}',this.value)" style="width:46px;text-align:center;display:inline-block;padding:4px">
+        <button class="btn icon sm" onclick="auCartQty('${c.id}',1)">＋</button></td>
+      <td class="right"><b>${amoney(p.sell*c.qty)}</b></td>
+      <td class="right"><button class="btn icon sm danger" onclick="auRemoveCart('${c.id}')">✕</button></td></tr>`;}).join('')}
+  </tbody></table></div>
+  <div class="flex" style="justify-content:space-between;align-items:center;font-size:20px;font-weight:800;margin:10px 0;padding-top:8px;border-top:2px solid #eee"><span>Total</span><span style="color:#15366e">${amoney(total)}</span></div>
+  <div class="grid2"><div class="fld"><label>Payment</label><select id="aupos_pay"><option>Cash</option><option>Transfer</option><option>POS / Card</option><option>Credit</option></select></div>
+    <div class="fld"><label>Customer / Workshop</label><input id="aupos_cust" placeholder="Walk-in"></div></div>
+  <div class="fld"><label>Warranty (optional)</label><input id="aupos_warr" placeholder="e.g. 1 month / no warranty"></div>
+  <div class="flex gap"><button class="btn" style="flex:1;justify-content:center;background:#15366e" onclick="auCheckout()">✓ Checkout · ${amoney(total)}</button>
+    <button class="btn sec" onclick="AU_CART=[];auRenderCart()">Clear</button></div>`;}
+function auCheckout(){if(!AU_CART.length){toast('Cart is empty',true);return;}
+  for(const c of AU_CART){const p=auProd(c.id);if(!p||c.qty>Number(p.stock||0)){toast('Not enough stock for '+(p?p.name:'item'),true);return;}}
+  const items=AU_CART.map(c=>{const p=auProd(c.id);return{productId:p.id,name:p.name,partNo:p.partNo||'',qty:c.qty,price:Number(p.sell||0),cost:Number(p.cost||0)};});
+  const total=items.reduce((a,i)=>a+i.price*i.qty,0);const cost=items.reduce((a,i)=>a+i.cost*i.qty,0);
+  DB.settings.receiptSeq=(DB.settings.receiptSeq||0)+1;
+  const sale={id:uid('sl'),receiptNo:'AP/'+String(DB.settings.receiptSeq).padStart(4,'0'),date:new Date().toISOString(),
+    items,total,cost,profit:total-cost,payment:$('#aupos_pay').value,customer:($('#aupos_cust').value||'').trim(),warranty:($('#aupos_warr').value||'').trim(),cashier:USER.name};
+  items.forEach(i=>{const p=auProd(i.productId);if(p)p.stock=Number(p.stock||0)-i.qty;});
+  DB.sales.push(sale);save();AU_CART=[];toast('Sale recorded · '+amoney(total));auShowReceipt(sale.id);vAuPOS();}
+function auReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="${set.logo}" style="width:46px;height:46px;border-radius:8px;object-fit:cover">`:'<div style="font-size:34px">🔧</div>';
+  return `<div class="receipt" style="max-width:330px;margin:0 auto;font-family:'Courier New',monospace;color:#111;background:#fff;padding:14px 16px;border:1px solid #ddd">
+    <div style="text-align:center;border-bottom:1px dashed #999;padding-bottom:8px;margin-bottom:8px">${logo}
+      <div style="font-weight:800;font-size:15px">${esc(set.storeName)}</div>
+      ${set.slogan?`<div style="font-size:10px;font-style:italic">${esc(set.slogan)}</div>`:''}
+      <div style="font-size:11px">${esc(set.address||'')}</div>${set.phone?`<div style="font-size:11px">☎ ${esc(set.phone)}</div>`:''}</div>
+    <div style="font-size:11.5px;display:flex;justify-content:space-between"><span>${esc(s.receiptNo)}</span><span>${esc((s.date||'').replace('T',' ').slice(0,16))}</span></div>
+    <div style="font-size:11.5px;margin-bottom:6px">Served by: ${esc(s.cashier||'')}${s.customer?' · '+esc(s.customer):''}</div>
+    <table style="width:100%;font-size:11.5px;border-collapse:collapse">
+      <thead><tr style="border-bottom:1px solid #000"><th style="text-align:left">Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Amt</th></tr></thead>
+      <tbody>${(s.items||[]).map(i=>`<tr><td style="text-align:left">${esc(i.name)}${i.partNo?'<br><span style="color:#666">#'+esc(i.partNo)+'</span>':''}<br><span style="color:#666">@${amoney(i.price)}</span></td><td style="text-align:center">${i.qty}</td><td style="text-align:right">${amoney(i.price*i.qty)}</td></tr>`).join('')}</tbody>
+    </table>
+    <div style="border-top:1px dashed #999;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between;font-weight:800;font-size:15px"><span>TOTAL</span><span>${amoney(s.total)}</span></div>
+    <div style="font-size:11.5px;display:flex;justify-content:space-between"><span>Payment</span><span>${esc(s.payment||'')}</span></div>
+    ${s.warranty?`<div style="font-size:11px;margin-top:4px">Warranty: ${esc(s.warranty)}</div>`:''}
+    <div style="text-align:center;font-size:11px;margin-top:10px;border-top:1px dashed #999;padding-top:8px">Thank you. Goods sold in good faith.<br>Powered by Muscode</div>
+  </div>`;}
+function auShowReceipt(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;
+  modal('Receipt — '+s.receiptNo,auReceiptHTML(s),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#15366e" onclick="window.print()">🖨 Print</button>`);}
+function auScanToggle(){const box=$('#auposScan');if(!box)return;if(box.style.display==='none'){box.style.display='block';auStartPosScan();}else{stopScan();box.style.display='none';}}
+function auStartPosScan(){if(!window.Html5Qrcode){toast('Scanner not loaded',true);return;}if(window._scanner)return;
+  const fmts=window.Html5QrcodeSupportedFormats?[Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.QR_CODE]:undefined;
+  window._scanner=new Html5Qrcode('reader');
+  window._scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:240,height:140},formatsToSupport:fmts},txt=>auScanned(txt),()=>{}).catch(()=>{toast('Camera failed',true);window._scanner=null;});}
+function auScanned(code){code=(code||'').trim();const p=DB.products.find(x=>!x.archived&&((x.barcode||'')===code||(x.partNo||'')===code));if(p){auAddCart(p.id);toast('Added '+p.name);}else{toast('No part with code '+code,true);}}
+
+/* ---- Sales history + debtors ---- */
+function auCreditOutstanding(){return DB.sales.filter(s=>!s.voided&&s.payment==='Credit'&&!s.settled).reduce((a,s)=>a+Number(s.total||0),0);}
+function vAuSales(){const t=today();if(!AU_SFROM)AU_SFROM=t.slice(0,8)+'01';if(!AU_STO)AU_STO=t;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Sales</h2><p>History, receipts, refunds & debtors</p></div>
+    <button class="btn" style="background:#15366e" onclick="go('aupos')">🛒 New Sale</button></div>
+  <div class="toolbar no-print"><div><label>From</label><input id="ausl_from" type="date" value="${AU_SFROM}" onchange="AU_SFROM=this.value;auRenderSales()"></div>
+    <div><label>To</label><input id="ausl_to" type="date" value="${AU_STO}" onchange="AU_STO=this.value;auRenderSales()"></div>
+    <div style="flex:1"><label>Search</label><input id="ausl_q" value="${esc(AU_SQ)}" placeholder="receipt / customer" oninput="AU_SQ=this.value;auRenderSales()"></div>
+    <div style="align-self:flex-end"><button class="btn sm sec" onclick="auSRange('today')">Today</button><button class="btn sm sec" onclick="auSRange('all')">All</button></div></div>
+  <div id="auslArea"></div>`;auRenderSales();}
+function auSRange(k){const t=today();if(k==='today'){AU_SFROM=t;AU_STO=t;}else{AU_SFROM='2000-01-01';AU_STO=t;}
+  const f=$('#ausl_from'),to=$('#ausl_to');if(f)f.value=AU_SFROM;if(to)to.value=AU_STO;auRenderSales();}
+function auRenderSales(){const q=AU_SQ.toLowerCase().trim();
+  let list=DB.sales.filter(s=>{const d=(s.date||'').slice(0,10);return (!AU_SFROM||d>=AU_SFROM)&&(!AU_STO||d<=AU_STO);});
+  if(q)list=list.filter(s=>(s.receiptNo||'').toLowerCase().includes(q)||(s.customer||'').toLowerCase().includes(q));
+  list=list.slice().reverse();const valid=list.filter(s=>!s.voided);
+  const gross=valid.reduce((a,s)=>a+Number(s.total||0),0),profit=valid.reduce((a,s)=>a+Number(s.profit||0),0);const debt=auCreditOutstanding();
+  const el=$('#auslArea');if(!el)return;
+  el.innerHTML=`<div class="cards-row">
+    ${phStat('Transactions',valid.length,'in range')}
+    ${phStat('Gross sales',amoney(gross),'','#15366e')}
+    ${phStat('Profit',amoney(profit),'','#0a7d33')}
+    ${phStat('Debtors (credit)',amoney(debt),'unpaid',debt?'#c0392b':'')}
+  </div>
+  ${list.length?`<div class="t-wrap"><table><thead><tr><th>Receipt</th><th>Date</th><th>Customer</th><th>Pay</th><th class="right">Total</th><th class="right">Profit</th><th></th></tr></thead><tbody>
+    ${list.map(s=>{const credit=s.payment==='Credit'&&!s.settled&&!s.voided;return `<tr${s.voided?' style="opacity:.5"':''}>
+      <td><b>${esc(s.receiptNo||'')}</b>${s.voided?' <span class="pill red">VOID</span>':''}</td>
+      <td>${esc((s.date||'').replace('T',' ').slice(0,16))}</td><td>${esc(s.customer||'—')}</td>
+      <td>${esc(s.payment||'')}${credit?' <span class="pill gold">unpaid</span>':''}</td>
+      <td class="right">${amoney(s.total)}</td><td class="right" style="color:#0a7d33">${amoney(s.profit)}</td>
+      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="auShowReceipt('${s.id}')">Receipt</button>${credit?`<button class="btn sm" style="background:#0a7d33" onclick="auSettleCredit('${s.id}')">Settle</button>`:''}${!s.voided?`<button class="btn sm danger" onclick="auVoidSale('${s.id}')">Void</button>`:''}</td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">🧾</div>No sales in range.</div></div>`}`;}
+function auSettleCredit(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;s.settled=true;s.settledDate=today();save();toast('Marked as paid');auRenderSales();}
+function auVoidSale(id){const s=DB.sales.find(x=>x.id===id);if(!s||s.voided)return;
+  modal('Void / refund sale?',`<p>Void <b>${esc(s.receiptNo)}</b> (${amoney(s.total)})? Stock for each item will be returned to inventory. The record is kept but excluded from totals.</p>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="auDoVoid('${id}')">Void & restock</button>`);}
+function auDoVoid(id){const s=DB.sales.find(x=>x.id===id);if(!s||s.voided)return;
+  (s.items||[]).forEach(i=>{const p=auProd(i.productId);if(p)p.stock=Number(p.stock||0)+Number(i.qty||0);});
+  s.voided=true;s.voidDate=today();save();closeModal();toast('Sale voided & stock restored');auRenderSales();}
+
+/* ---- Inventory ---- */
+function vAuInventory(){const low=auLow();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Inventory</h2><p>Spare parts — stock, prices, fitment</p></div>
+    <button class="btn" style="background:#15366e" onclick="auEditProduct()">＋ Add Part</button></div>
+  <div class="cards-row">
+    ${phStat('Parts',DB.products.filter(p=>!p.archived).length,'')}
+    ${phStat('Stock value',amoney(auStockValue()),'at cost')}
+    ${phStat('Retail value',amoney(auRetailValue()),'at selling price')}
+    ${phStat('Low stock',low.length,'need reorder',low.length?'#c8881b':'')}
+  </div>
+  <div class="toolbar"><div style="flex:1"><input id="auinv_q" value="${esc(AU_INVQ)}" placeholder="🔎 Search name / part no. / brand / vehicle" oninput="AU_INVQ=this.value;auRenderInv()"></div></div>
+  <div id="auinvArea"></div>`;auRenderInv();}
+function auRenderInv(){const q=AU_INVQ.toLowerCase().trim();
+  let list=DB.products.filter(p=>!p.archived);if(q)list=list.filter(p=>(p.name||'').toLowerCase().includes(q)||(p.partNo||'').toLowerCase().includes(q)||(p.brand||'').toLowerCase().includes(q)||(p.fitment||'').toLowerCase().includes(q)||(p.category||'').toLowerCase().includes(q));
+  list=list.slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));const el=$('#auinvArea');if(!el)return;
+  el.innerHTML=list.length?`<div class="t-wrap"><table><thead><tr><th>Part</th><th>Category</th><th>Fits</th><th class="right">Stock</th><th class="right">Cost</th><th class="right">Sell</th><th>Shelf</th><th></th></tr></thead><tbody>
+    ${list.map(p=>{const lowB=Number(p.stock||0)<=auReorder(p);return `<tr>
+      <td><b>${esc(p.name)}</b>${auPartLine(p)?`<br><span class="muted" style="font-size:11px">${esc(auPartLine(p))}</span>`:''}${p.condition&&p.condition!=='New'?` <span class="pill grey">${esc(p.condition)}</span>`:''}</td>
+      <td>${esc(p.category||'—')}</td><td><span class="muted" style="font-size:11.5px">${esc(p.fitment||'—')}</span></td>
+      <td class="right">${Number(p.stock||0)} ${lowB?`<span class="pill gold">low</span>`:''}</td>
+      <td class="right">${amoney(p.cost)}</td><td class="right"><b>${amoney(p.sell)}</b></td>
+      <td>${esc(p.location||'—')}</td>
+      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="auRestock('${p.id}')">↑ Restock</button>
+        <button class="btn sm sec" onclick="auAdjust('${p.id}')">⚖ Adjust</button>
+        <button class="btn sm sec" onclick="auLabel('${p.id}')">🏷 Label</button>
+        <button class="btn sm sec" onclick="auEditProduct('${p.id}')">Edit</button>
+        <button class="btn sm danger" onclick="auDelProduct('${p.id}')">✕</button></td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">🔧</div>${DB.products.length?'No match.':'No parts yet.'} <button class="btn sm mt" style="background:#15366e;color:#fff" onclick="auEditProduct()">Add a part</button></div></div>`;}
+function auSupplierOptions(sel){return `<option value="">— none —</option>`+DB.suppliers.map(s=>`<option value="${s.id}" ${sel===s.id?'selected':''}>${esc(s.name)}</option>`).join('');}
+function auEditProduct(id){const p=id?auProd(id):null;
+  modal(p?'Edit Part':'Add Part',`<div class="grid2">
+    <div class="fld full"><label>Part name *</label><input id="ar_name" value="${esc(p?p.name:'')}" placeholder="e.g. Brake Pad Set (Front)"></div>
+    <div class="fld"><label>Part number</label><input id="ar_partno" value="${esc(p?(p.partNo||''):'')}" placeholder="OEM / catalogue no."></div>
+    <div class="fld"><label>Brand / Manufacturer</label><input id="ar_brand" value="${esc(p?(p.brand||''):'')}" placeholder="e.g. Bosch"></div>
+    <div class="fld"><label>Category</label><select id="ar_cat">${AU_CATS.map(c=>`<option ${p&&p.category===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="fld"><label>Condition</label><select id="ar_cond"><option ${!p||p.condition==='New'?'selected':''}>New</option><option ${p&&p.condition==='Used'?'selected':''}>Used</option><option ${p&&p.condition==='Refurbished'?'selected':''}>Refurbished</option></select></div>
+    <div class="fld full"><label>Fits vehicle(s)</label><input id="ar_fit" value="${esc(p?(p.fitment||''):'')}" placeholder="e.g. Toyota Corolla 2008–2013"></div>
+    <div class="fld"><label>Cost price (${auCur()})</label><input id="ar_cost" type="number" min="0" step="0.01" value="${p?(p.cost||0):''}"></div>
+    <div class="fld"><label>Selling price (${auCur()}) *</label><input id="ar_sell" type="number" min="0" step="0.01" value="${p?(p.sell||0):''}"></div>
+    <div class="fld"><label>${p?'Current stock':'Opening stock'}</label><input id="ar_stock" type="number" min="0" step="1" value="${p?(p.stock||0):0}"></div>
+    <div class="fld"><label>Reorder level</label><input id="ar_reorder" type="number" min="0" step="1" value="${p&&p.reorder!=null?p.reorder:''}" placeholder="default ${DB.settings.lowStock||3}"></div>
+    <div class="fld"><label>Shelf / bin location</label><input id="ar_loc" value="${esc(p?(p.location||''):'')}" placeholder="e.g. A3"></div>
+    <div class="fld"><label>Barcode</label><input id="ar_bc" value="${esc(p?(p.barcode||''):'')}" placeholder="scan/type"></div>
+    <div class="fld full"><label>Supplier</label><select id="ar_sup">${auSupplierOptions(p?p.supplierId:'')}</select></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#15366e" onclick="auSaveProduct('${id||''}')">${p?'Save':'Add part'}</button>`,true);}
+function auSaveProduct(id){const name=$('#ar_name').value.trim(),sell=Number($('#ar_sell').value);
+  if(!name){toast('Part name required',true);return;}if($('#ar_sell').value===''||!(sell>=0)){toast('Selling price required',true);return;}
+  const rl=$('#ar_reorder').value;
+  const data={name,partNo:$('#ar_partno').value.trim(),brand:$('#ar_brand').value.trim(),category:$('#ar_cat').value,condition:$('#ar_cond').value,
+    fitment:$('#ar_fit').value.trim(),cost:Number($('#ar_cost').value)||0,sell,stock:Math.max(0,Math.floor(Number($('#ar_stock').value)||0)),
+    reorder:rl===''?null:Math.max(0,Math.floor(Number(rl)||0)),location:$('#ar_loc').value.trim(),barcode:$('#ar_bc').value.trim(),supplierId:$('#ar_sup').value};
+  if(id){Object.assign(auProd(id),data);}else{DB.products.push({id:uid('pr'),...data});}
+  save();closeModal();toast('Saved');if(CURRENT==='auinventory')vAuInventory();}
+function auDelProduct(id){const p=auProd(id);if(!p)return;
+  modal('Delete part?',`<p>Delete <b>${esc(p.name)}</b>? Past sales keep their history.</p>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="auDoDelProduct('${id}')">Delete</button>`);}
+function auDoDelProduct(id){DB.products=DB.products.filter(p=>p.id!==id);save();closeModal();toast('Deleted');vAuInventory();}
+function auRestock(id){const p=auProd(id);if(!p)return;
+  modal('Restock — '+p.name,`<p class="muted mb">Current stock: <b>${Number(p.stock||0)}</b></p><div class="grid2">
+    <div class="fld"><label>Quantity received *</label><input id="aurs_qty" type="number" min="1" step="1" value="0"></div>
+    <div class="fld"><label>Unit cost (${auCur()})</label><input id="aurs_cost" type="number" min="0" step="0.01" value="${p.cost||0}"></div>
+    <div class="fld full"><label>Supplier</label><select id="aurs_sup">${auSupplierOptions(p.supplierId)}</select></div>
+    </div><label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500"><input type="checkbox" id="aurs_log" style="width:auto" checked> Record as a purchase (for reports)</label>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#15366e" onclick="auSaveRestock('${id}')">Add stock</button>`);}
+function auSaveRestock(id){const p=auProd(id);const qty=Math.floor(Number($('#aurs_qty').value)||0);if(qty<=0){toast('Enter a quantity',true);return;}
+  const cost=Number($('#aurs_cost').value)||0;const sup=$('#aurs_sup').value;
+  p.stock=Number(p.stock||0)+qty;if(cost)p.cost=cost;if(sup)p.supplierId=sup;
+  if($('#aurs_log').checked){DB.purchases.push({id:uid('pu'),date:new Date().toISOString(),supplierId:sup,items:[{productId:p.id,name:p.name,qty,cost}],total:qty*cost,paid:qty*cost,note:'Restock'});}
+  save();closeModal();toast('Stock updated');vAuInventory();}
+function auAdjust(id){const p=auProd(id);if(!p)return;
+  modal('Adjust stock — '+p.name,`<p class="muted mb">Use for damage, loss, or correcting a miscount. Current stock: <b>${Number(p.stock||0)}</b></p><div class="grid2">
+    <div class="fld"><label>New stock count *</label><input id="auaj_new" type="number" min="0" step="1" value="${Number(p.stock||0)}"></div>
+    <div class="fld"><label>Reason</label><select id="auaj_reason"><option>Damaged</option><option>Miscount correction</option><option>Theft/loss</option><option>Returned to supplier</option><option>Other</option></select></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#15366e" onclick="auSaveAdjust('${id}')">Save adjustment</button>`);}
+function auSaveAdjust(id){const p=auProd(id);const nw=Math.max(0,Math.floor(Number($('#auaj_new').value)||0));const old=Number(p.stock||0);const delta=nw-old;
+  if(delta===0){closeModal();return;}p.stock=nw;
+  DB.adjustments.push({id:uid('aj'),date:new Date().toISOString(),productId:p.id,name:p.name,from:old,to:nw,delta,reason:$('#auaj_reason').value});
+  save();closeModal();toast('Stock adjusted ('+(delta>0?'+':'')+delta+')');vAuInventory();}
+function auLabel(id){const p=auProd(id);if(!p)return;const code=p.barcode||p.partNo||p.id;
+  modal('Shelf label — '+p.name,`<div class="receipt" style="max-width:260px;margin:0 auto;text-align:center;background:#fff;border:1px solid #ddd;padding:12px">
+    <div style="font-weight:800;font-size:13px">${esc(DB.settings.storeName)}</div>
+    <div style="font-size:14px;font-weight:700;margin:4px 0">${esc(p.name)}</div>
+    ${auPartLine(p)?`<div style="font-size:11px;color:#555">${esc(auPartLine(p))}</div>`:''}
+    <div style="font-size:18px;font-weight:900;color:#15366e">${amoney(p.sell)}</div>
+    <svg class="bc" data-code="${esc(code)}" style="max-width:100%"></svg>
+    ${p.location?`<div style="font-size:10px;color:#666">Shelf: ${esc(p.location)}</div>`:''}
+  </div>`,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#15366e" onclick="window.print()">🖨 Print label</button>`);
+  setTimeout(renderBarcodes,60);}
+
+/* ---- Suppliers & Purchases ---- */
+function vAuSuppliers(){const recent=DB.purchases.slice(-10).reverse();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Suppliers & Purchases</h2><p>Vendors and stock you buy in</p></div>
+    <div class="flex gap"><button class="btn sec" onclick="auEditSupplier()">＋ Supplier</button><button class="btn" style="background:#15366e" onclick="auNewPurchase()">＋ Record Purchase</button></div></div>
+  <div class="card pad mb"><h3 class="mb">Suppliers</h3>
+  ${DB.suppliers.length?`<div class="t-wrap"><table><thead><tr><th>Supplier</th><th>Phone</th><th>Address</th><th class="right">Balance owed</th><th></th></tr></thead><tbody>
+    ${DB.suppliers.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.phone||'—')}</td><td>${esc(s.address||'—')}</td>
+      <td class="right" style="color:${Number(s.balance||0)>0?'#c0392b':'#0a7d33'}">${amoney(s.balance||0)}</td>
+      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="auEditSupplier('${s.id}')">Edit</button><button class="btn sm danger" onclick="auDelSupplier('${s.id}')">✕</button></td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="empty"><div class="big">🚚</div>No suppliers yet.</div>`}</div>
+  <div class="card pad"><h3 class="mb">Recent purchases</h3>
+  ${recent.length?`<div class="t-wrap"><table><thead><tr><th>Date</th><th>Supplier</th><th>Items</th><th class="right">Total</th><th class="right">Paid</th></tr></thead><tbody>
+    ${recent.map(pu=>{const sp=auSupplier(pu.supplierId);return `<tr><td>${esc((pu.date||'').replace('T',' ').slice(0,16))}</td><td>${esc(sp?sp.name:'—')}</td>
+      <td>${(pu.items||[]).length} line(s), ${(pu.items||[]).reduce((a,i)=>a+Number(i.qty||0),0)} units</td><td class="right">${amoney(pu.total)}</td><td class="right">${amoney(pu.paid)}</td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="empty"><div class="big">📦</div>No purchases recorded.</div>`}</div>`;}
+function auEditSupplier(id){const s=id?auSupplier(id):null;
+  modal(s?'Edit Supplier':'Add Supplier',`<div class="grid2">
+    <div class="fld full"><label>Name *</label><input id="ausp_name" value="${esc(s?s.name:'')}"></div>
+    <div class="fld"><label>Phone</label><input id="ausp_phone" value="${esc(s?(s.phone||''):'')}"></div>
+    <div class="fld"><label>Balance owed (${auCur()})</label><input id="ausp_bal" type="number" step="0.01" value="${s?(s.balance||0):0}"></div>
+    <div class="fld full"><label>Address</label><input id="ausp_addr" value="${esc(s?(s.address||''):'')}"></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#15366e" onclick="auSaveSupplier('${id||''}')">Save</button>`);}
+function auSaveSupplier(id){const name=$('#ausp_name').value.trim();if(!name){toast('Name required',true);return;}
+  const data={name,phone:$('#ausp_phone').value.trim(),address:$('#ausp_addr').value.trim(),balance:Number($('#ausp_bal').value)||0};
+  if(id){Object.assign(auSupplier(id),data);}else{DB.suppliers.push({id:uid('sp'),...data});}
+  save();closeModal();toast('Saved');vAuSuppliers();}
+function auDelSupplier(id){const s=auSupplier(id);if(!s)return;
+  modal('Delete supplier?',`<p>Delete <b>${esc(s.name)}</b>?</p>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="auDoDelSupplier('${id}')">Delete</button>`);}
+function auDoDelSupplier(id){DB.suppliers=DB.suppliers.filter(s=>s.id!==id);save();closeModal();toast('Deleted');vAuSuppliers();}
+function auNewPurchase(){if(!DB.suppliers.length){toast('Add a supplier first',true);auEditSupplier();return;}
+  if(!DB.products.length){toast('Add parts first',true);auEditProduct();return;}
+  const prods=DB.products.filter(p=>!p.archived).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  modal('Record Purchase',`<div class="grid2">
+    <div class="fld"><label>Supplier *</label><select id="aupu_sup">${DB.suppliers.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></div>
+    <div class="fld"><label>Date</label><input id="aupu_date" type="date" value="${today()}"></div>
+  </div>
+  <label>Enter quantity received and unit cost for parts you bought:</label>
+  <div class="t-wrap" style="max-height:46vh;overflow:auto;margin:6px 0"><table><thead><tr><th>Part</th><th class="right">In stock</th><th>Qty in</th><th>Unit cost</th></tr></thead><tbody>
+    ${prods.map(p=>`<tr><td><b>${esc(p.name)}</b>${auPartLine(p)?`<br><span class="muted" style="font-size:11px">${esc(auPartLine(p))}</span>`:''}</td><td class="right">${Number(p.stock||0)}</td>
+      <td><input id="aupu_q_${p.id}" type="number" min="0" step="1" value="0" style="width:70px;padding:4px"></td>
+      <td><input id="aupu_c_${p.id}" type="number" min="0" step="0.01" value="${p.cost||0}" style="width:84px;padding:4px"></td></tr>`).join('')}
+  </tbody></table></div>
+  <div class="grid2"><div class="fld"><label>Amount paid now (${auCur()})</label><input id="aupu_paid" type="number" min="0" step="0.01" value="0"></div>
+    <div class="fld"><label>Note</label><input id="aupu_note" placeholder="invoice no. etc"></div></div>
+  <p class="muted" style="font-size:12px">Unpaid balance is added to the supplier's account.</p>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#15366e" onclick="auSavePurchase()">Save purchase</button>`,true);}
+function auSavePurchase(){const sup=$('#aupu_sup').value;const items=[];
+  DB.products.forEach(p=>{const qel=$('#aupu_q_'+p.id);if(!qel)return;const q=Math.floor(Number(qel.value)||0);if(q>0){const c=Number($('#aupu_c_'+p.id).value)||0;items.push({productId:p.id,name:p.name,qty:q,cost:c});}});
+  if(!items.length){toast('Enter at least one quantity',true);return;}
+  const total=items.reduce((a,i)=>a+i.qty*i.cost,0);const paid=Math.max(0,Number($('#aupu_paid').value)||0);
+  const date=$('#aupu_date').value?new Date($('#aupu_date').value).toISOString():new Date().toISOString();
+  items.forEach(i=>{const p=auProd(i.productId);if(p){p.stock=Number(p.stock||0)+i.qty;if(i.cost)p.cost=i.cost;p.supplierId=sup;}});
+  const s=auSupplier(sup);if(s)s.balance=Number(s.balance||0)+(total-paid);
+  DB.purchases.push({id:uid('pu'),date,supplierId:sup,items,total,paid,note:$('#aupu_note').value.trim()});
+  save();closeModal();toast('Purchase recorded · '+amoney(total));vAuSuppliers();}
+
+/* ---- Reports ---- */
+function vAuReports(){const t=today();if(!AU_FROM)AU_FROM=t.slice(0,8)+'01';if(!AU_TO)AU_TO=t;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Reports</h2><p>Sales, profit & stock</p></div>
+    <button class="btn gold no-print" onclick="window.print()">🖨 Print</button></div>
+  <div class="toolbar no-print"><div><label>From</label><input id="aurp_from" type="date" value="${AU_FROM}" onchange="AU_FROM=this.value;auRenderReports()"></div>
+    <div><label>To</label><input id="aurp_to" type="date" value="${AU_TO}" onchange="AU_TO=this.value;auRenderReports()"></div>
+    <div style="align-self:flex-end"><button class="btn sm sec" onclick="auRange('today')">Today</button><button class="btn sm sec" onclick="auRange('month')">This month</button><button class="btn sm sec" onclick="auRange('all')">All time</button></div></div>
+  <div id="aurpArea"></div>`;auRenderReports();}
+function auRange(k){const t=today();if(k==='today'){AU_FROM=t;AU_TO=t;}else if(k==='month'){AU_FROM=t.slice(0,8)+'01';AU_TO=t;}else if(k==='all'){AU_FROM='2000-01-01';AU_TO=t;}
+  const f=$('#aurp_from'),to=$('#aurp_to');if(f)f.value=AU_FROM;if(to)to.value=AU_TO;auRenderReports();}
+function auRenderReports(){const sales=auSalesIn(AU_FROM,AU_TO);
+  const gross=sales.reduce((a,s)=>a+Number(s.total||0),0),cost=sales.reduce((a,s)=>a+Number(s.cost||0),0),profit=gross-cost;
+  const byPay={};sales.forEach(s=>{byPay[s.payment||'Cash']=(byPay[s.payment||'Cash']||0)+Number(s.total||0);});
+  const agg={};sales.forEach(s=>(s.items||[]).forEach(i=>{const a=agg[i.productId]||(agg[i.productId]={name:i.name,qty:0,rev:0});a.qty+=Number(i.qty||0);a.rev+=Number(i.price||0)*Number(i.qty||0);}));
+  const best=Object.values(agg).sort((a,b)=>b.qty-a.qty).slice(0,10);const low=auLow();
+  const el=$('#aurpArea');if(!el)return;
+  el.innerHTML=`<div class="cards-row">
+    ${phStat('Transactions',sales.length,AU_FROM+' → '+AU_TO)}
+    ${phStat('Gross sales',amoney(gross),'','#15366e')}
+    ${phStat('Cost of goods',amoney(cost),'')}
+    ${phStat('Profit',amoney(profit),gross?((profit/gross*100).toFixed(1)+'% margin'):'','#0a7d33')}
+  </div>
+  <div class="flex gap" style="flex-wrap:wrap;align-items:flex-start">
+    <div class="card pad" style="flex:1;min-width:280px"><h3 class="mb">Best sellers</h3>
+      ${best.length?`<div class="t-wrap"><table><thead><tr><th>Part</th><th class="right">Qty</th><th class="right">Revenue</th></tr></thead><tbody>
+        ${best.map(b=>`<tr><td>${esc(b.name)}</td><td class="right">${b.qty}</td><td class="right">${amoney(b.rev)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">No sales in range.</div>`}</div>
+    <div class="card pad" style="flex:1;min-width:240px"><h3 class="mb">Payment methods</h3>
+      ${Object.keys(byPay).length?`<div class="t-wrap"><table><tbody>${Object.entries(byPay).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="right"><b>${amoney(v)}</b></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">—</div>`}
+      <hr><div class="flex" style="justify-content:space-between"><span class="muted">Stock value (cost)</span><b>${amoney(auStockValue())}</b></div>
+      <div class="flex" style="justify-content:space-between"><span class="muted">Stock value (retail)</span><b>${amoney(auRetailValue())}</b></div>
+    </div>
+  </div>
+  <div class="card pad"><h3 class="mb">⚠️ Low stock (${low.length})</h3>
+    ${low.length?`<div class="t-wrap"><table><thead><tr><th>Part</th><th>Fits</th><th class="right">Stock</th><th class="right">Reorder ≤</th></tr></thead><tbody>${low.map(p=>`<tr><td>${esc(p.name)}</td><td><span class="muted">${esc(p.fitment||'—')}</span></td><td class="right">${Number(p.stock||0)}</td><td class="right">${auReorder(p)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">All good 👍</div>`}</div>`;}
+
+/* ---- Settings ---- */
+function vAuSettings(){const s=DB.settings;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Settings</h2><p>Store details & login</p></div></div>
+  <div class="card pad mb"><h3 class="mb">Store details</h3><div class="grid2">
+    <div class="fld"><label>Store name</label><input id="aust_name" value="${esc(s.storeName||'')}"></div>
+    <div class="fld"><label>Short name</label><input id="aust_short" value="${esc(s.shortName||'')}"></div>
+    <div class="fld full"><label>Slogan / motto</label><input id="aust_slogan" value="${esc(s.slogan||'')}" placeholder="e.g. Genuine parts, fair prices"></div>
+    <div class="fld full"><label>Address</label><input id="aust_addr" value="${esc(s.address||'')}"></div>
+    <div class="fld"><label>Phone</label><input id="aust_phone" value="${esc(s.phone||'')}"></div>
+    <div class="fld"><label>Email</label><input id="aust_email" value="${esc(s.email||'')}"></div>
+    <div class="fld"><label>Currency symbol</label><input id="aust_cur" value="${esc(s.currency||'₦')}" style="max-width:90px"></div>
+    <div class="fld"><label>Theme</label><select id="aust_theme">${Object.entries(THEMES).map(([k,t])=>`<option value="${k}" ${(s.theme||'blue')===k?'selected':''}>${t.n}</option>`).join('')}</select></div>
+    <div class="fld"><label>Default low-stock level</label><input id="aust_low" type="number" min="0" value="${s.lowStock||3}"></div>
+  </div>${logoField(s.logo||'')}
+  <div class="mt"><button class="btn" style="background:#15366e" onclick="auSaveSettings()">💾 Save settings</button></div></div>
+  <div class="card pad mb"><h3 class="mb">Your login</h3><div class="grid2">
+    <div class="fld"><label>Your name</label><input id="aumy_name" value="${esc(USER.name||'')}"></div>
+    <div class="fld"><label>Username</label><input id="aumy_user" value="${esc(USER.username||'')}"></div>
+    <div class="fld full"><label>Password</label><input id="aumy_pass" value="${esc(USER.password||'')}"></div>
+  </div><div class="mt"><button class="btn" style="background:#15366e" onclick="auSaveMyLogin()">💾 Update login</button></div>
+  <p class="muted mt" style="font-size:12px">One login controls everything. Extra staff accounts can be added later as a module.</p></div>
+  <div class="card pad"><h3 class="mb">Data</h3><div class="flex gap"><button class="btn sec" onclick="auExportCSV('inventory')">⬇ Export inventory (CSV)</button><button class="btn sec" onclick="auExportCSV('sales')">⬇ Export sales (CSV)</button></div></div>`;}
+function auSaveSettings(){const s=DB.settings;_logo=_logo||s.logo||'';
+  s.storeName=$('#aust_name').value.trim()||s.storeName;s.shortName=$('#aust_short').value.trim();s.address=$('#aust_addr').value.trim();
+  s.phone=$('#aust_phone').value.trim();s.email=$('#aust_email').value.trim();s.currency=$('#aust_cur').value.trim()||'₦';
+  s.slogan=$('#aust_slogan').value.trim();s.theme=$('#aust_theme').value;s.lowStock=Math.max(0,Number($('#aust_low').value)||3);
+  if(typeof _logo==='string')s.logo=_logo;
+  save();toast('Settings saved');enterAuto();}
+function auSaveMyLogin(){const name=$('#aumy_name').value.trim(),user=$('#aumy_user').value.trim().toLowerCase(),pass=$('#aumy_pass').value.trim();
+  if(!name||!user||!pass){toast('All fields required',true);return;}
+  USER.name=name;USER.username=user;USER.password=pass;
+  const u=DB.users.find(x=>x.id===USER.id);if(u){u.name=name;u.username=user;u.password=pass;}
+  sessionStorage.setItem('sms_su',SCHOOL_CODE+'|'+USER.id);save();toast('Login updated');enterAuto();}
+function auExportCSV(type){let rows,name;
+  if(type==='inventory'){name='inventory';rows=[['Name','PartNo','Brand','Category','Condition','Fits','Stock','Cost','Sell','Reorder','Location','Barcode']];
+    DB.products.filter(p=>!p.archived).forEach(p=>rows.push([p.name,p.partNo||'',p.brand||'',p.category||'',p.condition||'',p.fitment||'',p.stock||0,p.cost||0,p.sell||0,auReorder(p),p.location||'',p.barcode||'']));}
+  else{name='sales';rows=[['Receipt','Date','Items','Total','Cost','Profit','Payment','Customer','Warranty','Voided']];
+    DB.sales.forEach(s=>rows.push([s.receiptNo,(s.date||'').replace('T',' ').slice(0,16),(s.items||[]).reduce((a,i)=>a+Number(i.qty||0),0),s.total||0,s.cost||0,s.profit||0,s.payment||'',s.customer||'',s.warranty||'',s.voided?'YES':'']));}
+  const csv=rows.map(r=>r.map(c=>{c=String(c==null?'':c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=(DB.settings.shortName||DB.settings.storeName||'autoparts')+'-'+name+'-'+today()+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);toast('CSV downloaded');}
+
+/* ===================== OWNER: AUTO PARTS ===================== */
+function vAutos(){const list=MASTER.schools.filter(s=>s.type==='autoparts');
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Auto Parts Stores</h2><p>${list.length} registered — subscription clients</p></div>
+    <button class="btn" style="background:#15366e" onclick="editAuto()">＋ Register Auto Parts</button></div>
+  <div class="t-wrap"><table><thead><tr><th>Store</th><th>Code</th><th>Admin login</th><th>Subscription</th><th>Status</th><th></th></tr></thead><tbody>
+  ${list.map(s=>{const d=STORE[s.code];const ad=d&&d.users?d.users.find(u=>u.role==='admin'):null;const si=phSubInfo(s);return `<tr>
+    <td><b>${esc(s.name)}</b></td><td class="muted">${esc(s.code)}</td>
+    <td>${ad?`<b>${esc(ad.username)}</b> / <span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(ad.password)}</span>`:'<span class="muted">—</span>'}</td>
+    <td><span class="pill ${si.cls}">${si.txt}</span></td>
+    <td><span class="pill ${s.status==='suspended'?'red':'green'}">${s.status==='suspended'?'Suspended':'Active'}</span></td>
+    <td class="right"><button class="btn sm" onclick="manageAuto('${s.code}')">Manage</button></td></tr>`;}).join('')||`<tr><td colspan=6><div class="empty"><div class="big">🔧</div>No auto parts stores yet. <button class="btn sm mt" onclick="editAuto()">Register one</button></div></td></tr>`}
+  </tbody></table></div>`;}
+function editAuto(code){const reg=code?MASTER.schools.find(s=>s.code===code):null;const d=code?STORE[code]:null;const sub=(reg&&reg.sub)||{};
+  modal(code?'Edit Auto Parts Store':'Register New Auto Parts Store',`<div class="grid2">
+    <div class="fld"><label>Store name *</label><input id="au_name" value="${esc(reg?reg.name:'')}"></div>
+    <div class="fld"><label>Short name</label><input id="au_short" value="${esc(d?(d.settings.shortName||''):'')}"></div>
+    <div class="fld"><label>Link name / code *</label><input id="au_code" value="${esc(code||'')}" ${code?'disabled':''} placeholder="e.g. autohub"></div>
+    <div class="fld full" style="margin-top:-6px"><span class="muted" style="font-size:12px">Login link: <b>${esc(location.origin)}/</b><b>${esc((code||'').toLowerCase())}</b></span></div>
+    <div class="fld full"><label>Address *</label><input id="au_addr" value="${esc(d?(d.settings.address||''):'')}"></div>
+    <div class="fld"><label>Phone *</label><input id="au_phone" value="${esc(d?(d.settings.phone||''):'')}"></div>
+    <div class="fld"><label>Email</label><input id="au_email" value="${esc(d?(d.settings.email||''):'')}"></div>
+    <div class="fld"><label>Currency symbol</label><input id="au_cur" value="${esc(d?(d.settings.currency||'₦'):'₦')}" style="max-width:90px"></div>
+    <div class="fld"><label>Theme</label><select id="au_theme">${Object.entries(THEMES).map(([k,t])=>`<option value="${k}" ${(d&&d.settings.theme||'blue')===k?'selected':''}>${t.n}</option>`).join('')}</select></div>
+    <div class="fld full"><label>Slogan / motto</label><input id="au_slogan" value="${esc(d?(d.settings.slogan||''):'')}" placeholder="e.g. Genuine parts, fair prices"></div>
+  </div>
+  <hr>${logoField(d?(d.settings.logo||''):'')}
+  <hr><label>Subscription (flat fee you charge)</label><div class="grid2">
+    <div class="fld"><label>Monthly fee (₦)</label><input id="au_fee" type="number" min="0" value="${sub.fee||0}"></div>
+    <div class="fld"><label>Next due date</label><input id="au_due" type="date" value="${esc(sub.due||'')}"></div>
+  </div>
+  ${code?'':`<hr><label>Operator login (one person controls everything)</label><div class="grid2">
+    <div class="fld"><label>Name</label><input id="au_aname" value="Store Operator"></div>
+    <div class="fld"><label>Username *</label><input id="au_auser" value="admin"></div>
+    <div class="fld full"><label>Password *</label><input id="au_apass" value="admin123"></div></div>`}
+  <div class="fld"><label>Status</label><select id="au_status"><option value="active" ${reg&&reg.status!=='suspended'?'selected':''}>Active</option><option value="suspended" ${reg&&reg.status==='suspended'?'selected':''}>Suspended</option></select></div>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#15366e" onclick="saveAuto('${code||''}')">${code?'Save changes':'Create store'}</button>`,true);}
+function saveAuto(code){const name=$('#au_name').value.trim(),addr=$('#au_addr').value.trim(),phone=$('#au_phone').value.trim();
+  if(!name){toast('Name required',true);return;}if(!addr){toast('Address required',true);return;}
+  if(!phone||phone.replace(/\D/g,'').length<7){toast('Valid phone required',true);return;}
+  const fee=Math.max(0,Number($('#au_fee').value)||0),due=$('#au_due').value,cur=$('#au_cur').value.trim()||'₦',theme=$('#au_theme').value,status=$('#au_status').value;
+  if(code){const reg=MASTER.schools.find(s=>s.code===code);reg.name=name;reg.status=status;reg.sub=Object.assign(reg.sub||{},{fee,due});
+    const d=STORE[code];Object.assign(d.settings,{storeName:name,shortName:$('#au_short').value.trim(),address:addr,phone,email:$('#au_email').value.trim(),currency:cur,theme,status,slogan:$('#au_slogan').value.trim(),logo:(typeof _logo==='string'?_logo:d.settings.logo)});
+    saveMaster();saveSchoolRow(code);closeModal();toast('Store updated');manageAuto(code);return;}
+  const newCode=$('#au_code').value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,'').replace(/^-+|-+$/g,'');
+  if(!newCode){toast('Code required',true);return;}
+  if(MASTER.schools.some(s=>s.code===newCode)){toast('Code already exists',true);return;}
+  const auser=$('#au_auser').value.trim(),apass=$('#au_apass').value.trim();if(!auser||!apass){toast('Operator login required',true);return;}
+  const d=seedAuto(newCode,name);Object.assign(d.settings,{shortName:$('#au_short').value.trim(),address:addr,phone,email:$('#au_email').value.trim(),currency:cur,theme,status,slogan:$('#au_slogan').value.trim(),logo:(typeof _logo==='string'?_logo:'')});
+  d.users[0].name=$('#au_aname').value.trim()||'Store Operator';d.users[0].username=auser;d.users[0].password=apass;
+  STORE[newCode]=d;MASTER.schools.push({code:newCode,name,type:'autoparts',status,createdAt:today(),sub:{fee,due,lastPaid:'',history:[]}});
+  saveStoreLocal();saveMaster();saveSchoolRow(newCode);closeModal();toast('Auto parts store created');manageAuto(newCode);}
+function manageAuto(code){const reg=MASTER.schools.find(s=>s.code===code);const d=STORE[code];if(!d){toast('Data not loaded',true);return;}
+  const sub=reg.sub||(reg.sub={fee:0,due:'',lastPaid:'',history:[]});const si=phSubInfo(reg);
+  modal('Manage — '+reg.name,`
+    <div class="cards-row" style="margin-bottom:14px">
+      <div class="stat"><div class="lbl">Parts</div><div class="num">${(d.products||[]).length}</div></div>
+      <div class="stat"><div class="lbl">Sales logged</div><div class="num">${(d.sales||[]).length}</div></div>
+      <div class="stat"><div class="lbl">Subscription</div><div class="num" style="font-size:16px"><span class="pill ${si.cls}">${si.txt}</span></div></div>
+    </div>
+    <label>Staff login link (give to the store)</label>
+    <div class="linkbox mb"><code>${esc(schoolLink(code))}</code><button class="btn sm sec" onclick="copyText('${jq(schoolLink(code))}')">Copy</button></div>
+    <label>Staff logins (passwords visible — reset any)</label>
+    <div class="t-wrap" style="margin-bottom:6px"><table><tbody>
+      ${d.users.map(u=>`<tr><td><b>${esc(u.name)}</b><br><span class="muted" style="font-size:11px">Operator</span></td>
+        <td>${esc(u.username)}</td><td><span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(u.password)}</span></td>
+        <td class="right"><button class="btn sm sec" onclick="resetCred('${code}','${u.id}')">🔑 Reset</button></td></tr>`).join('')}
+    </tbody></table></div>
+    <hr><label>Subscription billing</label>
+    <div class="card pad" style="background:#f7faf8"><div class="grid2">
+      <div class="fld"><label>Monthly fee (₦)</label><input id="aump_fee" type="number" min="0" value="${sub.fee||0}"></div>
+      <div class="fld"><label>Next due date</label><input id="aump_due" type="date" value="${esc(sub.due||'')}"></div>
+    </div>
+    <div class="flex gap"><button class="btn sm sec" onclick="auSaveSub('${code}')">Save</button>
+      <button class="btn sm" style="background:#0a7d33" onclick="auMarkPaid('${code}')">✓ Mark paid (extend 1 month)</button></div>
+    ${(sub.history&&sub.history.length)?`<div class="muted mt" style="font-size:12px">Last payments: ${sub.history.slice(-4).reverse().map(h=>esc(h.date)+' '+pmoneyOwner(h.amount)).join(' · ')}</div>`:''}
+    </div>`,
+    `<button class="btn sec" onclick="closeModal()">Close</button>
+     <button class="btn ${reg.status==='suspended'?'':'sec'}" onclick="toggleAuto('${code}')">${reg.status==='suspended'?'Re-activate':'Suspend'}</button>
+     <button class="btn sec" onclick="editAuto('${code}')">Edit details</button>
+     <button class="btn danger" onclick="delAuto('${code}')">Delete</button>`,true);}
+function auSaveSub(code){const reg=MASTER.schools.find(s=>s.code===code);reg.sub=reg.sub||{};reg.sub.fee=Math.max(0,Number($('#aump_fee').value)||0);reg.sub.due=$('#aump_due').value;saveMaster();toast('Subscription saved');manageAuto(code);}
+function auMarkPaid(code){const reg=MASTER.schools.find(s=>s.code===code);const sub=reg.sub=reg.sub||{fee:0,history:[]};
+  const base=sub.due&&sub.due>today()?new Date(sub.due):new Date(today());base.setMonth(base.getMonth()+1);
+  sub.due=base.toISOString().slice(0,10);sub.lastPaid=today();sub.history=sub.history||[];sub.history.push({date:today(),amount:sub.fee||0});
+  if(reg.status==='suspended'){reg.status='active';if(STORE[code])STORE[code].settings.status='active';saveSchoolRow(code);}
+  saveMaster();toast('Payment recorded · next due '+sub.due);manageAuto(code);}
+function toggleAuto(code){const reg=MASTER.schools.find(s=>s.code===code);reg.status=reg.status==='suspended'?'active':'suspended';
+  if(STORE[code])STORE[code].settings.status=reg.status;saveMaster();saveSchoolRow(code);toast('Store '+reg.status);manageAuto(code);}
+function delAuto(code){modal('Delete auto parts store?',`<p>Permanently delete <b>${esc(MASTER.schools.find(s=>s.code===code).name)}</b> and all its data? This cannot be undone.</p>`,
+  `<button class="btn sec" onclick="manageAuto('${code}')">Cancel</button><button class="btn danger" onclick="confirmDelAuto('${code}')">Delete</button>`);}
+async function confirmDelAuto(code){MASTER.schools=MASTER.schools.filter(s=>s.code!==code);delete STORE[code];saveStoreLocal();saveMaster();
+  if(supa){try{await supa.from('school_data').delete().eq('id',code);}catch(e){}}closeModal();toast('Store deleted');vAutos();}
 
 /* ===================== PWA: offline + auto-update + install ===================== */
 function setManifest(){try{
