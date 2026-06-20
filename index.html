@@ -1797,7 +1797,8 @@ function vODash(){
       <td><span class="pill ${s.status==='suspended'?'red':'green'}">${s.status==='suspended'?'Suspended':'Active'}</span></td>
       <td class="right"><button class="btn sm sec" onclick="manageSchool('${s.code}')">Manage</button></td></tr>`;}).join('')}
   </tbody></table></div>`:`<div class="empty"><div class="big">🏫</div>No schools yet. <button class="btn sm purple mt" onclick="editSchool()">Register your first school</button></div>`}
-  </div>`;
+  </div>
+  ${ownerStoresSectionHTML()}`;
 }
 /* ===================== OWNER: SCHOOLS ===================== */
 function vSchools(){
@@ -2684,12 +2685,13 @@ let PH_CART=[], PH_FROM='', PH_TO='', PH_SFROM='', PH_STO='', PH_SQ='';
 function seedPharmacy(code,name){return{kind:'pharmacy',
   settings:{code,storeName:name,shortName:'',address:'Nigeria',phone:'',email:'',logo:'',theme:'teal',currency:'₦',lowStock:10,expiryDays:60,status:'active',receiptSeq:0},
   users:[{id:'u1',name:'Pharmacy Manager',username:'admin',password:'admin123',role:'admin'}],
-  products:[],suppliers:[],sales:[],purchases:[]};}
+  products:[],suppliers:[],sales:[],purchases:[],adjustments:[],supplierPayments:[]};}
 function ensurePharmacy(d){d.kind='pharmacy';d.settings=d.settings||{};const s=d.settings;
   if(!s.currency)s.currency='₦';if(s.lowStock==null)s.lowStock=10;if(s.expiryDays==null)s.expiryDays=60;
   if(!s.theme)s.theme='teal';if(!s.status)s.status='active';if(s.receiptSeq==null)s.receiptSeq=0;
   if(!s.storeName)s.storeName=s.schoolName||'Pharmacy';
-  ['products','suppliers','sales','purchases','adjustments'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
+  if(s.supPaySeq==null)s.supPaySeq=0;if(s.custPaySeq==null)s.custPaySeq=0;
+  ['products','suppliers','sales','purchases','adjustments','supplierPayments'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
   if(!Array.isArray(d.users)||!d.users.length)d.users=[{id:'u1',name:'Pharmacist',username:'admin',password:'admin123',role:'admin'}];
   return d;}
 /* ---- helpers ---- */
@@ -2810,18 +2812,24 @@ function phRenderCart(){const el=$('#posCart');if(!el)return;
   <div class="flex" style="justify-content:space-between;align-items:center;font-size:20px;font-weight:800;margin:10px 0;padding-top:8px;border-top:2px solid #eee"><span>Total</span><span style="color:#0c5b56">${pmoney(total)}</span></div>
   <div class="grid2"><div class="fld"><label>Payment</label><select id="pos_pay"><option>Cash</option><option>Transfer</option><option>POS / Card</option><option>Credit</option></select></div>
     <div class="fld"><label>Customer (optional)</label><input id="pos_cust" placeholder="Walk-in"></div></div>
+  <div class="fld"><label>Amount paid now (${phCur()})</label><input id="pos_paid" type="number" min="0" step="0.01" value="${total}" oninput="phPaidHint(${total})"></div>
+  <div id="pos_balhint" class="muted" style="font-size:12px;margin:-4px 0 8px"></div>
   <div class="flex gap"><button class="btn" style="flex:1;justify-content:center;background:#0c5b56" onclick="phCheckout()">✓ Checkout · ${pmoney(total)}</button>
     <button class="btn sec" onclick="PH_CART=[];phRenderCart()">Clear</button></div>`;}
+function phPaidHint(total){const v=Math.max(0,Number($('#pos_paid').value)||0);const bal=Math.max(0,total-v);const el=$('#pos_balhint');if(!el)return;
+  el.innerHTML=bal>0?`<span style="color:#c0392b;font-weight:700">Balance (customer owes): ${pmoney(bal)}</span>`:`<span style="color:#0a7d33">Paid in full ✓</span>`;}
 function phCheckout(){if(!PH_CART.length){toast('Cart is empty',true);return;}
   for(const c of PH_CART){const p=phProd(c.id);if(!p||c.qty>Number(p.stock||0)){toast('Not enough stock for '+(p?p.name:'item'),true);return;}}
   const items=PH_CART.map(c=>{const p=phProd(c.id);return{productId:p.id,name:p.name,qty:c.qty,price:Number(p.sell||0),cost:Number(p.cost||0)};});
   const total=items.reduce((a,i)=>a+i.price*i.qty,0);const cost=items.reduce((a,i)=>a+i.cost*i.qty,0);
   DB.settings.receiptSeq=(DB.settings.receiptSeq||0)+1;
+  const paid=Math.min(total,Math.max(0,Number($('#pos_paid').value)||0));const balance=Math.max(0,total-paid);
   const sale={id:uid('sl'),receiptNo:'PH/'+String(DB.settings.receiptSeq).padStart(4,'0'),date:new Date().toISOString(),
-    items,total,cost,profit:total-cost,payment:$('#pos_pay').value,customer:($('#pos_cust').value||'').trim(),cashier:USER.name};
+    items,total,cost,profit:total-cost,payment:$('#pos_pay').value,customer:($('#pos_cust').value||'').trim(),cashier:USER.name,
+    paid,balance,settled:balance<=0.001,payments:paid>0?[{date:new Date().toISOString(),amount:paid,method:$('#pos_pay').value}]:[]};
   items.forEach(i=>{const p=phProd(i.productId);if(p)p.stock=Number(p.stock||0)-i.qty;});
   DB.sales.push(sale);save();PH_CART=[];
-  toast('Sale recorded · '+pmoney(total));phShowReceipt(sale.id);vPhPOS();}
+  toast(balance>0?('Sale recorded · balance '+pmoney(balance)):('Sale recorded · '+pmoney(total)));phShowReceipt(sale.id);vPhPOS();}
 function phReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="${set.logo}" style="width:46px;height:46px;border-radius:8px;object-fit:cover">`:'<div style="font-size:34px">💊</div>';
   return `<div class="receipt" style="max-width:330px;margin:0 auto;font-family:'Courier New',monospace;color:#111;background:#fff;padding:14px 16px;border:1px solid #ddd">
     <div style="text-align:center;border-bottom:1px dashed #999;padding-bottom:8px;margin-bottom:8px">${logo}
@@ -2836,10 +2844,12 @@ function phReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="$
     </table>
     <div style="border-top:1px dashed #999;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between;font-weight:800;font-size:15px"><span>TOTAL</span><span>${pmoney(s.total)}</span></div>
     <div style="font-size:11.5px;display:flex;justify-content:space-between"><span>Payment</span><span>${esc(s.payment||'')}</span></div>
+    ${(Number(s.balance||0)>0)?`<div style="font-size:11.5px;display:flex;justify-content:space-between"><span>Paid</span><span>${pmoney(s.paid||0)}</span></div>
+    <div style="font-size:13px;display:flex;justify-content:space-between;font-weight:800;color:#c0392b;margin-top:2px"><span>BALANCE DUE</span><span>${pmoney(s.balance)}</span></div>`:''}
     <div style="text-align:center;font-size:11px;margin-top:10px;border-top:1px dashed #999;padding-top:8px">Thank you. Goods sold in good faith.<br>Powered by Muscode</div>
   </div>`;}
 function phShowReceipt(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;
-  modal('Receipt — '+s.receiptNo,phReceiptHTML(s),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#0c5b56" onclick="window.print()">🖨 Print</button>`);}
+  modal('Receipt — '+s.receiptNo,phReceiptHTML(s),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#25d366" onclick="storeWaReceipt('${s.id}')">💬 WhatsApp</button><button class="btn no-print" style="background:#0c5b56" onclick="window.print()">🖨 Print</button>`);}
 /* POS scan reuses Html5Qrcode */
 function phScanToggle(){const box=$('#posScan');if(!box)return;if(box.style.display==='none'){box.style.display='block';phStartPosScan();}else{stopScan();box.style.display='none';}}
 function phStartPosScan(){if(!window.Html5Qrcode){toast('Scanner not loaded',true);return;}if(window._scanner)return;
@@ -2849,7 +2859,8 @@ function phStartPosScan(){if(!window.Html5Qrcode){toast('Scanner not loaded',tru
 function phScanned(code){code=(code||'').trim();const p=DB.products.find(x=>!x.archived&&(x.barcode||'')===code);if(p){phAddCart(p.id);toast('Added '+p.name);}else{toast('No product with barcode '+code,true);}}
 
 /* ---- Sales history + debtors ---- */
-function phCreditOutstanding(){return DB.sales.filter(s=>!s.voided&&s.payment==='Credit'&&!s.settled).reduce((a,s)=>a+Number(s.total||0),0);}
+function phSaleBalance(s){if(s.voided)return 0;if(s.balance!=null)return Number(s.balance||0);return (s.payment==='Credit'&&!s.settled)?Number(s.total||0):0;}
+function phCreditOutstanding(){return DB.sales.reduce((a,s)=>a+phSaleBalance(s),0);}
 function vPhSales(){const t=today();if(!PH_SFROM)PH_SFROM=t.slice(0,8)+'01';if(!PH_STO)PH_STO=t;
   $('#view').innerHTML=`<div class="page-head"><div><h2>Sales</h2><p>History, receipts, refunds & debtors</p></div>
     <button class="btn" style="background:#0c5b56" onclick="go('pos')">🛒 New Sale</button></div>
@@ -2875,15 +2886,45 @@ function phRenderSales(){const q=PH_SQ.toLowerCase().trim();
     ${phStat('Debtors (credit)',pmoney(debt),'unpaid',debt?'#c0392b':'')}
   </div>
   ${list.length?`<div class="t-wrap"><table><thead><tr><th>Receipt</th><th>Date</th><th>Customer</th><th>Pay</th><th class="right">Total</th><th class="right">Profit</th><th></th></tr></thead><tbody>
-    ${list.map(s=>{const credit=s.payment==='Credit'&&!s.settled&&!s.voided;return `<tr${s.voided?' style="opacity:.5"':''}>
+    ${list.map(s=>{const bal=phSaleBalance(s);return `<tr${s.voided?' style="opacity:.5"':''}>
       <td><b>${esc(s.receiptNo||'')}</b>${s.voided?' <span class="pill red">VOID</span>':''}</td>
       <td>${esc((s.date||'').replace('T',' ').slice(0,16))}</td>
       <td>${esc(s.customer||'—')}</td>
-      <td>${esc(s.payment||'')}${credit?' <span class="pill gold">unpaid</span>':''}</td>
+      <td>${esc(s.payment||'')}${bal>0?` <span class="pill gold">owes ${pmoney(bal)}</span>`:''}</td>
       <td class="right">${pmoney(s.total)}</td><td class="right" style="color:#0a7d33">${pmoney(s.profit)}</td>
-      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="phShowReceipt('${s.id}')">Receipt</button>${credit?`<button class="btn sm" style="background:#0a7d33" onclick="phSettleCredit('${s.id}')">Settle</button>`:''}${!s.voided?`<button class="btn sm danger" onclick="phVoidSale('${s.id}')">Void</button>`:''}</td></tr>`;}).join('')}
+      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="phShowReceipt('${s.id}')">Receipt</button>${bal>0?`<button class="btn sm" style="background:#0a7d33" onclick="phCustPay('${s.id}')">＋ Payment</button>`:''}${!s.voided?`<button class="btn sm danger" onclick="phVoidSale('${s.id}')">Void</button>`:''}</td></tr>`;}).join('')}
   </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">🧾</div>No sales in range.</div></div>`}`;}
-function phSettleCredit(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;s.settled=true;s.settledDate=today();save();toast('Marked as paid');phRenderSales();}
+function phCustPay(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;const bal=phSaleBalance(s);
+  modal('Record customer payment — '+s.receiptNo,`<p class="muted mb">${esc(s.customer||'Customer')} · Total ${pmoney(s.total)} · Outstanding <b style="color:#c0392b">${pmoney(bal)}</b></p><div class="grid2">
+    <div class="fld"><label>Amount received (${phCur()})</label><input id="phcp_amt" type="number" min="0" step="0.01" value="${bal}"></div>
+    <div class="fld"><label>Method</label><select id="phcp_method"><option>Cash</option><option>Transfer</option><option>POS / Card</option></select></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0a7d33" onclick="phDoCustPay('${id}')">Record payment</button>`);}
+function phDoCustPay(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;const bal=phSaleBalance(s);
+  let amt=Math.max(0,Number($('#phcp_amt').value)||0);if(amt<=0){toast('Enter an amount',true);return;}if(amt>bal)amt=bal;
+  s.payments=s.payments||[];s.payments.push({date:new Date().toISOString(),amount:amt,method:$('#phcp_method').value});
+  s.paid=Number(s.paid||0)+amt;s.balance=Math.max(0,Number(s.total||0)-Number(s.paid||0));s.settled=s.balance<=0.001;
+  DB.settings.custPaySeq=(DB.settings.custPaySeq||0)+1;
+  const pay={no:'RC/'+String(DB.settings.custPaySeq).padStart(4,'0'),date:new Date().toISOString(),amount:amt,method:$('#phcp_method').value,balAfter:s.balance};
+  save();closeModal();toast('Payment recorded · '+pmoney(amt));phShowCustPayReceipt(s.id,pay);}
+function phCustPayReceiptHTML(s,pay){const set=DB.settings;const logo=set.logo?`<img src="${set.logo}" style="width:46px;height:46px;border-radius:8px;object-fit:cover">`:'<div style="font-size:34px">💊</div>';
+  return `<div class="receipt" style="max-width:340px;margin:0 auto;background:#fff;color:#111;padding:16px 18px;border:1px solid #ddd">
+    <div style="text-align:center;border-bottom:1px dashed #999;padding-bottom:8px;margin-bottom:8px">${logo}
+      <div style="font-weight:800;font-size:15px">${esc(set.storeName)}</div>${set.slogan?`<div style="font-size:10px;font-style:italic">${esc(set.slogan)}</div>`:''}
+      <div style="font-size:11px">${esc(set.address||'')}</div>${set.phone?`<div style="font-size:11px">☎ ${esc(set.phone)}</div>`:''}</div>
+    <div style="text-align:center;font-weight:800;letter-spacing:.04em;margin-bottom:8px">PAYMENT RECEIPT</div>
+    <div style="font-size:12.5px;line-height:1.9">
+      <div style="display:flex;justify-content:space-between"><span>Receipt No.</span><b>${esc(pay.no)}</b></div>
+      <div style="display:flex;justify-content:space-between"><span>Date</span><span>${esc((pay.date||'').slice(0,10))}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Customer</span><b>${esc(s.customer||'—')}</b></div>
+      <div style="display:flex;justify-content:space-between"><span>For sale</span><span>${esc(s.receiptNo||'')}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Method</span><span>${esc(pay.method||'')}</span></div>
+    </div>
+    <div style="border-top:1px dashed #999;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:800;font-size:17px"><span>AMOUNT PAID</span><span>${pmoney(pay.amount)}</span></div>
+    <div style="font-size:12px;display:flex;justify-content:space-between;margin-top:4px"><span>Remaining balance</span><b style="color:${Number(pay.balAfter||0)>0?'#c0392b':'#0a7d33'}">${pmoney(pay.balAfter||0)}</b></div>
+    <div style="text-align:center;font-size:11px;margin-top:12px;border-top:1px dashed #999;padding-top:8px">Thank you.<br>Powered by Muscode</div>
+  </div>`;}
+function phShowCustPayReceipt(saleId,pay){const s=DB.sales.find(x=>x.id===saleId);if(!s)return;
+  modal('Payment Receipt — '+pay.no,phCustPayReceiptHTML(s,pay),`<button class="btn sec no-print" onclick="closeModal();phRenderSales()">Close</button><button class="btn no-print" style="background:#0c5b56" onclick="window.print()">🖨 Print</button>`);}
 function phVoidSale(id){const s=DB.sales.find(x=>x.id===id);if(!s||s.voided)return;
   modal('Void / refund sale?',`<p>Void <b>${esc(s.receiptNo)}</b> (${pmoney(s.total)})? Stock for each item will be returned to inventory. The record is kept but excluded from totals.</p>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="phDoVoid('${id}')">Void & restock</button>`);}
@@ -2936,15 +2977,24 @@ function phEditProduct(id){const p=id?phProd(id):null;
     <div class="fld"><label>Batch no.</label><input id="pr_batch" value="${esc(p?(p.batch||''):'')}"></div>
     <div class="fld"><label>Barcode</label><input id="pr_bc" value="${esc(p?(p.barcode||''):'')}" placeholder="scan/type"></div>
     <div class="fld full"><label>Supplier</label><select id="pr_sup">${phSupplierOptions(p?p.supplierId:'')}</select></div>
-  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0c5b56" onclick="phSaveProduct('${id||''}')">${p?'Save':'Add product'}</button>`,true);}
+  </div>
+  ${!p?`<hr><label>Supplier payment for this opening stock (optional)</label>
+  <div class="grid2"><div class="fld"><label>Amount paid to supplier now (${phCur()})</label><input id="pr_paid" type="number" min="0" step="0.01" value="0"></div>
+    <div class="fld"><label>&nbsp;</label><div class="muted" style="font-size:12px;padding-top:8px">Goods value = stock × cost. Any unpaid part is added to the supplier's balance, and a purchase is recorded.</div></div></div>`:''}`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0c5b56" onclick="phSaveProduct('${id||''}')">${p?'Save':'Add product'}</button>`,true);}
 function phSaveProduct(id){const name=$('#pr_name').value.trim(),sell=Number($('#pr_sell').value);
   if(!name){toast('Product name required',true);return;}if(!(sell>=0)||$('#pr_sell').value===''){toast('Selling price required',true);return;}
   const rl=$('#pr_reorder').value;
   const data={name,category:$('#pr_cat').value.trim(),unit:$('#pr_unit').value.trim(),cost:Number($('#pr_cost').value)||0,sell,
     stock:Math.max(0,Math.floor(Number($('#pr_stock').value)||0)),reorder:rl===''?null:Math.max(0,Math.floor(Number(rl)||0)),
     expiry:$('#pr_exp').value,batch:$('#pr_batch').value.trim(),barcode:$('#pr_bc').value.trim(),supplierId:$('#pr_sup').value};
-  if(id){Object.assign(phProd(id),data);}else{DB.products.push({id:uid('pr'),...data});}
-  save();closeModal();toast('Saved');phRenderInv?phRenderInv():null;if(CURRENT==='inventory')vPhInventory();}
+  if(id){Object.assign(phProd(id),data);}
+  else{const np={id:uid('pr'),...data};DB.products.push(np);
+    const paidNow=Math.max(0,Number(($('#pr_paid')||{}).value)||0);
+    if(np.supplierId&&np.stock>0&&np.cost>0){const tot=np.stock*np.cost;const sp=phSupplier(np.supplierId);
+      if(sp)sp.balance=Number(sp.balance||0)+Math.max(0,tot-Math.min(tot,paidNow));
+      DB.purchases.push({id:uid('pu'),date:new Date().toISOString(),supplierId:np.supplierId,items:[{productId:np.id,name:np.name,qty:np.stock,cost:np.cost}],total:tot,paid:Math.min(tot,paidNow),note:'Opening stock'});}}
+  save();closeModal();toast('Saved');if(CURRENT==='inventory')vPhInventory();}
 function phDelProduct(id){const p=phProd(id);if(!p)return;
   modal('Delete product?',`<p>Delete <b>${esc(p.name)}</b>? Past sales records keep their history.</p>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="phDoDelProduct('${id}')">Delete</button>`);}
@@ -2984,12 +3034,12 @@ function phLabel(id){const p=phProd(id);if(!p)return;const code=p.barcode||p.id;
 /* ---- Suppliers & Purchases ---- */
 function vPhSuppliers(){const recent=DB.purchases.slice(-10).reverse();
   $('#view').innerHTML=`<div class="page-head"><div><h2>Suppliers & Purchases</h2><p>Vendors and stock you buy in</p></div>
-    <div class="flex gap"><button class="btn sec" onclick="phEditSupplier()">＋ Supplier</button><button class="btn" style="background:#0c5b56" onclick="phNewPurchase()">＋ Record Purchase</button></div></div>
+    <div class="flex gap"><button class="btn sec" onclick="storeReorderWa()">💬 Reorder list</button><button class="btn sec" onclick="phEditSupplier()">＋ Supplier</button><button class="btn" style="background:#0c5b56" onclick="phNewPurchase()">＋ Record Purchase</button></div></div>
   <div class="card pad mb"><h3 class="mb">Suppliers</h3>
   ${DB.suppliers.length?`<div class="t-wrap"><table><thead><tr><th>Supplier</th><th>Phone</th><th>Address</th><th class="right">Balance owed</th><th></th></tr></thead><tbody>
     ${DB.suppliers.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.phone||'—')}</td><td>${esc(s.address||'—')}</td>
       <td class="right" style="color:${Number(s.balance||0)>0?'#c0392b':'#0a7d33'}">${pmoney(s.balance||0)}</td>
-      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="phEditSupplier('${s.id}')">Edit</button><button class="btn sm danger" onclick="phDelSupplier('${s.id}')">✕</button></td></tr>`).join('')}
+      <td class="right" style="white-space:nowrap"><button class="btn sm" style="background:#0a7d33" onclick="phSupPay('${s.id}')">₦ Pay</button><button class="btn sm sec" onclick="phSupStatement('${s.id}')">Statement</button><button class="btn sm sec" onclick="phEditSupplier('${s.id}')">Edit</button><button class="btn sm danger" onclick="phDelSupplier('${s.id}')">✕</button></td></tr>`).join('')}
   </tbody></table></div>`:`<div class="empty"><div class="big">🚚</div>No suppliers yet.</div>`}</div>
   <div class="card pad"><h3 class="mb">Recent purchases</h3>
   ${recent.length?`<div class="t-wrap"><table><thead><tr><th>Date</th><th>Supplier</th><th>Items</th><th class="right">Total</th><th class="right">Paid</th></tr></thead><tbody>
@@ -3010,6 +3060,48 @@ function phSaveSupplier(id){const name=$('#sp_name').value.trim();if(!name){toas
 function phDelSupplier(id){const s=phSupplier(id);if(!s)return;
   modal('Delete supplier?',`<p>Delete <b>${esc(s.name)}</b>?</p>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="phDoDelSupplier('${id}')">Delete</button>`);}
 function phDoDelSupplier(id){DB.suppliers=DB.suppliers.filter(s=>s.id!==id);save();closeModal();toast('Deleted');vPhSuppliers();}
+function phSupPay(id){const s=phSupplier(id);if(!s)return;const bal=Number(s.balance||0);
+  modal('Pay supplier — '+s.name,`<p class="muted mb">Balance owed: <b style="color:${bal>0?'#c0392b':'#0a7d33'}">${pmoney(bal)}</b></p><div class="grid2">
+    <div class="fld"><label>Amount to pay (${phCur()})</label><input id="phsp_amt" type="number" min="0" step="0.01" value="${bal>0?bal:0}"></div>
+    <div class="fld"><label>Method</label><select id="phsp_method"><option>Cash</option><option>Transfer</option><option>POS / Card</option><option>Cheque</option></select></div>
+    <div class="fld"><label>Date</label><input id="phsp_date" type="date" value="${today()}"></div>
+    <div class="fld"><label>Note</label><input id="phsp_note" placeholder="invoice / ref"></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0a7d33" onclick="phDoSupPay('${id}')">Record payment</button>`);}
+function phDoSupPay(id){const s=phSupplier(id);const amt=Math.max(0,Number($('#phsp_amt').value)||0);if(amt<=0){toast('Enter an amount',true);return;}
+  s.balance=Number(s.balance||0)-amt;DB.settings.supPaySeq=(DB.settings.supPaySeq||0)+1;
+  const pay={id:uid('spay'),receiptNo:'SP/'+String(DB.settings.supPaySeq).padStart(4,'0'),date:($('#phsp_date').value?new Date($('#phsp_date').value).toISOString():new Date().toISOString()),supplierId:id,amount:amt,method:$('#phsp_method').value,note:$('#phsp_note').value.trim(),balAfter:s.balance};
+  DB.supplierPayments.push(pay);save();closeModal();toast('Payment recorded · '+pmoney(amt));phShowSupPayReceipt(pay.id);}
+function phSupPayReceiptHTML(pay){const set=DB.settings;const s=phSupplier(pay.supplierId)||{};const logo=set.logo?`<img src="${set.logo}" style="width:46px;height:46px;border-radius:8px;object-fit:cover">`:'<div style="font-size:34px">💊</div>';
+  return `<div class="receipt" style="max-width:360px;margin:0 auto;background:#fff;color:#111;padding:16px 18px;border:1px solid #ddd">
+    <div style="text-align:center;border-bottom:1px dashed #999;padding-bottom:8px;margin-bottom:8px">${logo}
+      <div style="font-weight:800;font-size:15px">${esc(set.storeName)}</div>${set.slogan?`<div style="font-size:10px;font-style:italic">${esc(set.slogan)}</div>`:''}
+      <div style="font-size:11px">${esc(set.address||'')}</div>${set.phone?`<div style="font-size:11px">☎ ${esc(set.phone)}</div>`:''}</div>
+    <div style="text-align:center;font-weight:800;letter-spacing:.04em;margin-bottom:8px">SUPPLIER PAYMENT RECEIPT</div>
+    <div style="font-size:12.5px;line-height:1.9">
+      <div style="display:flex;justify-content:space-between"><span>Receipt No.</span><b>${esc(pay.receiptNo)}</b></div>
+      <div style="display:flex;justify-content:space-between"><span>Date</span><span>${esc((pay.date||'').slice(0,10))}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Paid to</span><b>${esc(s.name||'')}</b></div>
+      <div style="display:flex;justify-content:space-between"><span>Method</span><span>${esc(pay.method||'')}</span></div>
+      ${pay.note?`<div style="display:flex;justify-content:space-between"><span>Note</span><span>${esc(pay.note)}</span></div>`:''}
+    </div>
+    <div style="border-top:1px dashed #999;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:800;font-size:17px"><span>AMOUNT PAID</span><span>${pmoney(pay.amount)}</span></div>
+    <div style="font-size:12px;display:flex;justify-content:space-between;margin-top:4px"><span>Balance now owed</span><b style="color:${Number(pay.balAfter||0)>0?'#c0392b':'#0a7d33'}">${pmoney(pay.balAfter||0)}</b></div>
+    <div style="text-align:center;font-size:11px;margin-top:12px;border-top:1px dashed #999;padding-top:8px">Received with thanks.<br>Powered by Muscode</div>
+  </div>`;}
+function phShowSupPayReceipt(id){const pay=DB.supplierPayments.find(x=>x.id===id);if(!pay)return;
+  modal('Supplier Receipt — '+pay.receiptNo,phSupPayReceiptHTML(pay),`<button class="btn sec no-print" onclick="closeModal();vPhSuppliers()">Close</button><button class="btn no-print" style="background:#0c5b56" onclick="window.print()">🖨 Print / Send</button>`);}
+function phSupStatement(id){const s=phSupplier(id);if(!s)return;const set=DB.settings;const tx=[];
+  DB.purchases.filter(p=>p.supplierId===id).forEach(p=>{tx.push({date:p.date,desc:'Purchase'+(p.note?' ('+p.note+')':'')+' — '+(p.items||[]).reduce((a,i)=>a+Number(i.qty||0),0)+' units',debit:Number(p.total||0),credit:Number(p.paid||0)});});
+  DB.supplierPayments.filter(p=>p.supplierId===id).forEach(p=>{tx.push({date:p.date,desc:'Payment '+(p.receiptNo||'')+(p.note?' ('+p.note+')':''),debit:0,credit:Number(p.amount||0)});});
+  tx.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  let run=0;const rows=tx.map(t=>{run+=t.debit-t.credit;return `<tr><td>${esc((t.date||'').slice(0,10))}</td><td>${esc(t.desc)}</td><td class="right">${t.debit?pmoney(t.debit):''}</td><td class="right">${t.credit?pmoney(t.credit):''}</td><td class="right"><b>${pmoney(run)}</b></td></tr>`;}).join('');
+  const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover">`:'💊';
+  modal('Statement — '+s.name,`<div class="rc" style="${themeVars()};max-width:none"><div class="rc-top"><div class="rc-head"><div class="rc-crest">${logo}</div><div class="rc-sch"><h2>${esc(set.storeName)}</h2>${set.slogan?`<div class="nick">${esc(set.slogan)}</div>`:''}<div class="addr">${esc(set.address||'')}${set.phone?' · ☎ '+esc(set.phone):''}</div></div></div></div>
+    <div class="rc-title">✦ SUPPLIER STATEMENT OF ACCOUNT ✦</div>
+    <div style="padding:10px 14px"><div class="flex" style="justify-content:space-between;flex-wrap:wrap"><div><b>Supplier:</b> ${esc(s.name)}${s.phone?'<br>☎ '+esc(s.phone):''}</div><div style="text-align:right"><b>Date:</b> ${today()}<br><b>Balance owed:</b> <span style="color:${Number(s.balance||0)>0?'#c0392b':'#0a7d33'};font-weight:800">${pmoney(s.balance||0)}</span></div></div>
+      <table class="rc-tbl" style="margin-top:10px"><thead><tr><th>Date</th><th>Description</th><th class="right">Goods (Debit)</th><th class="right">Paid (Credit)</th><th class="right">Running</th></tr></thead><tbody>${rows||'<tr><td colspan=5 class="center muted">No transactions yet.</td></tr>'}</tbody></table>
+      <p class="muted" style="font-size:11.5px;margin-top:8px">“Running” is goods received minus payments. Current balance owed reflects any opening balance set manually.</p></div></div>`,
+    `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print / Save</button>`,true);}
 function phNewPurchase(){if(!DB.suppliers.length){toast('Add a supplier first',true);phEditSupplier();return;}
   if(!DB.products.length){toast('Add products first',true);phEditProduct();return;}
   const prods=DB.products.filter(p=>!p.archived).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
@@ -3118,8 +3210,8 @@ function phSaveMyLogin(){const name=$('#my_name').value.trim(),user=$('#my_user'
 function phExportCSV(type){let rows,name;
   if(type==='inventory'){name='inventory';rows=[['Name','Category','Unit','Stock','Cost','Sell','Reorder','Expiry','Batch','Barcode']];
     DB.products.filter(p=>!p.archived).forEach(p=>rows.push([p.name,p.category||'',p.unit||'',p.stock||0,p.cost||0,p.sell||0,phReorder(p),p.expiry||'',p.batch||'',p.barcode||'']));}
-  else{name='sales';rows=[['Receipt','Date','Items','Total','Cost','Profit','Payment','Customer','Voided']];
-    DB.sales.forEach(s=>rows.push([s.receiptNo,(s.date||'').replace('T',' ').slice(0,16),(s.items||[]).reduce((a,i)=>a+Number(i.qty||0),0),s.total||0,s.cost||0,s.profit||0,s.payment||'',s.customer||'',s.voided?'YES':'']));}
+  else{name='sales';rows=[['Receipt','Date','Items','Total','Paid','Balance','Cost','Profit','Payment','Customer','Voided']];
+    DB.sales.forEach(s=>rows.push([s.receiptNo,(s.date||'').replace('T',' ').slice(0,16),(s.items||[]).reduce((a,i)=>a+Number(i.qty||0),0),s.total||0,(s.paid!=null?s.paid:s.total)||0,phSaleBalance(s),s.cost||0,s.profit||0,s.payment||'',s.customer||'',s.voided?'YES':'']));}
   const csv=rows.map(r=>r.map(c=>{c=String(c==null?'':c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=(DB.settings.shortName||DB.settings.storeName||'pharmacy')+'-'+name+'-'+today()+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);toast('CSV downloaded');}
@@ -3230,11 +3322,12 @@ const AU_CATS=['Engine','Brakes','Suspension','Electrical','Transmission','Cooli
 function seedAuto(code,name){return{kind:'autoparts',
   settings:{code,storeName:name,shortName:'',address:'Nigeria',phone:'',email:'',logo:'',theme:'blue',currency:'₦',lowStock:3,status:'active',receiptSeq:0},
   users:[{id:'u1',name:'Store Operator',username:'admin',password:'admin123',role:'admin'}],
-  products:[],suppliers:[],sales:[],purchases:[],adjustments:[]};}
+  products:[],suppliers:[],sales:[],purchases:[],adjustments:[],supplierPayments:[]};}
 function ensureAuto(d){d.kind='autoparts';d.settings=d.settings||{};const s=d.settings;
   if(!s.currency)s.currency='₦';if(s.lowStock==null)s.lowStock=3;if(!s.theme)s.theme='blue';
   if(!s.status)s.status='active';if(s.receiptSeq==null)s.receiptSeq=0;if(!s.storeName)s.storeName=s.schoolName||'Auto Parts';
-  ['products','suppliers','sales','purchases','adjustments'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
+  if(s.supPaySeq==null)s.supPaySeq=0;if(s.custPaySeq==null)s.custPaySeq=0;
+  ['products','suppliers','sales','purchases','adjustments','supplierPayments'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
   if(!Array.isArray(d.users)||!d.users.length)d.users=[{id:'u1',name:'Store Operator',username:'admin',password:'admin123',role:'admin'}];
   return d;}
 /* ---- helpers ---- */
@@ -3340,18 +3433,24 @@ function auRenderCart(){const el=$('#auposCart');if(!el)return;
   <div class="flex" style="justify-content:space-between;align-items:center;font-size:20px;font-weight:800;margin:10px 0;padding-top:8px;border-top:2px solid #eee"><span>Total</span><span style="color:#15366e">${amoney(total)}</span></div>
   <div class="grid2"><div class="fld"><label>Payment</label><select id="aupos_pay"><option>Cash</option><option>Transfer</option><option>POS / Card</option><option>Credit</option></select></div>
     <div class="fld"><label>Customer / Workshop</label><input id="aupos_cust" placeholder="Walk-in"></div></div>
-  <div class="fld"><label>Warranty (optional)</label><input id="aupos_warr" placeholder="e.g. 1 month / no warranty"></div>
+  <div class="grid2"><div class="fld"><label>Amount paid now (${auCur()})</label><input id="aupos_paid" type="number" min="0" step="0.01" value="${total}" oninput="auPaidHint(${total})"></div>
+    <div class="fld"><label>Warranty (optional)</label><input id="aupos_warr" placeholder="e.g. 1 month / no warranty"></div></div>
+  <div id="aupos_balhint" class="muted" style="font-size:12px;margin:-4px 0 8px"></div>
   <div class="flex gap"><button class="btn" style="flex:1;justify-content:center;background:#15366e" onclick="auCheckout()">✓ Checkout · ${amoney(total)}</button>
     <button class="btn sec" onclick="AU_CART=[];auRenderCart()">Clear</button></div>`;}
+function auPaidHint(total){const v=Math.max(0,Number($('#aupos_paid').value)||0);const bal=Math.max(0,total-v);const el=$('#aupos_balhint');if(!el)return;
+  el.innerHTML=bal>0?`<span style="color:#c0392b;font-weight:700">Balance (customer owes): ${amoney(bal)}</span>`:`<span style="color:#0a7d33">Paid in full ✓</span>`;}
 function auCheckout(){if(!AU_CART.length){toast('Cart is empty',true);return;}
   for(const c of AU_CART){const p=auProd(c.id);if(!p||c.qty>Number(p.stock||0)){toast('Not enough stock for '+(p?p.name:'item'),true);return;}}
   const items=AU_CART.map(c=>{const p=auProd(c.id);return{productId:p.id,name:p.name,partNo:p.partNo||'',qty:c.qty,price:Number(p.sell||0),cost:Number(p.cost||0)};});
   const total=items.reduce((a,i)=>a+i.price*i.qty,0);const cost=items.reduce((a,i)=>a+i.cost*i.qty,0);
   DB.settings.receiptSeq=(DB.settings.receiptSeq||0)+1;
+  const paid=Math.min(total,Math.max(0,Number($('#aupos_paid').value)||0));const balance=Math.max(0,total-paid);
   const sale={id:uid('sl'),receiptNo:'AP/'+String(DB.settings.receiptSeq).padStart(4,'0'),date:new Date().toISOString(),
-    items,total,cost,profit:total-cost,payment:$('#aupos_pay').value,customer:($('#aupos_cust').value||'').trim(),warranty:($('#aupos_warr').value||'').trim(),cashier:USER.name};
+    items,total,cost,profit:total-cost,payment:$('#aupos_pay').value,customer:($('#aupos_cust').value||'').trim(),warranty:($('#aupos_warr').value||'').trim(),cashier:USER.name,
+    paid,balance,settled:balance<=0.001,payments:paid>0?[{date:new Date().toISOString(),amount:paid,method:$('#aupos_pay').value}]:[]};
   items.forEach(i=>{const p=auProd(i.productId);if(p)p.stock=Number(p.stock||0)-i.qty;});
-  DB.sales.push(sale);save();AU_CART=[];toast('Sale recorded · '+amoney(total));auShowReceipt(sale.id);vAuPOS();}
+  DB.sales.push(sale);save();AU_CART=[];toast(balance>0?('Sale recorded · balance '+amoney(balance)):('Sale recorded · '+amoney(total)));auShowReceipt(sale.id);vAuPOS();}
 function auReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="${set.logo}" style="width:46px;height:46px;border-radius:8px;object-fit:cover">`:'<div style="font-size:34px">🔧</div>';
   return `<div class="receipt" style="max-width:330px;margin:0 auto;font-family:'Courier New',monospace;color:#111;background:#fff;padding:14px 16px;border:1px solid #ddd">
     <div style="text-align:center;border-bottom:1px dashed #999;padding-bottom:8px;margin-bottom:8px">${logo}
@@ -3366,11 +3465,13 @@ function auReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="$
     </table>
     <div style="border-top:1px dashed #999;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between;font-weight:800;font-size:15px"><span>TOTAL</span><span>${amoney(s.total)}</span></div>
     <div style="font-size:11.5px;display:flex;justify-content:space-between"><span>Payment</span><span>${esc(s.payment||'')}</span></div>
+    ${(Number(s.balance||0)>0)?`<div style="font-size:11.5px;display:flex;justify-content:space-between"><span>Paid</span><span>${amoney(s.paid||0)}</span></div>
+    <div style="font-size:13px;display:flex;justify-content:space-between;font-weight:800;color:#c0392b;margin-top:2px"><span>BALANCE DUE</span><span>${amoney(s.balance)}</span></div>`:''}
     ${s.warranty?`<div style="font-size:11px;margin-top:4px">Warranty: ${esc(s.warranty)}</div>`:''}
     <div style="text-align:center;font-size:11px;margin-top:10px;border-top:1px dashed #999;padding-top:8px">Thank you. Goods sold in good faith.<br>Powered by Muscode</div>
   </div>`;}
 function auShowReceipt(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;
-  modal('Receipt — '+s.receiptNo,auReceiptHTML(s),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#15366e" onclick="window.print()">🖨 Print</button>`);}
+  modal('Receipt — '+s.receiptNo,auReceiptHTML(s),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#25d366" onclick="storeWaReceipt('${s.id}')">💬 WhatsApp</button><button class="btn no-print" style="background:#15366e" onclick="window.print()">🖨 Print</button>`);}
 function auScanToggle(){const box=$('#auposScan');if(!box)return;if(box.style.display==='none'){box.style.display='block';auStartPosScan();}else{stopScan();box.style.display='none';}}
 function auStartPosScan(){if(!window.Html5Qrcode){toast('Scanner not loaded',true);return;}if(window._scanner)return;
   const fmts=window.Html5QrcodeSupportedFormats?[Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.QR_CODE]:undefined;
@@ -3379,7 +3480,8 @@ function auStartPosScan(){if(!window.Html5Qrcode){toast('Scanner not loaded',tru
 function auScanned(code){code=(code||'').trim();const p=DB.products.find(x=>!x.archived&&((x.barcode||'')===code||(x.partNo||'')===code));if(p){auAddCart(p.id);toast('Added '+p.name);}else{toast('No part with code '+code,true);}}
 
 /* ---- Sales history + debtors ---- */
-function auCreditOutstanding(){return DB.sales.filter(s=>!s.voided&&s.payment==='Credit'&&!s.settled).reduce((a,s)=>a+Number(s.total||0),0);}
+function auSaleBalance(s){if(s.voided)return 0;if(s.balance!=null)return Number(s.balance||0);return (s.payment==='Credit'&&!s.settled)?Number(s.total||0):0;}
+function auCreditOutstanding(){return DB.sales.reduce((a,s)=>a+auSaleBalance(s),0);}
 function vAuSales(){const t=today();if(!AU_SFROM)AU_SFROM=t.slice(0,8)+'01';if(!AU_STO)AU_STO=t;
   $('#view').innerHTML=`<div class="page-head"><div><h2>Sales</h2><p>History, receipts, refunds & debtors</p></div>
     <button class="btn" style="background:#15366e" onclick="go('aupos')">🛒 New Sale</button></div>
@@ -3403,14 +3505,44 @@ function auRenderSales(){const q=AU_SQ.toLowerCase().trim();
     ${phStat('Debtors (credit)',amoney(debt),'unpaid',debt?'#c0392b':'')}
   </div>
   ${list.length?`<div class="t-wrap"><table><thead><tr><th>Receipt</th><th>Date</th><th>Customer</th><th>Pay</th><th class="right">Total</th><th class="right">Profit</th><th></th></tr></thead><tbody>
-    ${list.map(s=>{const credit=s.payment==='Credit'&&!s.settled&&!s.voided;return `<tr${s.voided?' style="opacity:.5"':''}>
+    ${list.map(s=>{const bal=auSaleBalance(s);return `<tr${s.voided?' style="opacity:.5"':''}>
       <td><b>${esc(s.receiptNo||'')}</b>${s.voided?' <span class="pill red">VOID</span>':''}</td>
       <td>${esc((s.date||'').replace('T',' ').slice(0,16))}</td><td>${esc(s.customer||'—')}</td>
-      <td>${esc(s.payment||'')}${credit?' <span class="pill gold">unpaid</span>':''}</td>
+      <td>${esc(s.payment||'')}${bal>0?` <span class="pill gold">owes ${amoney(bal)}</span>`:''}</td>
       <td class="right">${amoney(s.total)}</td><td class="right" style="color:#0a7d33">${amoney(s.profit)}</td>
-      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="auShowReceipt('${s.id}')">Receipt</button>${credit?`<button class="btn sm" style="background:#0a7d33" onclick="auSettleCredit('${s.id}')">Settle</button>`:''}${!s.voided?`<button class="btn sm danger" onclick="auVoidSale('${s.id}')">Void</button>`:''}</td></tr>`;}).join('')}
+      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="auShowReceipt('${s.id}')">Receipt</button>${bal>0?`<button class="btn sm" style="background:#0a7d33" onclick="auCustPay('${s.id}')">＋ Payment</button>`:''}${!s.voided?`<button class="btn sm danger" onclick="auVoidSale('${s.id}')">Void</button>`:''}</td></tr>`;}).join('')}
   </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">🧾</div>No sales in range.</div></div>`}`;}
-function auSettleCredit(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;s.settled=true;s.settledDate=today();save();toast('Marked as paid');auRenderSales();}
+function auCustPay(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;const bal=auSaleBalance(s);
+  modal('Record customer payment — '+s.receiptNo,`<p class="muted mb">${esc(s.customer||'Customer')} · Total ${amoney(s.total)} · Outstanding <b style="color:#c0392b">${amoney(bal)}</b></p><div class="grid2">
+    <div class="fld"><label>Amount received (${auCur()})</label><input id="aucp_amt" type="number" min="0" step="0.01" value="${bal}"></div>
+    <div class="fld"><label>Method</label><select id="aucp_method"><option>Cash</option><option>Transfer</option><option>POS / Card</option></select></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0a7d33" onclick="auDoCustPay('${id}')">Record payment</button>`);}
+function auDoCustPay(id){const s=DB.sales.find(x=>x.id===id);if(!s)return;const bal=auSaleBalance(s);
+  let amt=Math.max(0,Number($('#aucp_amt').value)||0);if(amt<=0){toast('Enter an amount',true);return;}if(amt>bal)amt=bal;
+  s.payments=s.payments||[];s.payments.push({date:new Date().toISOString(),amount:amt,method:$('#aucp_method').value});
+  s.paid=Number(s.paid||0)+amt;s.balance=Math.max(0,Number(s.total||0)-Number(s.paid||0));s.settled=s.balance<=0.001;
+  DB.settings.custPaySeq=(DB.settings.custPaySeq||0)+1;
+  const pay={no:'RC/'+String(DB.settings.custPaySeq).padStart(4,'0'),date:new Date().toISOString(),amount:amt,method:$('#aucp_method').value,saleId:s.id,balAfter:s.balance};
+  save();closeModal();toast('Payment recorded · '+amoney(amt));auShowCustPayReceipt(s.id,pay);}
+function auCustPayReceiptHTML(s,pay){const set=DB.settings;const logo=set.logo?`<img src="${set.logo}" style="width:46px;height:46px;border-radius:8px;object-fit:cover">`:'<div style="font-size:34px">🔧</div>';
+  return `<div class="receipt" style="max-width:340px;margin:0 auto;background:#fff;color:#111;padding:16px 18px;border:1px solid #ddd">
+    <div style="text-align:center;border-bottom:1px dashed #999;padding-bottom:8px;margin-bottom:8px">${logo}
+      <div style="font-weight:800;font-size:15px">${esc(set.storeName)}</div>${set.slogan?`<div style="font-size:10px;font-style:italic">${esc(set.slogan)}</div>`:''}
+      <div style="font-size:11px">${esc(set.address||'')}</div>${set.phone?`<div style="font-size:11px">☎ ${esc(set.phone)}</div>`:''}</div>
+    <div style="text-align:center;font-weight:800;letter-spacing:.04em;margin-bottom:8px">PAYMENT RECEIPT</div>
+    <div style="font-size:12.5px;line-height:1.9">
+      <div style="display:flex;justify-content:space-between"><span>Receipt No.</span><b>${esc(pay.no)}</b></div>
+      <div style="display:flex;justify-content:space-between"><span>Date</span><span>${esc((pay.date||'').slice(0,10))}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Customer</span><b>${esc(s.customer||'—')}</b></div>
+      <div style="display:flex;justify-content:space-between"><span>For sale</span><span>${esc(s.receiptNo||'')}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Method</span><span>${esc(pay.method||'')}</span></div>
+    </div>
+    <div style="border-top:1px dashed #999;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:800;font-size:17px"><span>AMOUNT PAID</span><span>${amoney(pay.amount)}</span></div>
+    <div style="font-size:12px;display:flex;justify-content:space-between;margin-top:4px"><span>Remaining balance</span><b style="color:${Number(pay.balAfter||0)>0?'#c0392b':'#0a7d33'}">${amoney(pay.balAfter||0)}</b></div>
+    <div style="text-align:center;font-size:11px;margin-top:12px;border-top:1px dashed #999;padding-top:8px">Thank you.<br>Powered by Muscode</div>
+  </div>`;}
+function auShowCustPayReceipt(saleId,pay){const s=DB.sales.find(x=>x.id===saleId);if(!s)return;
+  modal('Payment Receipt — '+pay.no,auCustPayReceiptHTML(s,pay),`<button class="btn sec no-print" onclick="closeModal();auRenderSales()">Close</button><button class="btn no-print" style="background:#15366e" onclick="window.print()">🖨 Print</button>`);}
 function auVoidSale(id){const s=DB.sales.find(x=>x.id===id);if(!s||s.voided)return;
   modal('Void / refund sale?',`<p>Void <b>${esc(s.receiptNo)}</b> (${amoney(s.total)})? Stock for each item will be returned to inventory. The record is kept but excluded from totals.</p>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="auDoVoid('${id}')">Void & restock</button>`);}
@@ -3462,14 +3594,23 @@ function auEditProduct(id){const p=id?auProd(id):null;
     <div class="fld"><label>Shelf / bin location</label><input id="ar_loc" value="${esc(p?(p.location||''):'')}" placeholder="e.g. A3"></div>
     <div class="fld"><label>Barcode</label><input id="ar_bc" value="${esc(p?(p.barcode||''):'')}" placeholder="scan/type"></div>
     <div class="fld full"><label>Supplier</label><select id="ar_sup">${auSupplierOptions(p?p.supplierId:'')}</select></div>
-  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#15366e" onclick="auSaveProduct('${id||''}')">${p?'Save':'Add part'}</button>`,true);}
+  </div>
+  ${!p?`<hr><label>Supplier payment for this opening stock (optional)</label>
+  <div class="grid2"><div class="fld"><label>Amount paid to supplier now (${auCur()})</label><input id="ar_paid" type="number" min="0" step="0.01" value="0"></div>
+    <div class="fld"><label>&nbsp;</label><div class="muted" style="font-size:12px;padding-top:8px">Goods value = stock × cost. Any unpaid part is added to the supplier's balance, and a purchase is recorded.</div></div></div>`:''}`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#15366e" onclick="auSaveProduct('${id||''}')">${p?'Save':'Add part'}</button>`,true);}
 function auSaveProduct(id){const name=$('#ar_name').value.trim(),sell=Number($('#ar_sell').value);
   if(!name){toast('Part name required',true);return;}if($('#ar_sell').value===''||!(sell>=0)){toast('Selling price required',true);return;}
   const rl=$('#ar_reorder').value;
   const data={name,partNo:$('#ar_partno').value.trim(),brand:$('#ar_brand').value.trim(),category:$('#ar_cat').value,condition:$('#ar_cond').value,
     fitment:$('#ar_fit').value.trim(),cost:Number($('#ar_cost').value)||0,sell,stock:Math.max(0,Math.floor(Number($('#ar_stock').value)||0)),
     reorder:rl===''?null:Math.max(0,Math.floor(Number(rl)||0)),location:$('#ar_loc').value.trim(),barcode:$('#ar_bc').value.trim(),supplierId:$('#ar_sup').value};
-  if(id){Object.assign(auProd(id),data);}else{DB.products.push({id:uid('pr'),...data});}
+  if(id){Object.assign(auProd(id),data);}
+  else{const np={id:uid('pr'),...data};DB.products.push(np);
+    const paidNow=Math.max(0,Number(($('#ar_paid')||{}).value)||0);
+    if(np.supplierId&&np.stock>0&&np.cost>0){const tot=np.stock*np.cost;const sp=auSupplier(np.supplierId);
+      if(sp)sp.balance=Number(sp.balance||0)+Math.max(0,tot-Math.min(tot,paidNow));
+      DB.purchases.push({id:uid('pu'),date:new Date().toISOString(),supplierId:np.supplierId,items:[{productId:np.id,name:np.name,qty:np.stock,cost:np.cost}],total:tot,paid:Math.min(tot,paidNow),note:'Opening stock'});}}
   save();closeModal();toast('Saved');if(CURRENT==='auinventory')vAuInventory();}
 function auDelProduct(id){const p=auProd(id);if(!p)return;
   modal('Delete part?',`<p>Delete <b>${esc(p.name)}</b>? Past sales keep their history.</p>`,
@@ -3510,12 +3651,12 @@ function auLabel(id){const p=auProd(id);if(!p)return;const code=p.barcode||p.par
 /* ---- Suppliers & Purchases ---- */
 function vAuSuppliers(){const recent=DB.purchases.slice(-10).reverse();
   $('#view').innerHTML=`<div class="page-head"><div><h2>Suppliers & Purchases</h2><p>Vendors and stock you buy in</p></div>
-    <div class="flex gap"><button class="btn sec" onclick="auEditSupplier()">＋ Supplier</button><button class="btn" style="background:#15366e" onclick="auNewPurchase()">＋ Record Purchase</button></div></div>
+    <div class="flex gap"><button class="btn sec" onclick="storeReorderWa()">💬 Reorder list</button><button class="btn sec" onclick="auEditSupplier()">＋ Supplier</button><button class="btn" style="background:#15366e" onclick="auNewPurchase()">＋ Record Purchase</button></div></div>
   <div class="card pad mb"><h3 class="mb">Suppliers</h3>
   ${DB.suppliers.length?`<div class="t-wrap"><table><thead><tr><th>Supplier</th><th>Phone</th><th>Address</th><th class="right">Balance owed</th><th></th></tr></thead><tbody>
     ${DB.suppliers.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.phone||'—')}</td><td>${esc(s.address||'—')}</td>
       <td class="right" style="color:${Number(s.balance||0)>0?'#c0392b':'#0a7d33'}">${amoney(s.balance||0)}</td>
-      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="auEditSupplier('${s.id}')">Edit</button><button class="btn sm danger" onclick="auDelSupplier('${s.id}')">✕</button></td></tr>`).join('')}
+      <td class="right" style="white-space:nowrap"><button class="btn sm" style="background:#0a7d33" onclick="auSupPay('${s.id}')">₦ Pay</button><button class="btn sm sec" onclick="auSupStatement('${s.id}')">Statement</button><button class="btn sm sec" onclick="auEditSupplier('${s.id}')">Edit</button><button class="btn sm danger" onclick="auDelSupplier('${s.id}')">✕</button></td></tr>`).join('')}
   </tbody></table></div>`:`<div class="empty"><div class="big">🚚</div>No suppliers yet.</div>`}</div>
   <div class="card pad"><h3 class="mb">Recent purchases</h3>
   ${recent.length?`<div class="t-wrap"><table><thead><tr><th>Date</th><th>Supplier</th><th>Items</th><th class="right">Total</th><th class="right">Paid</th></tr></thead><tbody>
@@ -3536,6 +3677,50 @@ function auSaveSupplier(id){const name=$('#ausp_name').value.trim();if(!name){to
 function auDelSupplier(id){const s=auSupplier(id);if(!s)return;
   modal('Delete supplier?',`<p>Delete <b>${esc(s.name)}</b>?</p>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="auDoDelSupplier('${id}')">Delete</button>`);}
 function auDoDelSupplier(id){DB.suppliers=DB.suppliers.filter(s=>s.id!==id);save();closeModal();toast('Deleted');vAuSuppliers();}
+function auSupPay(id){const s=auSupplier(id);if(!s)return;const bal=Number(s.balance||0);
+  modal('Pay supplier — '+s.name,`<p class="muted mb">Balance owed: <b style="color:${bal>0?'#c0392b':'#0a7d33'}">${amoney(bal)}</b></p><div class="grid2">
+    <div class="fld"><label>Amount to pay (${auCur()})</label><input id="ausp_amt" type="number" min="0" step="0.01" value="${bal>0?bal:0}"></div>
+    <div class="fld"><label>Method</label><select id="ausp_method"><option>Cash</option><option>Transfer</option><option>POS / Card</option><option>Cheque</option></select></div>
+    <div class="fld"><label>Date</label><input id="ausp_date" type="date" value="${today()}"></div>
+    <div class="fld"><label>Note</label><input id="ausp_note" placeholder="invoice / ref"></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0a7d33" onclick="auDoSupPay('${id}')">Record payment</button>`);}
+function auDoSupPay(id){const s=auSupplier(id);const amt=Math.max(0,Number($('#ausp_amt').value)||0);if(amt<=0){toast('Enter an amount',true);return;}
+  s.balance=Number(s.balance||0)-amt;
+  DB.settings.supPaySeq=(DB.settings.supPaySeq||0)+1;
+  const pay={id:uid('spay'),receiptNo:'SP/'+String(DB.settings.supPaySeq).padStart(4,'0'),date:($('#ausp_date').value?new Date($('#ausp_date').value).toISOString():new Date().toISOString()),supplierId:id,amount:amt,method:$('#ausp_method').value,note:$('#ausp_note').value.trim(),balAfter:s.balance};
+  DB.supplierPayments.push(pay);save();closeModal();toast('Payment recorded · '+amoney(amt));auShowSupPayReceipt(pay.id);}
+function auSupPayReceiptHTML(pay){const set=DB.settings;const s=auSupplier(pay.supplierId)||{};const logo=set.logo?`<img src="${set.logo}" style="width:46px;height:46px;border-radius:8px;object-fit:cover">`:'<div style="font-size:34px">🔧</div>';
+  return `<div class="receipt" style="max-width:360px;margin:0 auto;background:#fff;color:#111;padding:16px 18px;border:1px solid #ddd">
+    <div style="text-align:center;border-bottom:1px dashed #999;padding-bottom:8px;margin-bottom:8px">${logo}
+      <div style="font-weight:800;font-size:15px">${esc(set.storeName)}</div>${set.slogan?`<div style="font-size:10px;font-style:italic">${esc(set.slogan)}</div>`:''}
+      <div style="font-size:11px">${esc(set.address||'')}</div>${set.phone?`<div style="font-size:11px">☎ ${esc(set.phone)}</div>`:''}</div>
+    <div style="text-align:center;font-weight:800;letter-spacing:.04em;margin-bottom:8px">SUPPLIER PAYMENT RECEIPT</div>
+    <div style="font-size:12.5px;line-height:1.9">
+      <div style="display:flex;justify-content:space-between"><span>Receipt No.</span><b>${esc(pay.receiptNo)}</b></div>
+      <div style="display:flex;justify-content:space-between"><span>Date</span><span>${esc((pay.date||'').slice(0,10))}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Paid to</span><b>${esc(s.name||'')}</b></div>
+      <div style="display:flex;justify-content:space-between"><span>Method</span><span>${esc(pay.method||'')}</span></div>
+      ${pay.note?`<div style="display:flex;justify-content:space-between"><span>Note</span><span>${esc(pay.note)}</span></div>`:''}
+    </div>
+    <div style="border-top:1px dashed #999;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:800;font-size:17px"><span>AMOUNT PAID</span><span>${amoney(pay.amount)}</span></div>
+    <div style="font-size:12px;display:flex;justify-content:space-between;margin-top:4px"><span>Balance now owed</span><b style="color:${Number(pay.balAfter||0)>0?'#c0392b':'#0a7d33'}">${amoney(pay.balAfter||0)}</b></div>
+    <div style="text-align:center;font-size:11px;margin-top:12px;border-top:1px dashed #999;padding-top:8px">Received with thanks.<br>Powered by Muscode</div>
+  </div>`;}
+function auShowSupPayReceipt(id){const pay=DB.supplierPayments.find(x=>x.id===id);if(!pay)return;
+  modal('Supplier Receipt — '+pay.receiptNo,auSupPayReceiptHTML(pay),`<button class="btn sec no-print" onclick="closeModal();vAuSuppliers()">Close</button><button class="btn no-print" style="background:#15366e" onclick="window.print()">🖨 Print / Send</button>`);}
+function auSupStatement(id){const s=auSupplier(id);if(!s)return;const set=DB.settings;
+  const tx=[];
+  DB.purchases.filter(p=>p.supplierId===id).forEach(p=>{tx.push({date:p.date,desc:'Purchase'+(p.note?' ('+p.note+')':'')+' — '+(p.items||[]).reduce((a,i)=>a+Number(i.qty||0),0)+' units',debit:Number(p.total||0),credit:Number(p.paid||0)});});
+  DB.supplierPayments.filter(p=>p.supplierId===id).forEach(p=>{tx.push({date:p.date,desc:'Payment '+(p.receiptNo||'')+(p.note?' ('+p.note+')':''),debit:0,credit:Number(p.amount||0)});});
+  tx.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  let run=0;const rows=tx.map(t=>{run+=t.debit-t.credit;return `<tr><td>${esc((t.date||'').slice(0,10))}</td><td>${esc(t.desc)}</td><td class="right">${t.debit?amoney(t.debit):''}</td><td class="right">${t.credit?amoney(t.credit):''}</td><td class="right"><b>${amoney(run)}</b></td></tr>`;}).join('');
+  const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover">`:'🔧';
+  modal('Statement — '+s.name,`<div class="rc" style="${themeVars()};max-width:none"><div class="rc-top"><div class="rc-head"><div class="rc-crest">${logo}</div><div class="rc-sch"><h2>${esc(set.storeName)}</h2>${set.slogan?`<div class="nick">${esc(set.slogan)}</div>`:''}<div class="addr">${esc(set.address||'')}${set.phone?' · ☎ '+esc(set.phone):''}</div></div></div></div>
+    <div class="rc-title">✦ SUPPLIER STATEMENT OF ACCOUNT ✦</div>
+    <div style="padding:10px 14px"><div class="flex" style="justify-content:space-between;flex-wrap:wrap"><div><b>Supplier:</b> ${esc(s.name)}${s.phone?'<br>☎ '+esc(s.phone):''}</div><div style="text-align:right"><b>Date:</b> ${today()}<br><b>Balance owed:</b> <span style="color:${Number(s.balance||0)>0?'#c0392b':'#0a7d33'};font-weight:800">${amoney(s.balance||0)}</span></div></div>
+      <table class="rc-tbl" style="margin-top:10px"><thead><tr><th>Date</th><th>Description</th><th class="right">Goods (Debit)</th><th class="right">Paid (Credit)</th><th class="right">Running</th></tr></thead><tbody>${rows||'<tr><td colspan=5 class="center muted">No transactions yet.</td></tr>'}</tbody></table>
+      <p class="muted" style="font-size:11.5px;margin-top:8px">“Running” is goods received minus payments. Current balance owed reflects any opening balance set manually.</p></div></div>`,
+    `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print / Save</button>`,true);}
 function auNewPurchase(){if(!DB.suppliers.length){toast('Add a supplier first',true);auEditSupplier();return;}
   if(!DB.products.length){toast('Add parts first',true);auEditProduct();return;}
   const prods=DB.products.filter(p=>!p.archived).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
@@ -3634,8 +3819,8 @@ function auSaveMyLogin(){const name=$('#aumy_name').value.trim(),user=$('#aumy_u
 function auExportCSV(type){let rows,name;
   if(type==='inventory'){name='inventory';rows=[['Name','PartNo','Brand','Category','Condition','Fits','Stock','Cost','Sell','Reorder','Location','Barcode']];
     DB.products.filter(p=>!p.archived).forEach(p=>rows.push([p.name,p.partNo||'',p.brand||'',p.category||'',p.condition||'',p.fitment||'',p.stock||0,p.cost||0,p.sell||0,auReorder(p),p.location||'',p.barcode||'']));}
-  else{name='sales';rows=[['Receipt','Date','Items','Total','Cost','Profit','Payment','Customer','Warranty','Voided']];
-    DB.sales.forEach(s=>rows.push([s.receiptNo,(s.date||'').replace('T',' ').slice(0,16),(s.items||[]).reduce((a,i)=>a+Number(i.qty||0),0),s.total||0,s.cost||0,s.profit||0,s.payment||'',s.customer||'',s.warranty||'',s.voided?'YES':'']));}
+  else{name='sales';rows=[['Receipt','Date','Items','Total','Paid','Balance','Cost','Profit','Payment','Customer','Warranty','Voided']];
+    DB.sales.forEach(s=>rows.push([s.receiptNo,(s.date||'').replace('T',' ').slice(0,16),(s.items||[]).reduce((a,i)=>a+Number(i.qty||0),0),s.total||0,(s.paid!=null?s.paid:s.total)||0,auSaleBalance(s),s.cost||0,s.profit||0,s.payment||'',s.customer||'',s.warranty||'',s.voided?'YES':'']));}
   const csv=rows.map(r=>r.map(c=>{c=String(c==null?'':c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\n');
   const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   a.download=(DB.settings.shortName||DB.settings.storeName||'autoparts')+'-'+name+'-'+today()+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);toast('CSV downloaded');}
@@ -3732,6 +3917,65 @@ function delAuto(code){modal('Delete auto parts store?',`<p>Permanently delete <
   `<button class="btn sec" onclick="manageAuto('${code}')">Cancel</button><button class="btn danger" onclick="confirmDelAuto('${code}')">Delete</button>`);}
 async function confirmDelAuto(code){MASTER.schools=MASTER.schools.filter(s=>s.code!==code);delete STORE[code];saveStoreLocal();saveMaster();
   if(supa){try{await supa.from('school_data').delete().eq('id',code);}catch(e){}}closeModal();toast('Store deleted');vAutos();}
+
+/* ===================== SHARED STORE FEATURES (pharmacy + auto) ===================== */
+function storeReorderLevel(p){return (p.reorder!=null&&p.reorder!=='')?Number(p.reorder):Number(DB.settings.lowStock||0);}
+function storeLowList(){return DB.products.filter(p=>!p.archived&&Number(p.stock||0)<=storeReorderLevel(p));}
+function storeReceiptText(s){const set=DB.settings;let t='*'+set.storeName+'*\n';if(set.slogan)t+='_'+set.slogan+'_\n';if(set.address)t+=set.address+'\n';if(set.phone)t+='Tel: '+set.phone+'\n';
+  t+='--------------------\n';t+='Receipt: '+s.receiptNo+'\n'+(s.date||'').replace('T',' ').slice(0,16)+'\n';if(s.customer)t+='Customer: '+s.customer+'\n';t+='--------------------\n';
+  (s.items||[]).forEach(i=>{t+=i.name+'  x'+i.qty+'   '+pmoney(i.price*i.qty)+'\n';});
+  t+='--------------------\n*TOTAL: '+pmoney(s.total)+'*\n';
+  if(Number(s.balance||0)>0){t+='Paid: '+pmoney(s.paid||0)+'\n*BALANCE DUE: '+pmoney(s.balance)+'*\n';}
+  t+='Payment: '+(s.payment||'')+'\n';if(s.warranty)t+='Warranty: '+s.warranty+'\n';t+='\nThank you. Powered by Muscode';return t;}
+function storeWaReceipt(saleId){const s=DB.sales.find(x=>x.id===saleId);if(!s)return;
+  modal('Send receipt on WhatsApp',`<div class="fld"><label>Customer WhatsApp number</label><input id="wa_num" value="${esc(s.customerPhone||'')}" placeholder="080..."></div>
+   <p class="muted" style="font-size:12px">Opens WhatsApp with the receipt ready to send. Leave blank to pick a contact in WhatsApp.</p>`,
+   `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#25d366" onclick="storeDoWaReceipt('${saleId}')">💬 Open WhatsApp</button>`);}
+function storeDoWaReceipt(saleId){const s=DB.sales.find(x=>x.id===saleId);if(!s)return;const num=($('#wa_num').value||'').trim();
+  window.open(waLink(num)+'?text='+encodeURIComponent(storeReceiptText(s)),'_blank');closeModal();}
+function storeReorderWa(){const low=storeLowList();if(!low.length){toast('No low-stock items 👍');return;}
+  modal('WhatsApp reorder list ('+low.length+')',`<div class="fld"><label>Send to supplier</label><select id="ro_sup" onchange="if(this.value)document.getElementById('ro_num').value=this.value"><option value="">— choose / type number —</option>${DB.suppliers.map(s=>`<option value="${esc(s.phone||'')}">${esc(s.name)}${s.phone?' ('+esc(s.phone)+')':''}</option>`).join('')}</select></div>
+   <div class="fld"><label>WhatsApp number</label><input id="ro_num" placeholder="080..."></div>
+   <p class="muted" style="font-size:12px">${low.length} item(s) at/below reorder level will be listed.</p>`,
+   `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#25d366" onclick="storeDoReorderWa()">💬 Open WhatsApp</button>`);}
+function storeDoReorderWa(){const low=storeLowList();const num=($('#ro_num').value||'').trim();
+  let t='*Order request from '+DB.settings.storeName+'*\n\n';low.forEach(p=>{t+='• '+p.name+(p.partNo?(' ['+p.partNo+']'):'')+(p.brand?(' - '+p.brand):'')+' — in stock: '+Number(p.stock||0)+'\n';});
+  t+='\nPlease advise availability and price. Thank you.';window.open(waLink(num)+'?text='+encodeURIComponent(t),'_blank');closeModal();}
+/* ---- owner cross-store overview ---- */
+function ownerSaleBal(x){return x.voided?0:(x.balance!=null?Number(x.balance||0):(x.payment==='Credit'&&!x.settled?Number(x.total||0):0));}
+function ownerStoreStats(){const t=today(),tm=t.slice(0,7);const r={today:0,month:0,stock:0,debt:0,subMonthly:0,subCollected:0,due:0,overdue:0,stores:[]};
+  MASTER.schools.filter(s=>s.type==='pharmacy'||s.type==='autoparts').forEach(reg=>{const d=STORE[reg.code];
+    const sales=d?(d.sales||[]).filter(x=>!x.voided):[];
+    const tToday=sales.filter(x=>(x.date||'').slice(0,10)===t).reduce((a,x)=>a+Number(x.total||0),0);
+    const tMonth=sales.filter(x=>(x.date||'').slice(0,7)===tm).reduce((a,x)=>a+Number(x.total||0),0);
+    const stock=d?(d.products||[]).reduce((a,p)=>a+Number(p.stock||0)*Number(p.cost||0),0):0;
+    const debt=d?(d.sales||[]).reduce((a,x)=>a+ownerSaleBal(x),0):0;
+    const sub=reg.sub||{};const fee=Number(sub.fee||0);r.subMonthly+=fee;
+    (sub.history||[]).forEach(h=>{if((h.date||'').slice(0,7)===tm)r.subCollected+=Number(h.amount||0);});
+    const si=phSubInfo(reg);if(si.cls==='red')r.overdue++;else if(si.cls==='gold')r.due++;
+    r.today+=tToday;r.month+=tMonth;r.stock+=stock;r.debt+=debt;
+    r.stores.push({reg,today:tToday,month:tMonth,stock,debt,si});});
+  return r;}
+function ownerStoresSectionHTML(){const st=ownerStoreStats();if(!st.stores.length)return '';
+  return `<div class="card pad mt"><div class="flex" style="justify-content:space-between;flex-wrap:wrap"><h3 class="mb">🏬 Stores overview (pharmacy + auto parts)</h3></div>
+  <div class="cards-row">
+    <div class="stat"><div class="lbl">Sales today</div><div class="num" style="color:#0c5b56">${pmoneyOwner(st.today)}</div></div>
+    <div class="stat"><div class="lbl">Sales this month</div><div class="num" style="color:#0c5b56">${pmoneyOwner(st.month)}</div></div>
+    <div class="stat"><div class="lbl">Stock value</div><div class="num" style="font-size:20px">${pmoneyOwner(st.stock)}</div></div>
+    <div class="stat"><div class="lbl">Customer debtors</div><div class="num" style="font-size:20px;color:${st.debt?'#c0392b':''}">${pmoneyOwner(st.debt)}</div></div>
+  </div>
+  <div class="cards-row">
+    <div class="stat"><div class="lbl">Subscription / month</div><div class="num" style="font-size:20px">${pmoneyOwner(st.subMonthly)}</div><div class="meta">recurring</div></div>
+    <div class="stat"><div class="lbl">Collected this month</div><div class="num" style="font-size:20px;color:#0a7d33">${pmoneyOwner(st.subCollected)}</div></div>
+    <div class="stat"><div class="lbl">Due soon</div><div class="num" style="color:${st.due?'#c8881b':''}">${st.due}</div></div>
+    <div class="stat"><div class="lbl">Overdue</div><div class="num" style="color:${st.overdue?'#c0392b':''}">${st.overdue}</div></div>
+  </div>
+  <div class="t-wrap"><table><thead><tr><th>Store</th><th>Type</th><th class="right">Today</th><th class="right">This month</th><th class="right">Stock val.</th><th class="right">Debtors</th><th>Subscription</th></tr></thead><tbody>
+    ${st.stores.map(x=>`<tr><td><b>${esc(x.reg.name)}</b></td><td>${x.reg.type==='pharmacy'?'💊 Pharmacy':'🔧 Auto'}</td>
+      <td class="right">${pmoneyOwner(x.today)}</td><td class="right">${pmoneyOwner(x.month)}</td><td class="right">${pmoneyOwner(x.stock)}</td>
+      <td class="right" style="color:${x.debt?'#c0392b':''}">${pmoneyOwner(x.debt)}</td><td><span class="pill ${x.si.cls}">${x.si.txt}</span></td></tr>`).join('')}
+  </tbody></table></div>
+  <p class="muted mt" style="font-size:12px">Figures shown in ₦. Live across all your stores via the cloud.</p></div>`;}
 
 /* ===================== PWA: offline + auto-update + install ===================== */
 function setManifest(){try{
