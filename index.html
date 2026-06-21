@@ -16,6 +16,8 @@
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script>
 /* ╔══════════════════════════════════════════════════════════════╗
    ║  OWNER: PASTE YOUR SUPABASE KEYS HERE (once, before hosting).   ║
@@ -465,6 +467,42 @@ tbody tr:hover{background:#fafbfa}
 .ayah{font-family:'Amiri','Traditional Arabic','Scheherazade',serif;font-size:21px;direction:rtl;text-align:right;line-height:2.1}
 .ayah-ans{font-family:'Amiri','Traditional Arabic',serif;font-size:17px;direction:rtl;text-align:right;color:var(--green-dark);border-right:3px solid var(--rgold,#caa64e);padding-right:8px;margin-top:4px}
 @media(max-width:760px){.rc-info{flex-wrap:wrap}.rc-fields{grid-template-columns:1fr 1fr}.rc-two,.rc-comments{grid-template-columns:1fr}}
+/* ===================== UI / UX POLISH ===================== */
+.card{border-radius:16px;border:1px solid #eef1ee;box-shadow:0 1px 2px rgba(16,40,30,.04),0 6px 22px rgba(16,40,30,.05);transition:box-shadow .18s ease,transform .18s ease}
+.card.pad{padding:20px}
+.stat{border-radius:16px;border:1px solid #eef1ee;padding:16px 18px;position:relative;overflow:hidden;background:#fff;box-shadow:0 1px 2px rgba(16,40,30,.04),0 6px 22px rgba(16,40,30,.05);transition:transform .18s ease,box-shadow .18s ease}
+.stat:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(16,40,30,.10)}
+.stat:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--green,#0a7d33),var(--green-dark,#075e26));opacity:.85}
+.stat.accent.purple:before{background:linear-gradient(180deg,#7c4dff,#4a2a8a)}
+.stat .lbl{font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#6b7280);font-weight:700}
+.stat .num{font-size:26px;font-weight:800;letter-spacing:-.01em;margin-top:2px}
+.stat .meta{font-size:11.5px;color:var(--muted,#6b7280);margin-top:2px}
+.cards-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:16px}
+.btn{border-radius:11px;font-weight:650;letter-spacing:.01em;transition:transform .12s ease,box-shadow .12s ease,filter .12s ease;box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.12);filter:brightness(1.03)}
+.btn:active{transform:translateY(0)}
+.btn.sm{border-radius:9px}
+.btn.icon{box-shadow:none}
+.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #eef1ee}
+.page-head h2{font-size:23px;font-weight:800;letter-spacing:-.02em}
+.page-head p{color:var(--muted,#6b7280);font-size:13px;margin-top:2px}
+.nav-item{border-radius:11px;transition:background .14s ease,color .14s ease;font-weight:600}
+.nav-item:hover{background:rgba(10,125,51,.08)}
+.nav-item.active{box-shadow:inset 3px 0 0 var(--green,#0a7d33)}
+table th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#6b7280);font-weight:700;background:#fafbfa}
+table td,table th{padding:11px 12px}
+tbody tr{transition:background .12s ease}
+tbody tr:hover{background:#f7faf8}
+.t-wrap{border-radius:14px;border:1px solid #eef1ee;overflow:hidden}
+.t-wrap table{margin:0}
+input,select,textarea{border-radius:10px;transition:border-color .14s ease,box-shadow .14s ease}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green,#0a7d33);box-shadow:0 0 0 3px rgba(10,125,51,.12)}
+.modal{border-radius:18px}
+.pill{border-radius:999px;font-weight:700;letter-spacing:.01em}
+.toolbar{gap:12px;flex-wrap:wrap}
+.empty{padding:30px 16px;color:var(--muted,#6b7280)}.empty .big{opacity:.5}
+.linkbox{border-radius:12px}
+@media(max-width:760px){.cards-row{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat .num{font-size:22px}.page-head h2{font-size:20px}.card.pad{padding:15px}}
 </style>
 </head>
 <body>
@@ -1738,12 +1776,12 @@ function enterApp(){
 function buildNav(){
   let items;
   if(USER.role!=='owner'&&DB&&DB.kind==='pharmacy'){
-    items=[['phdash','📊','Dashboard'],['pos','🛒','Sell (POS)'],['saleshist','🧾','Sales'],['inventory','💊','Inventory'],['suppliers','🚚','Suppliers'],['phreports','📈','Reports'],['phsettings','⚙️','Settings']];
+    items=[['phdash','📊','Dashboard'],['pos','🛒','Sell (POS)'],['saleshist','🧾','Sales'],['inventory','💊','Inventory'],['customers','👥','Customers'],['quotes','📋','Quotes'],['suppliers','🚚','Suppliers'],['phreports','📈','Reports'],['phsettings','⚙️','Settings']];
     $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
     return;
   }
   if(USER.role!=='owner'&&DB&&DB.kind==='autoparts'){
-    items=[['audash','📊','Dashboard'],['aupos','🛒','Sell (POS)'],['ausales','🧾','Sales'],['auinventory','🔧','Inventory'],['ausuppliers','🚚','Suppliers'],['aureports','📈','Reports'],['ausettings','⚙️','Settings']];
+    items=[['audash','📊','Dashboard'],['aupos','🛒','Sell (POS)'],['ausales','🧾','Sales'],['auinventory','🔧','Inventory'],['cars','🚗','Cars'],['customers','👥','Customers'],['quotes','📋','Quotes'],['ausuppliers','🚚','Suppliers'],['aureports','📈','Reports'],['ausettings','⚙️','Settings']];
     $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
     return;
   }
@@ -1768,7 +1806,8 @@ function toggleNav(open){const sb=document.querySelector('.sidebar'),sc=$('#navS
 function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(false);
   const map={odash:vODash,schools:vSchools,stores:vPharmacies,autostores:vAutos,pins:vPins,revenue:vRevenue,osettings:vOSettings,
     phdash:vPhDash,pos:vPhPOS,saleshist:vPhSales,inventory:vPhInventory,suppliers:vPhSuppliers,phreports:vPhReports,phsettings:vPhSettings,
-    audash:vAuDash,aupos:vAuPOS,ausales:vAuSales,auinventory:vAuInventory,ausuppliers:vAuSuppliers,aureports:vAuReports,ausettings:vAuSettings,
+    audash:vAuDash,aupos:vAuPOS,ausales:vAuSales,auinventory:vAuInventory,cars:vAuCars,ausuppliers:vAuSuppliers,aureports:vAuReports,ausettings:vAuSettings,
+    customers:vStoreCustomers,quotes:vStoreQuotes,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
     promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce};
@@ -2686,13 +2725,13 @@ let PH_CART=[], PH_FROM='', PH_TO='', PH_SFROM='', PH_STO='', PH_SQ='';
 function seedPharmacy(code,name){return{kind:'pharmacy',
   settings:{code,storeName:name,shortName:'',address:'Nigeria',phone:'',email:'',logo:'',theme:'teal',currency:'₦',lowStock:10,expiryDays:60,status:'active',receiptSeq:0},
   users:[{id:'u1',name:'Pharmacy Manager',username:'admin',password:'admin123',role:'admin'}],
-  products:[],suppliers:[],sales:[],purchases:[],adjustments:[],supplierPayments:[],expenses:[]};}
+  products:[],suppliers:[],sales:[],purchases:[],adjustments:[],supplierPayments:[],expenses:[],customers:[],quotes:[]};}
 function ensurePharmacy(d){d.kind='pharmacy';d.settings=d.settings||{};const s=d.settings;
   if(!s.currency)s.currency='₦';if(s.lowStock==null)s.lowStock=10;if(s.expiryDays==null)s.expiryDays=60;
   if(!s.theme)s.theme='teal';if(!s.status)s.status='active';if(s.receiptSeq==null)s.receiptSeq=0;
   if(!s.storeName)s.storeName=s.schoolName||'Pharmacy';
-  if(s.supPaySeq==null)s.supPaySeq=0;if(s.custPaySeq==null)s.custPaySeq=0;
-  ['products','suppliers','sales','purchases','adjustments','supplierPayments','expenses'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
+  if(s.supPaySeq==null)s.supPaySeq=0;if(s.custPaySeq==null)s.custPaySeq=0;if(s.quoteSeq==null)s.quoteSeq=0;if(s.loyaltyRate==null)s.loyaltyRate=0;
+  ['products','suppliers','sales','purchases','adjustments','supplierPayments','expenses','customers','quotes'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
   if(!Array.isArray(d.users)||!d.users.length)d.users=[{id:'u1',name:'Pharmacist',username:'admin',password:'admin123',role:'admin'}];
   return d;}
 /* ---- helpers ---- */
@@ -2756,7 +2795,8 @@ function vPhDash(){const t=today();const todaySales=phSalesIn(t,t);
       <td class="right">${pmoney(s.total)}</td><td class="right" style="color:#0a7d33">${pmoney(s.profit)}</td>
       <td class="right"><button class="btn sm sec" onclick="phShowReceipt('${s.id}')">Receipt</button></td></tr>`).join('')}
   </tbody></table></div>`:`<div class="empty"><div class="big">🛒</div>No sales yet. <button class="btn sm mt" style="background:#0c5b56;color:#fff" onclick="go('pos')">Make your first sale</button></div>`}
-  </div>`;}
+  </div>
+  ${storeInsightsSection()}`;setTimeout(storeDrawCharts,60);}
 
 /* ---- POS ---- */
 function vPhPOS(){
@@ -2810,26 +2850,29 @@ function phRenderCart(){const el=$('#posCart');if(!el)return;
       <td class="right"><b>${pmoney(p.sell*c.qty)}</b></td>
       <td class="right"><button class="btn icon sm danger" onclick="phRemoveCart('${c.id}')">✕</button></td></tr>`;}).join('')}
   </tbody></table></div>
-  <div class="flex" style="justify-content:space-between;align-items:center;font-size:20px;font-weight:800;margin:10px 0;padding-top:8px;border-top:2px solid #eee"><span>Total</span><span style="color:#0c5b56">${pmoney(total)}</span></div>
-  <div class="grid2"><div class="fld"><label>Payment</label><select id="pos_pay"><option>Cash</option><option>Transfer</option><option>POS / Card</option><option>Credit</option></select></div>
-    <div class="fld"><label>Customer (optional)</label><input id="pos_cust" placeholder="Walk-in"></div></div>
+  <div class="flex" style="justify-content:space-between;align-items:center;font-size:18px;font-weight:800;margin:10px 0 4px"><span>Subtotal</span><span>${pmoney(total)}</span></div>
+  <div class="grid2"><div class="fld"><label>Discount (${phCur()})</label><input id="pos_disc" type="number" min="0" step="0.01" value="0" oninput="phPaidHint(${total})"></div>
+    <div class="fld"><label>Payment</label><select id="pos_pay"><option>Cash</option><option>Transfer</option><option>POS / Card</option><option>Credit</option></select></div></div>
+  <div class="fld"><label>Customer (optional)</label><input id="pos_cust" list="custList" placeholder="Walk-in"></div>${storeCustDatalist()}
   <div class="fld"><label>Amount paid now (${phCur()})</label><input id="pos_paid" type="number" min="0" step="0.01" value="${total}" oninput="phPaidHint(${total})"></div>
-  <div id="pos_balhint" class="muted" style="font-size:12px;margin:-4px 0 8px"></div>
-  <div class="flex gap"><button class="btn" style="flex:1;justify-content:center;background:#0c5b56" onclick="phCheckout()">✓ Checkout · ${pmoney(total)}</button>
+  <div id="pos_balhint" class="muted" style="font-size:12.5px;margin:-4px 0 8px"></div>
+  <div class="flex gap"><button class="btn" style="flex:1;justify-content:center;background:#0c5b56" onclick="phCheckout()">✓ Checkout</button>
     <button class="btn sec" onclick="PH_CART=[];phRenderCart()">Clear</button></div>`;}
-function phPaidHint(total){const v=Math.max(0,Number($('#pos_paid').value)||0);const bal=Math.max(0,total-v);const el=$('#pos_balhint');if(!el)return;
-  el.innerHTML=bal>0?`<span style="color:#c0392b;font-weight:700">Balance (customer owes): ${pmoney(bal)}</span>`:`<span style="color:#0a7d33">Paid in full ✓</span>`;}
+function phPaidHint(sub){const disc=Math.max(0,Number(($('#pos_disc')||{}).value)||0);const net=Math.max(0,sub-disc);const pf=$('#pos_paid');if(pf&&(pf._auto!==false))pf.value=net;
+  const v=Math.max(0,Number(pf?pf.value:net)||0);const bal=Math.max(0,net-v);const el=$('#pos_balhint');if(!el)return;
+  el.innerHTML=`<b>Total: ${pmoney(net)}</b>${disc>0?' · discount '+pmoney(disc):''} — `+(bal>0?`<span style="color:#c0392b;font-weight:700">balance ${pmoney(bal)}</span>`:`<span style="color:#0a7d33">paid in full ✓</span>`);}
 function phCheckout(){if(!PH_CART.length){toast('Cart is empty',true);return;}
   for(const c of PH_CART){const p=phProd(c.id);if(!p||c.qty>Number(p.stock||0)){toast('Not enough stock for '+(p?p.name:'item'),true);return;}}
   const items=PH_CART.map(c=>{const p=phProd(c.id);return{productId:p.id,name:p.name,qty:c.qty,price:Number(p.sell||0),cost:Number(p.cost||0)};});
-  const total=items.reduce((a,i)=>a+i.price*i.qty,0);const cost=items.reduce((a,i)=>a+i.cost*i.qty,0);
+  const subtotal=items.reduce((a,i)=>a+i.price*i.qty,0);const cost=items.reduce((a,i)=>a+i.cost*i.qty,0);
+  const discount=Math.min(subtotal,Math.max(0,Number($('#pos_disc').value)||0));const total=subtotal-discount;
   DB.settings.receiptSeq=(DB.settings.receiptSeq||0)+1;
   const paid=Math.min(total,Math.max(0,Number($('#pos_paid').value)||0));const balance=Math.max(0,total-paid);
   const sale={id:uid('sl'),receiptNo:'PH/'+String(DB.settings.receiptSeq).padStart(4,'0'),date:new Date().toISOString(),
-    items,total,cost,profit:total-cost,payment:$('#pos_pay').value,customer:($('#pos_cust').value||'').trim(),cashier:USER.name,
+    items,subtotal,discount,total,cost,profit:total-cost,payment:$('#pos_pay').value,customer:($('#pos_cust').value||'').trim(),cashier:USER.name,
     paid,balance,settled:balance<=0.001,payments:paid>0?[{date:new Date().toISOString(),amount:paid,method:$('#pos_pay').value}]:[]};
   items.forEach(i=>{const p=phProd(i.productId);if(p)p.stock=Number(p.stock||0)-i.qty;});
-  DB.sales.push(sale);save();PH_CART=[];
+  DB.sales.push(sale);storeLoyaltyAccrue(sale);save();PH_CART=[];
   toast(balance>0?('Sale recorded · balance '+pmoney(balance)):('Sale recorded · '+pmoney(total)));phShowReceipt(sale.id);vPhPOS();}
 function phReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="${set.logo}" style="width:46px;height:46px;border-radius:8px;object-fit:cover">`:'<div style="font-size:34px">💊</div>';
   return `<div class="receipt" style="max-width:330px;margin:0 auto;font-family:'Courier New',monospace;color:#111;background:#fff;padding:14px 16px;border:1px solid #ddd">
@@ -2843,6 +2886,7 @@ function phReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="$
       <thead><tr style="border-bottom:1px solid #000"><th style="text-align:left">Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Amt</th></tr></thead>
       <tbody>${(s.items||[]).map(i=>`<tr><td style="text-align:left">${esc(i.name)}<br><span style="color:#666">@${pmoney(i.price)}</span></td><td style="text-align:center">${i.qty}</td><td style="text-align:right">${pmoney(i.price*i.qty)}</td></tr>`).join('')}</tbody>
     </table>
+    ${Number(s.discount||0)>0?`<div style="font-size:11.5px;display:flex;justify-content:space-between;margin-top:6px"><span>Subtotal</span><span>${pmoney(s.subtotal||s.total)}</span></div><div style="font-size:11.5px;display:flex;justify-content:space-between"><span>Discount</span><span>-${pmoney(s.discount)}</span></div>`:''}
     <div style="border-top:1px dashed #999;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between;font-weight:800;font-size:15px"><span>TOTAL</span><span>${pmoney(s.total)}</span></div>
     <div style="font-size:11.5px;display:flex;justify-content:space-between"><span>Payment</span><span>${esc(s.payment||'')}</span></div>
     ${(Number(s.balance||0)>0)?`<div style="font-size:11.5px;display:flex;justify-content:space-between"><span>Paid</span><span>${pmoney(s.paid||0)}</span></div>
@@ -3191,6 +3235,7 @@ function vPhSettings(){if(USER.role!=='admin'){vPhDash();return;}const s=DB.sett
     <div class="fld"><label>Theme</label><select id="st_theme">${Object.entries(THEMES).map(([k,t])=>`<option value="${k}" ${(s.theme||'teal')===k?'selected':''}>${t.n}</option>`).join('')}</select></div>
     <div class="fld"><label>Default low-stock level</label><input id="st_low" type="number" min="0" value="${s.lowStock||10}"></div>
     <div class="fld"><label>Expiry warning (days)</label><input id="st_exp" type="number" min="0" value="${s.expiryDays||60}"></div>
+    <div class="fld"><label>Loyalty: 1 point per ₦ (0 = off)</label><input id="st_loyal" type="number" min="0" value="${s.loyaltyRate||0}"></div>
   </div>${logoField(s.logo||'')}
   <div class="mt"><button class="btn" style="background:#0c5b56" onclick="phSaveSettings()">💾 Save settings</button></div></div>
   <div class="card pad mb"><h3 class="mb">Your login</h3><div class="grid2">
@@ -3203,7 +3248,7 @@ function vPhSettings(){if(USER.role!=='admin'){vPhDash();return;}const s=DB.sett
 function phSaveSettings(){const s=DB.settings;_logo=_logo||s.logo||'';
   s.storeName=$('#st_name').value.trim()||s.storeName;s.shortName=$('#st_short').value.trim();s.address=$('#st_addr').value.trim();
   s.phone=$('#st_phone').value.trim();s.email=$('#st_email').value.trim();s.currency=$('#st_cur').value.trim()||'₦';
-  s.slogan=$('#st_slogan').value.trim();s.theme=$('#st_theme').value;s.lowStock=Math.max(0,Number($('#st_low').value)||10);s.expiryDays=Math.max(0,Number($('#st_exp').value)||60);
+  s.slogan=$('#st_slogan').value.trim();s.theme=$('#st_theme').value;s.lowStock=Math.max(0,Number($('#st_low').value)||10);s.expiryDays=Math.max(0,Number($('#st_exp').value)||60);s.loyaltyRate=Math.max(0,Number($('#st_loyal').value)||0);
   if(typeof _logo==='string')s.logo=_logo;
   save();toast('Settings saved');enterPharmacy();}
 function phSaveMyLogin(){const name=$('#my_name').value.trim(),user=$('#my_user').value.trim().toLowerCase(),pass=$('#my_pass').value.trim();
@@ -3326,12 +3371,12 @@ const AU_CATS=['Engine','Brakes','Suspension','Electrical','Transmission','Cooli
 function seedAuto(code,name){return{kind:'autoparts',
   settings:{code,storeName:name,shortName:'',address:'Nigeria',phone:'',email:'',logo:'',theme:'blue',currency:'₦',lowStock:3,status:'active',receiptSeq:0},
   users:[{id:'u1',name:'Store Operator',username:'admin',password:'admin123',role:'admin'}],
-  products:[],suppliers:[],sales:[],purchases:[],adjustments:[],supplierPayments:[],expenses:[]};}
+  products:[],suppliers:[],sales:[],purchases:[],adjustments:[],supplierPayments:[],expenses:[],customers:[],quotes:[],vehicles:[]};}
 function ensureAuto(d){d.kind='autoparts';d.settings=d.settings||{};const s=d.settings;
   if(!s.currency)s.currency='₦';if(s.lowStock==null)s.lowStock=3;if(!s.theme)s.theme='blue';
   if(!s.status)s.status='active';if(s.receiptSeq==null)s.receiptSeq=0;if(!s.storeName)s.storeName=s.schoolName||'Auto Parts';
-  if(s.supPaySeq==null)s.supPaySeq=0;if(s.custPaySeq==null)s.custPaySeq=0;
-  ['products','suppliers','sales','purchases','adjustments','supplierPayments','expenses'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
+  if(s.supPaySeq==null)s.supPaySeq=0;if(s.custPaySeq==null)s.custPaySeq=0;if(s.quoteSeq==null)s.quoteSeq=0;if(s.loyaltyRate==null)s.loyaltyRate=0;
+  ['products','suppliers','sales','purchases','adjustments','supplierPayments','expenses','customers','quotes','vehicles'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
   if(!Array.isArray(d.users)||!d.users.length)d.users=[{id:'u1',name:'Store Operator',username:'admin',password:'admin123',role:'admin'}];
   return d;}
 /* ---- helpers ---- */
@@ -3349,14 +3394,37 @@ function auPartLine(p){return [p.partNo,p.brand].filter(Boolean).join(' · ');}
 /* ---- auth + shell ---- */
 function renderAutoAuth(){const sc=$('#screen');sc.style.display='';$('#app').style.display='none';const set=DB.settings;
   if(set.status==='suspended'){sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest">⏸️</div><h1>${esc(set.storeName)}</h1><div class="sub">This account is currently suspended. Please contact your provider to renew.</div></div></div>`;return;}
-  const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`:'🔧';
-  sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest" style="background:#15366e">${logo}</div>
-    <h1>${esc(set.storeName)}</h1>${set.slogan?`<div class="muted" style="font-style:italic;margin-bottom:4px">“${esc(set.slogan)}”</div>`:''}<div class="sub">Spare Parts — Staff Login</div>
-    <div class="auth-err" id="aerr"></div>
-    <div class="field"><label>Username</label><input id="su" placeholder="admin"></div>
-    <div class="field"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>
-    <button class="btn" style="width:100%;justify-content:center;background:#15366e" onclick="schoolLogin()">Sign in</button>
-    <div class="hint">Use the login your provider gave you.</div></div></div>`;
+  const cars=(DB.vehicles||[]).filter(v=>v.status!=='sold');const t=theme();
+  if(!cars.length){
+    const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`:'🔧';
+    sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest" style="background:#15366e">${logo}</div>
+      <h1>${esc(set.storeName)}</h1>${set.slogan?`<div class="muted" style="font-style:italic;margin-bottom:4px">“${esc(set.slogan)}”</div>`:''}<div class="sub">Staff Login</div>
+      <div class="auth-err" id="aerr"></div>
+      <div class="field"><label>Username</label><input id="su" placeholder="admin"></div>
+      <div class="field"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>
+      <button class="btn" style="width:100%;justify-content:center;background:#15366e" onclick="schoolLogin()">Sign in</button>
+      <div class="hint">Use the login your provider gave you.</div></div></div>`;
+    setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);return;
+  }
+  const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover">`:'🔧';
+  sc.innerHTML=`<div class="home" style="--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}">
+    <div class="home-top"><div class="b"><div class="lg">${logo}</div><span class="nm">${esc(set.shortName||set.storeName)}</span></div>
+      <div class="nav"><a class="login" onclick="autoLoginModal()">🔐 Staff Login</a></div></div>
+    <div class="home-hero" style="background:linear-gradient(135deg,${t.rg},${t.rgd});padding:46px 16px"><h1>${esc(set.storeName)}</h1><div class="tag">${esc(set.slogan||'Quality cars & genuine spare parts')}</div>
+      <div class="desc">Browse our available cars below — tap one, then drag to rotate and inspect every angle, inside and out.</div></div>
+    <div class="home-sec"><div class="sec-h"><h2>Available Cars (${cars.length})</h2><div class="u"></div></div>
+      <div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(250px,1fr))">
+      ${cars.map(v=>`<div class="card" style="overflow:hidden;cursor:pointer" onclick="vehicleViewer('${v.id}',true)"><div style="height:170px;background:#11151c;position:relative">${carCover(v)?`<img src="${carCover(v)}" style="width:100%;height:100%;object-fit:cover">`:`<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:46px">🚗</div>`}${v.status==='reserved'?`<div style="position:absolute;top:8px;left:8px;background:#c8881b;color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px">RESERVED</div>`:''}<div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;padding:3px 7px;border-radius:6px">📷 ${(v.images||[]).length+(v.interior||[]).length} · 360°</div></div>
+        <div style="padding:12px"><div style="font-weight:800">${esc(carTitle(v))}</div><div style="color:${t.rg};font-weight:800;font-size:18px">${amoney(v.price)}</div><div class="muted" style="font-size:12px">${[v.condition,v.mileage?v.mileage+' km':'',v.transmission].filter(Boolean).map(esc).join(' · ')}</div></div></div>`).join('')}
+      </div></div>
+    <div class="sec-dark" style="background:${t.rgd}"><div class="home-sec" style="text-align:center"><div class="sec-h"><h2>Contact Us</h2><div class="u"></div></div><div style="font-size:14px;line-height:1.9">📍 ${esc(set.address||'')}<br>${set.phone?'☎ '+esc(set.phone):''}${set.email?'<br>✉ '+esc(set.email):''}</div>
+      <div class="flex gap" style="justify-content:center;margin-top:14px;flex-wrap:wrap">${(set.whatsapp||set.phone)?`<a class="btn" style="background:#25d366" href="${waLink(set.whatsapp||set.phone)}" target="_blank">💬 WhatsApp</a>`:''}<button class="btn btn-ghost" onclick="autoLoginModal()">Staff Login</button></div></div></div>
+    ${(set.whatsapp||set.phone)?`<a class="wa-fab" href="${waLink(set.whatsapp||set.phone)}" target="_blank">💬</a>`:''}
+  </div>`;}
+function autoLoginModal(){const set=DB.settings;modal('Staff Login — '+set.storeName,`<div class="auth-err" id="aerr"></div>
+  <div class="fld"><label>Username</label><input id="su" placeholder="admin"></div>
+  <div class="fld"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#15366e" onclick="schoolLogin()">Sign in</button>`);
   setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);}
 function enterAuto(){const set=DB.settings;
   $('#topbar').className='topbar';
@@ -3387,7 +3455,8 @@ function vAuDash(){const t=today();const todaySales=auSalesIn(t,t);
       <td class="right">${amoney(s.total)}</td><td class="right" style="color:#0a7d33">${amoney(s.profit)}</td>
       <td class="right"><button class="btn sm sec" onclick="auShowReceipt('${s.id}')">Receipt</button></td></tr>`).join('')}
   </tbody></table></div>`:`<div class="empty"><div class="big">🛒</div>No sales yet. <button class="btn sm mt" style="background:#15366e;color:#fff" onclick="go('aupos')">Make your first sale</button></div>`}
-  </div>`;}
+  </div>
+  ${storeInsightsSection()}`;setTimeout(storeDrawCharts,60);}
 
 /* ---- POS ---- */
 function vAuPOS(){
@@ -3434,27 +3503,30 @@ function auRenderCart(){const el=$('#auposCart');if(!el)return;
       <td class="right"><b>${amoney(p.sell*c.qty)}</b></td>
       <td class="right"><button class="btn icon sm danger" onclick="auRemoveCart('${c.id}')">✕</button></td></tr>`;}).join('')}
   </tbody></table></div>
-  <div class="flex" style="justify-content:space-between;align-items:center;font-size:20px;font-weight:800;margin:10px 0;padding-top:8px;border-top:2px solid #eee"><span>Total</span><span style="color:#15366e">${amoney(total)}</span></div>
-  <div class="grid2"><div class="fld"><label>Payment</label><select id="aupos_pay"><option>Cash</option><option>Transfer</option><option>POS / Card</option><option>Credit</option></select></div>
-    <div class="fld"><label>Customer / Workshop</label><input id="aupos_cust" placeholder="Walk-in"></div></div>
-  <div class="grid2"><div class="fld"><label>Amount paid now (${auCur()})</label><input id="aupos_paid" type="number" min="0" step="0.01" value="${total}" oninput="auPaidHint(${total})"></div>
-    <div class="fld"><label>Warranty (optional)</label><input id="aupos_warr" placeholder="e.g. 1 month / no warranty"></div></div>
-  <div id="aupos_balhint" class="muted" style="font-size:12px;margin:-4px 0 8px"></div>
-  <div class="flex gap"><button class="btn" style="flex:1;justify-content:center;background:#15366e" onclick="auCheckout()">✓ Checkout · ${amoney(total)}</button>
+  <div class="flex" style="justify-content:space-between;align-items:center;font-size:18px;font-weight:800;margin:10px 0 4px"><span>Subtotal</span><span style="color:#15366e">${amoney(total)}</span></div>
+  <div class="grid2"><div class="fld"><label>Discount (${auCur()})</label><input id="aupos_disc" type="number" min="0" step="0.01" value="0" oninput="auPaidHint(${total})"></div>
+    <div class="fld"><label>Payment</label><select id="aupos_pay"><option>Cash</option><option>Transfer</option><option>POS / Card</option><option>Credit</option></select></div></div>
+  <div class="grid2"><div class="fld"><label>Customer / Workshop</label><input id="aupos_cust" list="custList" placeholder="Walk-in"></div>
+    <div class="fld"><label>Warranty (optional)</label><input id="aupos_warr" placeholder="e.g. 1 month / no warranty"></div></div>${storeCustDatalist()}
+  <div class="fld"><label>Amount paid now (${auCur()})</label><input id="aupos_paid" type="number" min="0" step="0.01" value="${total}" oninput="auPaidHint(${total})"></div>
+  <div id="aupos_balhint" class="muted" style="font-size:12.5px;margin:-4px 0 8px"></div>
+  <div class="flex gap"><button class="btn" style="flex:1;justify-content:center;background:#15366e" onclick="auCheckout()">✓ Checkout</button>
     <button class="btn sec" onclick="AU_CART=[];auRenderCart()">Clear</button></div>`;}
-function auPaidHint(total){const v=Math.max(0,Number($('#aupos_paid').value)||0);const bal=Math.max(0,total-v);const el=$('#aupos_balhint');if(!el)return;
-  el.innerHTML=bal>0?`<span style="color:#c0392b;font-weight:700">Balance (customer owes): ${amoney(bal)}</span>`:`<span style="color:#0a7d33">Paid in full ✓</span>`;}
+function auPaidHint(sub){const disc=Math.max(0,Number(($('#aupos_disc')||{}).value)||0);const net=Math.max(0,sub-disc);const pf=$('#aupos_paid');if(pf&&(pf._auto!==false))pf.value=net;
+  const v=Math.max(0,Number(pf?pf.value:net)||0);const bal=Math.max(0,net-v);const el=$('#aupos_balhint');if(!el)return;
+  el.innerHTML=`<b>Total: ${amoney(net)}</b>${disc>0?' · discount '+amoney(disc):''} — `+(bal>0?`<span style="color:#c0392b;font-weight:700">balance ${amoney(bal)}</span>`:`<span style="color:#0a7d33">paid in full ✓</span>`);}
 function auCheckout(){if(!AU_CART.length){toast('Cart is empty',true);return;}
   for(const c of AU_CART){const p=auProd(c.id);if(!p||c.qty>Number(p.stock||0)){toast('Not enough stock for '+(p?p.name:'item'),true);return;}}
   const items=AU_CART.map(c=>{const p=auProd(c.id);return{productId:p.id,name:p.name,partNo:p.partNo||'',qty:c.qty,price:Number(p.sell||0),cost:Number(p.cost||0)};});
-  const total=items.reduce((a,i)=>a+i.price*i.qty,0);const cost=items.reduce((a,i)=>a+i.cost*i.qty,0);
+  const subtotal=items.reduce((a,i)=>a+i.price*i.qty,0);const cost=items.reduce((a,i)=>a+i.cost*i.qty,0);
+  const discount=Math.min(subtotal,Math.max(0,Number($('#aupos_disc').value)||0));const total=subtotal-discount;
   DB.settings.receiptSeq=(DB.settings.receiptSeq||0)+1;
   const paid=Math.min(total,Math.max(0,Number($('#aupos_paid').value)||0));const balance=Math.max(0,total-paid);
   const sale={id:uid('sl'),receiptNo:'AP/'+String(DB.settings.receiptSeq).padStart(4,'0'),date:new Date().toISOString(),
-    items,total,cost,profit:total-cost,payment:$('#aupos_pay').value,customer:($('#aupos_cust').value||'').trim(),warranty:($('#aupos_warr').value||'').trim(),cashier:USER.name,
+    items,subtotal,discount,total,cost,profit:total-cost,payment:$('#aupos_pay').value,customer:($('#aupos_cust').value||'').trim(),warranty:($('#aupos_warr').value||'').trim(),cashier:USER.name,
     paid,balance,settled:balance<=0.001,payments:paid>0?[{date:new Date().toISOString(),amount:paid,method:$('#aupos_pay').value}]:[]};
   items.forEach(i=>{const p=auProd(i.productId);if(p)p.stock=Number(p.stock||0)-i.qty;});
-  DB.sales.push(sale);save();AU_CART=[];toast(balance>0?('Sale recorded · balance '+amoney(balance)):('Sale recorded · '+amoney(total)));auShowReceipt(sale.id);vAuPOS();}
+  DB.sales.push(sale);storeLoyaltyAccrue(sale);save();AU_CART=[];toast(balance>0?('Sale recorded · balance '+amoney(balance)):('Sale recorded · '+amoney(total)));auShowReceipt(sale.id);vAuPOS();}
 function auReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="${set.logo}" style="width:46px;height:46px;border-radius:8px;object-fit:cover">`:'<div style="font-size:34px">🔧</div>';
   return `<div class="receipt" style="max-width:330px;margin:0 auto;font-family:'Courier New',monospace;color:#111;background:#fff;padding:14px 16px;border:1px solid #ddd">
     <div style="text-align:center;border-bottom:1px dashed #999;padding-bottom:8px;margin-bottom:8px">${logo}
@@ -3467,6 +3539,7 @@ function auReceiptHTML(s){const set=DB.settings;const logo=set.logo?`<img src="$
       <thead><tr style="border-bottom:1px solid #000"><th style="text-align:left">Item</th><th style="text-align:center">Qty</th><th style="text-align:right">Amt</th></tr></thead>
       <tbody>${(s.items||[]).map(i=>`<tr><td style="text-align:left">${esc(i.name)}${i.partNo?'<br><span style="color:#666">#'+esc(i.partNo)+'</span>':''}<br><span style="color:#666">@${amoney(i.price)}</span></td><td style="text-align:center">${i.qty}</td><td style="text-align:right">${amoney(i.price*i.qty)}</td></tr>`).join('')}</tbody>
     </table>
+    ${Number(s.discount||0)>0?`<div style="font-size:11.5px;display:flex;justify-content:space-between;margin-top:6px"><span>Subtotal</span><span>${amoney(s.subtotal||s.total)}</span></div><div style="font-size:11.5px;display:flex;justify-content:space-between"><span>Discount</span><span>-${amoney(s.discount)}</span></div>`:''}
     <div style="border-top:1px dashed #999;margin-top:8px;padding-top:6px;display:flex;justify-content:space-between;font-weight:800;font-size:15px"><span>TOTAL</span><span>${amoney(s.total)}</span></div>
     <div style="font-size:11.5px;display:flex;justify-content:space-between"><span>Payment</span><span>${esc(s.payment||'')}</span></div>
     ${(Number(s.balance||0)>0)?`<div style="font-size:11.5px;display:flex;justify-content:space-between"><span>Paid</span><span>${amoney(s.paid||0)}</span></div>
@@ -3803,6 +3876,7 @@ function vAuSettings(){const s=DB.settings;
     <div class="fld"><label>Currency symbol</label><input id="aust_cur" value="${esc(s.currency||'₦')}" style="max-width:90px"></div>
     <div class="fld"><label>Theme</label><select id="aust_theme">${Object.entries(THEMES).map(([k,t])=>`<option value="${k}" ${(s.theme||'blue')===k?'selected':''}>${t.n}</option>`).join('')}</select></div>
     <div class="fld"><label>Default low-stock level</label><input id="aust_low" type="number" min="0" value="${s.lowStock||3}"></div>
+    <div class="fld"><label>Loyalty: 1 point per ₦ (0 = off)</label><input id="aust_loyal" type="number" min="0" value="${s.loyaltyRate||0}"></div>
   </div>${logoField(s.logo||'')}
   <div class="mt"><button class="btn" style="background:#15366e" onclick="auSaveSettings()">💾 Save settings</button></div></div>
   <div class="card pad mb"><h3 class="mb">Your login</h3><div class="grid2">
@@ -3815,7 +3889,7 @@ function vAuSettings(){const s=DB.settings;
 function auSaveSettings(){const s=DB.settings;_logo=_logo||s.logo||'';
   s.storeName=$('#aust_name').value.trim()||s.storeName;s.shortName=$('#aust_short').value.trim();s.address=$('#aust_addr').value.trim();
   s.phone=$('#aust_phone').value.trim();s.email=$('#aust_email').value.trim();s.currency=$('#aust_cur').value.trim()||'₦';
-  s.slogan=$('#aust_slogan').value.trim();s.theme=$('#aust_theme').value;s.lowStock=Math.max(0,Number($('#aust_low').value)||3);
+  s.slogan=$('#aust_slogan').value.trim();s.theme=$('#aust_theme').value;s.lowStock=Math.max(0,Number($('#aust_low').value)||3);s.loyaltyRate=Math.max(0,Number($('#aust_loyal').value)||0);
   if(typeof _logo==='string')s.logo=_logo;
   save();toast('Settings saved');enterAuto();}
 function auSaveMyLogin(){const name=$('#aumy_name').value.trim(),user=$('#aumy_user').value.trim().toLowerCase(),pass=$('#aumy_pass').value.trim();
@@ -4048,6 +4122,210 @@ function ownerStoresSectionHTML(){const st=ownerStoreStats();if(!st.stores.lengt
       <td class="right" style="color:${x.debt?'#c0392b':''}">${pmoneyOwner(x.debt)}</td><td><span class="pill ${x.si.cls}">${x.si.txt}</span></td></tr>`).join('')}
   </tbody></table></div>
   <p class="muted mt" style="font-size:12px">Figures shown in ₦. Live across all your stores via the cloud.</p></div>`;}
+
+/* ===================== STORE: INSIGHTS & CHARTS ===================== */
+function storeAccent(){return DB.kind==='autoparts'?'#15366e':'#0c5b56';}
+function storeDailySeries(n){const arr=[];const base=new Date(today());
+  for(let i=n-1;i>=0;i--){const dt=new Date(base);dt.setDate(dt.getDate()-i);const ds=dt.toISOString().slice(0,10);
+    const day=(DB.sales||[]).filter(s=>!s.voided&&(s.date||'').slice(0,10)===ds);
+    arr.push({date:ds,total:day.reduce((a,s)=>a+Number(s.total||0),0),profit:day.reduce((a,s)=>a+(Number(s.total||0)-Number(s.cost||0)),0)});}
+  return arr;}
+function storeTopSellers(n,days){const from=new Date(today());from.setDate(from.getDate()-(days-1));const f=from.toISOString().slice(0,10);
+  const agg={};(DB.sales||[]).filter(s=>!s.voided&&(s.date||'').slice(0,10)>=f).forEach(s=>(s.items||[]).forEach(i=>{const a=agg[i.productId]||(agg[i.productId]={name:i.name,qty:0,rev:0});a.qty+=Number(i.qty||0);a.rev+=Number(i.price||0)*Number(i.qty||0);}));
+  return Object.values(agg).sort((a,b)=>b.qty-a.qty).slice(0,n);}
+function storeDeadStock(days){const cut=new Date(today());cut.setDate(cut.getDate()-days);const c=cut.toISOString().slice(0,10);
+  const sold={};(DB.sales||[]).filter(s=>!s.voided&&(s.date||'').slice(0,10)>=c).forEach(s=>(s.items||[]).forEach(i=>{sold[i.productId]=true;}));
+  return DB.products.filter(p=>!p.archived&&Number(p.stock||0)>0&&!sold[p.id]);}
+function storeInsightsSection(){const top=storeTopSellers(5,30),dead=storeDeadStock(60);
+  return `<div class="card pad mt"><h3 class="mb">📈 Sales — last 14 days</h3><div style="height:180px"><canvas id="salesChart"></canvas></div></div>
+  <div class="flex gap" style="flex-wrap:wrap;align-items:flex-start">
+    <div class="card pad" style="flex:1;min-width:260px"><h3 class="mb">🏆 Top sellers (30 days)</h3>
+      ${top.length?`<div class="t-wrap"><table><tbody>${top.map((b,i)=>`<tr><td>${i+1}. ${esc(b.name)}</td><td class="right">${b.qty} sold</td><td class="right"><b>${pmoney(b.rev)}</b></td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">No sales yet.</div>`}</div>
+    <div class="card pad" style="flex:1;min-width:260px"><h3 class="mb">🐌 Dead stock (no sale in 60 days)</h3>
+      ${dead.length?`<div class="t-wrap" style="max-height:240px;overflow:auto"><table><tbody>${dead.slice(0,30).map(p=>`<tr><td>${esc(p.name)}</td><td class="right">${Number(p.stock||0)} in stock</td><td class="right">${pmoney(Number(p.stock||0)*Number(p.cost||0))}</td></tr>`).join('')}</tbody></table></div><p class="muted mt" style="font-size:12px">${dead.length} item(s) tying up cash. Consider a promo or return.</p>`:`<div class="empty">Everything's moving 👍</div>`}</div>
+  </div>`;}
+function storeDrawCharts(){if(!window.Chart)return;const cv=document.getElementById('salesChart');if(!cv)return;
+  try{if(window._salesChart)window._salesChart.destroy();}catch(e){}
+  const ser=storeDailySeries(14);
+  window._salesChart=new Chart(cv,{type:'bar',data:{labels:ser.map(x=>x.date.slice(5)),datasets:[{label:'Sales',data:ser.map(x=>x.total),backgroundColor:storeAccent(),borderRadius:5}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{callback:v=>(DB.settings.currency||'₦')+v}}}}});}
+
+/* ===================== STORE: CUSTOMERS ===================== */
+function storeCustMatch(name){return (DB.sales||[]).filter(s=>(s.customer||'').trim().toLowerCase()===(name||'').trim().toLowerCase());}
+function storeCustStats(c){const all=storeCustMatch(c.name);const valid=all.filter(s=>!s.voided);
+  return {count:valid.length,spend:valid.reduce((a,s)=>a+Number(s.total||0),0),bal:all.reduce((a,s)=>a+(s.voided?0:(s.balance!=null?Number(s.balance||0):0)),0)};}
+function storeCustDatalist(){return `<datalist id="custList">${(DB.customers||[]).map(c=>`<option value="${esc(c.name)}">`).join('')}</datalist>`;}
+function vStoreCustomers(){const ac=storeAccent();const list=(DB.customers||[]).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  const totalDebt=list.reduce((a,c)=>a+storeCustStats(c).bal,0);
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Customers</h2><p>Saved customers, spend & balances</p></div>
+    <button class="btn" style="background:${ac}" onclick="storeAddCustomer()">＋ Add customer</button></div>
+  <div class="cards-row">${phStat('Customers',list.length,'')}${phStat('Total outstanding',pmoney(totalDebt),'owed to you',totalDebt?'#c0392b':'')}</div>
+  ${list.length?`<div class="t-wrap"><table><thead><tr><th>Name</th><th>Phone</th><th class="right">Purchases</th><th class="right">Total spent</th><th class="right">Owing</th><th>Points</th><th></th></tr></thead><tbody>
+    ${list.map(c=>{const st=storeCustStats(c);return `<tr><td><b>${esc(c.name)}</b></td><td>${esc(c.phone||'—')}</td><td class="right">${st.count}</td><td class="right">${pmoney(st.spend)}</td>
+      <td class="right" style="color:${st.bal?'#c0392b':''}">${pmoney(st.bal)}</td><td>${Number(c.points||0)}</td>
+      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="storeCustStatement('${c.id}')">Statement</button><button class="btn sm sec" onclick="storeAddCustomer('${c.id}')">Edit</button><button class="btn sm danger" onclick="storeDelCustomer('${c.id}')">✕</button></td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">👥</div>No customers yet. <button class="btn sm mt" style="background:${ac};color:#fff" onclick="storeAddCustomer()">Add one</button></div></div>`}`;}
+function storeAddCustomer(id){const c=id?(DB.customers||[]).find(x=>x.id===id):null;
+  modal(c?'Edit customer':'Add customer',`<div class="grid2">
+    <div class="fld full"><label>Name *</label><input id="cu_name" value="${esc(c?c.name:'')}"></div>
+    <div class="fld"><label>Phone</label><input id="cu_phone" value="${esc(c?(c.phone||''):'')}"></div>
+    <div class="fld"><label>Note</label><input id="cu_note" value="${esc(c?(c.note||''):'')}"></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:${storeAccent()}" onclick="storeSaveCustomer('${id||''}')">Save</button>`);}
+function storeSaveCustomer(id){const name=$('#cu_name').value.trim();if(!name){toast('Name required',true);return;}
+  DB.customers=DB.customers||[];
+  if(id){const c=DB.customers.find(x=>x.id===id);if(c){c.name=name;c.phone=$('#cu_phone').value.trim();c.note=$('#cu_note').value.trim();}}
+  else{if(DB.customers.some(x=>(x.name||'').toLowerCase()===name.toLowerCase())){toast('Customer already exists',true);return;}DB.customers.push({id:uid('cu'),name,phone:$('#cu_phone').value.trim(),note:$('#cu_note').value.trim(),points:0});}
+  save();closeModal();toast('Saved');vStoreCustomers();}
+function storeDelCustomer(id){DB.customers=(DB.customers||[]).filter(c=>c.id!==id);save();toast('Removed');vStoreCustomers();}
+function storeCustStatement(id){const c=(DB.customers||[]).find(x=>x.id===id);if(!c)return;const set=DB.settings;const sales=storeCustMatch(c.name).slice().sort((a,b)=>(a.date||'').localeCompare(b.date||''));
+  const st=storeCustStats(c);const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover">`:(DB.kind==='autoparts'?'🔧':'💊');
+  modal('Statement — '+c.name,`<div class="rc" style="${themeVars()};max-width:none"><div class="rc-top"><div class="rc-head"><div class="rc-crest">${logo}</div><div class="rc-sch"><h2>${esc(set.storeName)}</h2>${set.slogan?`<div class="nick">${esc(set.slogan)}</div>`:''}<div class="addr">${esc(set.address||'')}${set.phone?' · ☎ '+esc(set.phone):''}</div></div></div></div>
+    <div class="rc-title">✦ CUSTOMER STATEMENT ✦</div>
+    <div style="padding:10px 14px"><div class="flex" style="justify-content:space-between;flex-wrap:wrap"><div><b>${esc(c.name)}</b>${c.phone?'<br>☎ '+esc(c.phone):''}</div><div style="text-align:right"><b>Total spent:</b> ${pmoney(st.spend)}<br><b>Outstanding:</b> <span style="color:${st.bal?'#c0392b':'#0a7d33'};font-weight:800">${pmoney(st.bal)}</span></div></div>
+      <table class="rc-tbl" style="margin-top:10px"><thead><tr><th>Date</th><th>Receipt</th><th class="right">Total</th><th class="right">Paid</th><th class="right">Balance</th></tr></thead><tbody>
+      ${sales.map(s=>`<tr${s.voided?' style="opacity:.5"':''}><td>${esc((s.date||'').slice(0,10))}</td><td>${esc(s.receiptNo||'')}${s.voided?' (void)':''}</td><td class="right">${pmoney(s.total)}</td><td class="right">${pmoney(s.paid!=null?s.paid:s.total)}</td><td class="right">${pmoney(s.balance||0)}</td></tr>`).join('')||'<tr><td colspan=5 class="center muted">No purchases yet.</td></tr>'}
+      </tbody></table></div></div>`,
+    `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button>`,true);}
+
+/* ===================== STORE: QUOTATIONS ===================== */
+function vStoreQuotes(){const ac=storeAccent();const list=(DB.quotes||[]).slice().reverse();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Quotations</h2><p>Price quotes / proforma invoices</p></div>
+    <button class="btn" style="background:${ac}" onclick="storeNewQuote()">＋ New quote</button></div>
+  ${list.length?`<div class="t-wrap"><table><thead><tr><th>Quote</th><th>Date</th><th>Customer</th><th class="right">Total</th><th>Status</th><th></th></tr></thead><tbody>
+    ${list.map(q=>`<tr><td><b>${esc(q.quoteNo)}</b></td><td>${esc((q.date||'').slice(0,10))}</td><td>${esc(q.customer||'—')}</td><td class="right">${pmoney(q.total)}</td>
+      <td><span class="pill ${q.status==='converted'?'green':'grey'}">${q.status==='converted'?'Converted':'Open'}</span></td>
+      <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="storeShowQuote('${q.id}')">View</button>${q.status!=='converted'?`<button class="btn sm" style="background:#0a7d33" onclick="storeConvertQuote('${q.id}')">→ Sale</button>`:''}<button class="btn sm danger" onclick="storeDelQuote('${q.id}')">✕</button></td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">📋</div>No quotes yet. <button class="btn sm mt" style="background:${ac};color:#fff" onclick="storeNewQuote()">Create one</button></div></div>`}`;}
+function storeNewQuote(){const ac=storeAccent();const prods=DB.products.filter(p=>!p.archived).slice().sort((a,b)=>(a.name||'').localeCompare(b.name||''));
+  if(!prods.length){toast('Add products first',true);return;}
+  modal('New quotation',`<div class="grid2"><div class="fld"><label>Customer</label><input id="q_cust" list="custList" placeholder="name"></div><div class="fld"><label>Valid / note</label><input id="q_note" placeholder="e.g. valid 7 days"></div></div>${storeCustDatalist()}
+  <label>Set quantities for the items quoted:</label>
+  <div class="t-wrap" style="max-height:46vh;overflow:auto;margin:6px 0"><table><thead><tr><th>Item</th><th class="right">Price</th><th>Qty</th></tr></thead><tbody>
+    ${prods.map(p=>`<tr><td><b>${esc(p.name)}</b>${p.partNo?`<br><span class="muted" style="font-size:11px">#${esc(p.partNo)}</span>`:''}</td><td class="right">${pmoney(p.sell)}</td><td><input id="q_q_${p.id}" type="number" min="0" step="1" value="0" style="width:70px;padding:4px"></td></tr>`).join('')}
+  </tbody></table></div>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:${ac}" onclick="storeSaveQuote()">Save quote</button>`,true);}
+function storeSaveQuote(){const items=[];DB.products.forEach(p=>{const el=$('#q_q_'+p.id);if(!el)return;const q=Math.floor(Number(el.value)||0);if(q>0)items.push({productId:p.id,name:p.name,partNo:p.partNo||'',qty:q,price:Number(p.sell||0)});});
+  if(!items.length){toast('Set at least one quantity',true);return;}
+  const total=items.reduce((a,i)=>a+i.price*i.qty,0);DB.settings.quoteSeq=(DB.settings.quoteSeq||0)+1;
+  DB.quotes.push({id:uid('q'),quoteNo:'QT/'+String(DB.settings.quoteSeq).padStart(4,'0'),date:new Date().toISOString(),customer:($('#q_cust').value||'').trim(),note:($('#q_note').value||'').trim(),items,total,status:'open'});
+  save();closeModal();toast('Quote saved');vStoreQuotes();}
+function storeQuoteHTML(q){const set=DB.settings;const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover">`:(DB.kind==='autoparts'?'🔧':'💊');
+  return `<div class="rc" style="${themeVars()};max-width:none"><div class="rc-top"><div class="rc-head"><div class="rc-crest">${logo}</div><div class="rc-sch"><h2>${esc(set.storeName)}</h2>${set.slogan?`<div class="nick">${esc(set.slogan)}</div>`:''}<div class="addr">${esc(set.address||'')}${set.phone?' · ☎ '+esc(set.phone):''}</div></div></div></div>
+    <div class="rc-title">✦ QUOTATION / PROFORMA ✦</div>
+    <div style="padding:10px 14px"><div class="flex" style="justify-content:space-between;flex-wrap:wrap"><div><b>${esc(q.quoteNo)}</b><br>${esc((q.date||'').slice(0,10))}</div><div style="text-align:right">${q.customer?'<b>For:</b> '+esc(q.customer):''}${q.note?'<br>'+esc(q.note):''}</div></div>
+      <table class="rc-tbl" style="margin-top:10px"><thead><tr><th>Item</th><th class="right">Qty</th><th class="right">Price</th><th class="right">Amount</th></tr></thead><tbody>
+      ${(q.items||[]).map(i=>`<tr><td>${esc(i.name)}${i.partNo?' (#'+esc(i.partNo)+')':''}</td><td class="right">${i.qty}</td><td class="right">${pmoney(i.price)}</td><td class="right">${pmoney(i.price*i.qty)}</td></tr>`).join('')}</tbody></table>
+      <div class="rc-sum" style="padding:8px 0"><span></span><span>TOTAL: <b>${pmoney(q.total)}</b></span></div>
+      <p class="muted" style="font-size:11.5px">This is a quotation, not a receipt. Prices subject to availability. Powered by Muscode.</p></div></div>`;}
+function storeShowQuote(id){const q=(DB.quotes||[]).find(x=>x.id===id);if(!q)return;
+  modal('Quote — '+q.quoteNo,storeQuoteHTML(q),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#25d366" onclick="storeShareImage(storeQuoteHTML((DB.quotes||[]).find(x=>x.id==='${id}')),'${esc(q.quoteNo)}','${esc(DB.settings.storeName)} quotation')">💬 WhatsApp</button><button class="btn no-print" style="background:${storeAccent()}" onclick="window.print()">🖨 Print</button>`,true);}
+function storeDelQuote(id){DB.quotes=(DB.quotes||[]).filter(q=>q.id!==id);save();toast('Deleted');vStoreQuotes();}
+function storeConvertQuote(id){const q=(DB.quotes||[]).find(x=>x.id===id);if(!q)return;
+  for(const i of q.items){const p=DB.products.find(x=>x.id===i.productId);if(!p||i.qty>Number(p.stock||0)){toast('Not enough stock for '+(p?p.name:i.name),true);return;}}
+  modal('Convert to sale?',`<p>Create a sale from <b>${esc(q.quoteNo)}</b> for <b>${pmoney(q.total)}</b>? Stock will be deducted.</p>
+   <div class="fld"><label>Amount paid now (${(DB.settings.currency||'₦')})</label><input id="qcv_paid" type="number" min="0" step="0.01" value="${q.total}"></div>`,
+   `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0a7d33" onclick="storeDoConvertQuote('${id}')">Create sale</button>`);}
+function storeDoConvertQuote(id){const q=(DB.quotes||[]).find(x=>x.id===id);if(!q)return;
+  const items=q.items.map(i=>{const p=DB.products.find(x=>x.id===i.productId)||{};return{productId:i.productId,name:i.name,partNo:i.partNo||'',qty:i.qty,price:Number(i.price||0),cost:Number(p.cost||0)};});
+  const total=items.reduce((a,i)=>a+i.price*i.qty,0);const cost=items.reduce((a,i)=>a+i.cost*i.qty,0);
+  const paid=Math.min(total,Math.max(0,Number($('#qcv_paid').value)||0));const balance=Math.max(0,total-paid);
+  DB.settings.receiptSeq=(DB.settings.receiptSeq||0)+1;const pre=DB.kind==='autoparts'?'AP/':'PH/';
+  const sale={id:uid('sl'),receiptNo:pre+String(DB.settings.receiptSeq).padStart(4,'0'),date:new Date().toISOString(),items,total,cost,profit:total-cost,payment:balance>0?'Credit':'Cash',customer:q.customer||'',cashier:USER.name,paid,balance,settled:balance<=0.001,payments:paid>0?[{date:new Date().toISOString(),amount:paid,method:'Cash'}]:[],fromQuote:q.quoteNo};
+  items.forEach(i=>{const p=DB.products.find(x=>x.id===i.productId);if(p)p.stock=Number(p.stock||0)-i.qty;});
+  DB.sales.push(sale);q.status='converted';storeLoyaltyAccrue(sale);save();closeModal();toast('Sale created from quote');
+  if(DB.kind==='autoparts')auShowReceipt(sale.id);else phShowReceipt(sale.id);}
+/* ---- loyalty ---- */
+function storeLoyaltyAccrue(sale){const rate=Number(DB.settings.loyaltyRate||0);if(rate<=0||!sale.customer)return;
+  const c=(DB.customers||[]).find(x=>(x.name||'').toLowerCase()===sale.customer.toLowerCase());if(!c)return;
+  c.points=Number(c.points||0)+Math.floor(Number(sale.total||0)/rate);}
+
+/* ===================== AUTO: VEHICLE / CAR SALES ===================== */
+let _carEx=[], _carIn=[];
+const CAR_TRANS=['Automatic','Manual','CVT','Other'],CAR_FUEL=['Petrol','Diesel','Hybrid','Electric'],CAR_COND=['Brand New','Foreign Used (Tokunbo)','Locally Used'];
+function vehicle(id){return (DB.vehicles||[]).find(v=>v.id===id);}
+function carTitle(v){return [v.year,v.make,v.model].filter(Boolean).join(' ');}
+function carCover(v){return (v.images&&v.images[0])||(v.interior&&v.interior[0])||'';}
+function vAuCars(){const ac=storeAccent();const list=(DB.vehicles||[]).slice().reverse();const avail=list.filter(v=>v.status!=='sold').length;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Cars / Vehicles</h2><p>${list.length} listed · ${avail} available — customers inspect with a 360° drag view on your showroom link</p></div>
+    <div class="flex gap"><button class="btn sec" onclick="copyText(schoolLink(SCHOOL_CODE))">🔗 Showroom link</button><button class="btn" style="background:${ac}" onclick="auCarEdit()">＋ Add car</button></div></div>
+  ${list.length?`<div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">
+    ${list.map(v=>`<div class="card" style="overflow:hidden">
+      <div style="height:160px;background:#11151c;cursor:pointer;position:relative" onclick="vehicleViewer('${v.id}')">${carCover(v)?`<img src="${carCover(v)}" style="width:100%;height:100%;object-fit:cover">`:`<div style="height:100%;display:flex;align-items:center;justify-content:center;font-size:46px">🚗</div>`}
+        ${v.status==='sold'?`<div style="position:absolute;top:8px;left:8px;background:#c0392b;color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px">SOLD</div>`:v.status==='reserved'?`<div style="position:absolute;top:8px;left:8px;background:#c8881b;color:#fff;font-size:11px;font-weight:800;padding:3px 9px;border-radius:20px">RESERVED</div>`:''}
+        <div style="position:absolute;bottom:8px;right:8px;background:rgba(0,0,0,.7);color:#fff;font-size:10px;padding:3px 7px;border-radius:6px">📷 ${(v.images||[]).length+(v.interior||[]).length}</div></div>
+      <div style="padding:12px"><div style="font-weight:800">${esc(carTitle(v)||'Car')}</div>
+        <div style="color:${ac};font-weight:800;font-size:18px">${amoney(v.price)}</div>
+        <div class="muted" style="font-size:12px">${[v.condition,v.mileage?v.mileage+' km':'',v.transmission].filter(Boolean).map(esc).join(' · ')}</div>
+        <div class="flex gap mt" style="flex-wrap:wrap"><button class="btn sm sec" onclick="vehicleViewer('${v.id}')">👁 View</button><button class="btn sm sec" onclick="auCarEdit('${v.id}')">Edit</button>${v.status!=='sold'?`<button class="btn sm" style="background:#0a7d33" onclick="auCarSold('${v.id}')">Sold</button>`:''}<button class="btn sm danger" onclick="auCarDel('${v.id}')">✕</button></div></div></div>`).join('')}
+  </div>`:`<div class="card"><div class="empty"><div class="big">🚗</div>No cars listed yet. <button class="btn sm mt" style="background:${ac};color:#fff" onclick="auCarEdit()">Add your first car</button></div></div>`}`;}
+function carPick(which,inp){const files=[...inp.files];inp.value='';if(!files.length)return;toast('Adding photo(s)…');
+  files.forEach(f=>{const r=new FileReader();r.onload=e=>compress(e.target.result,d=>{(which==='ex'?_carEx:_carIn).push(d);renderCarPrev();},1100,.72);r.readAsDataURL(f);});}
+function carDel(which,i){(which==='ex'?_carEx:_carIn).splice(i,1);renderCarPrev();}
+function carMove(which,i,dir){const arr=which==='ex'?_carEx:_carIn;const j=i+dir;if(j<0||j>=arr.length)return;const t=arr[i];arr[i]=arr[j];arr[j]=t;renderCarPrev();}
+function renderCarPrev(){const exE=$('#carExPrev'),inE=$('#carInPrev');
+  if(exE)exE.innerHTML=_carEx.map((u,i)=>`<div style="width:88px"><div style="position:relative"><img src="${u}" style="width:88px;height:62px;object-fit:cover;border-radius:8px;border:1px solid #ddd"><button onclick="carDel('ex',${i})" style="position:absolute;top:-7px;right:-7px;background:#c0392b;color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-weight:700">×</button></div><div class="flex" style="justify-content:space-between;align-items:center"><button class="btn icon sm" onclick="carMove('ex',${i},-1)">◀</button><span class="muted" style="font-size:10px">${i+1}</span><button class="btn icon sm" onclick="carMove('ex',${i},1)">▶</button></div></div>`).join('')||'<span class="muted" style="font-size:12px">No exterior photos yet.</span>';
+  if(inE)inE.innerHTML=_carIn.map((u,i)=>`<div style="position:relative;width:88px"><img src="${u}" style="width:88px;height:62px;object-fit:cover;border-radius:8px;border:1px solid #ddd"><button onclick="carDel('in',${i})" style="position:absolute;top:-7px;right:-7px;background:#c0392b;color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;font-weight:700">×</button></div>`).join('')||'<span class="muted" style="font-size:12px">No interior photos yet.</span>';}
+function auCarEdit(id){const v=id?vehicle(id):null;_carEx=v?[...(v.images||[])]:[];_carIn=v?[...(v.interior||[])]:[];const ac=storeAccent();
+  modal(v?'Edit car':'Add car',`<div class="grid2">
+    <div class="fld"><label>Make *</label><input id="cr_make" value="${esc(v?v.make:'')}" placeholder="e.g. Toyota"></div>
+    <div class="fld"><label>Model *</label><input id="cr_model" value="${esc(v?v.model:'')}" placeholder="e.g. Camry"></div>
+    <div class="fld"><label>Year</label><input id="cr_year" type="number" value="${esc(v?v.year:'')}" placeholder="2012"></div>
+    <div class="fld"><label>Price (${auCur()}) *</label><input id="cr_price" type="number" min="0" value="${v?v.price:''}"></div>
+    <div class="fld"><label>Condition</label><select id="cr_cond">${CAR_COND.map(c=>`<option ${v&&v.condition===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="fld"><label>Mileage (km)</label><input id="cr_mile" type="number" value="${esc(v?v.mileage:'')}"></div>
+    <div class="fld"><label>Transmission</label><select id="cr_trans">${CAR_TRANS.map(c=>`<option ${v&&v.transmission===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="fld"><label>Fuel</label><select id="cr_fuel">${CAR_FUEL.map(c=>`<option ${v&&v.fuel===c?'selected':''}>${c}</option>`).join('')}</select></div>
+    <div class="fld"><label>Colour</label><input id="cr_color" value="${esc(v?v.color:'')}"></div>
+    <div class="fld"><label>Status</label><select id="cr_status"><option value="available" ${!v||v.status==='available'?'selected':''}>Available</option><option value="reserved" ${v&&v.status==='reserved'?'selected':''}>Reserved</option><option value="sold" ${v&&v.status==='sold'?'selected':''}>Sold</option></select></div>
+    <div class="fld full"><label>Description / features</label><textarea id="cr_desc" rows="3" placeholder="Registered, A/C, leather seats, reverse camera, first body…">${esc(v?v.desc:'')}</textarea></div>
+  </div>
+  <hr><label>Exterior photos — upload going around the car (front → side → back…) for the 360° spin</label>
+  <input type="file" accept="image/*" multiple onchange="carPick('ex',this)" class="mb">
+  <div id="carExPrev" class="flex gap" style="flex-wrap:wrap;margin-bottom:10px"></div>
+  <label>Interior / detail photos (dashboard, seats, engine, body close-ups)</label>
+  <input type="file" accept="image/*" multiple onchange="carPick('in',this)" class="mb">
+  <div id="carInPrev" class="flex gap" style="flex-wrap:wrap"></div>
+  <p class="muted mt" style="font-size:11.5px">Tip: 6–12 clear photos per car is plenty. Photos are stored with the car and synced to the cloud.</p>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:${ac}" onclick="auCarSave('${id||''}')">Save car</button>`,true);
+  setTimeout(renderCarPrev,40);}
+function auCarSave(id){const make=$('#cr_make').value.trim(),model=$('#cr_model').value.trim();if(!make||!model){toast('Make and model required',true);return;}
+  const data={make,model,year:$('#cr_year').value.trim(),price:Number($('#cr_price').value)||0,condition:$('#cr_cond').value,mileage:$('#cr_mile').value.trim(),transmission:$('#cr_trans').value,fuel:$('#cr_fuel').value,color:$('#cr_color').value.trim(),status:$('#cr_status').value,desc:$('#cr_desc').value.trim(),images:_carEx.slice(),interior:_carIn.slice()};
+  if(id){Object.assign(vehicle(id),data);}else{DB.vehicles.push({id:uid('v'),createdAt:today(),...data});}
+  save();closeModal();toast('Car saved');vAuCars();}
+function auCarSold(id){const v=vehicle(id);if(!v)return;v.status='sold';save();toast('Marked sold');vAuCars();}
+function auCarDel(id){const v=vehicle(id);if(!v)return;modal('Delete car?',`<p>Delete <b>${esc(carTitle(v))}</b> and its photos? This cannot be undone.</p>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="auCarDoDel('${id}')">Delete</button>`);}
+function auCarDoDel(id){DB.vehicles=DB.vehicles.filter(v=>v.id!==id);save();closeModal();toast('Deleted');vAuCars();}
+let _vv={id:'',tab:'ext',idx:0,drag:false,lastX:0,acc:0};
+function vehicleViewer(id,pub){const v=vehicle(id);if(!v)return;_vv={id,tab:'ext',idx:0,drag:false,lastX:0,acc:0};const ac=storeAccent();const set=DB.settings;
+  const body=`<div>
+    <div style="display:flex;gap:8px;margin-bottom:8px"><button class="btn sm" id="vvTabExt" onclick="vvTab('ext')">🔄 Exterior 360°</button><button class="btn sm sec" id="vvTabInt" onclick="vvTab('int')">🪑 Interior</button></div>
+    <div id="vvStage" style="position:relative;height:300px;background:#0d1117;border-radius:12px;overflow:hidden;display:flex;align-items:center;justify-content:center;touch-action:pan-y;cursor:ew-resize;user-select:none">
+      <div id="vvImgWrap" style="width:100%;height:100%"></div>
+      <button class="btn icon" onclick="vvStep(-1)" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.85)">◀</button>
+      <button class="btn icon" onclick="vvStep(1)" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.85)">▶</button>
+      <div id="vvHint" style="position:absolute;bottom:8px;left:0;right:0;text-align:center;color:#fff;font-size:11px;opacity:.85;pointer-events:none"></div>
+    </div>
+    <div id="vvThumbs" class="flex gap mt" style="flex-wrap:wrap"></div>
+    <div class="mt" style="font-size:13px"><b style="font-size:17px">${esc(carTitle(v))}</b> · <b style="color:${ac}">${amoney(v.price)}</b>${v.status==='sold'?' <span class="pill red">SOLD</span>':v.status==='reserved'?' <span class="pill gold">RESERVED</span>':''}
+      <div class="muted" style="margin-top:4px">${[v.condition,v.mileage?v.mileage+' km':'',v.transmission,v.fuel,v.color].filter(Boolean).map(esc).join(' · ')}</div>
+      ${v.desc?`<div style="margin-top:6px;white-space:pre-line">${esc(v.desc)}</div>`:''}</div>
+    ${pub&&v.status!=='sold'?`<div class="mt"><a class="btn" style="background:#25d366;width:100%;justify-content:center" href="${waLink(set.whatsapp||set.phone)}?text=${encodeURIComponent('Hello, I am interested in the '+carTitle(v)+' ('+amoney(v.price)+') in your showroom.')}" target="_blank">💬 Enquire on WhatsApp</a></div>`:''}
+  </div>`;
+  modal(carTitle(v)||'Vehicle',body,`<button class="btn sec" onclick="closeModal()">Close</button>`,true);
+  setTimeout(()=>{vvRender();vvBind();},50);}
+function vvTab(t){_vv.tab=t;_vv.idx=0;const e=$('#vvTabExt'),i=$('#vvTabInt');if(e)e.className='btn sm'+(t==='ext'?'':' sec');if(i)i.className='btn sm'+(t==='int'?'':' sec');vvRender();}
+function vvImgs(){const v=vehicle(_vv.id)||{};return _vv.tab==='ext'?(v.images||[]):(v.interior||[]);}
+function vvRender(){const imgs=vvImgs();const w=$('#vvImgWrap');if(!w)return;
+  if(!imgs.length){w.innerHTML=`<div style="height:100%;display:flex;align-items:center;justify-content:center;color:#7a8699;font-size:42px">${_vv.tab==='ext'?'🚗':'🪑'}</div>`;}
+  else{if(_vv.idx>=imgs.length)_vv.idx=0;if(_vv.idx<0)_vv.idx=imgs.length-1;w.innerHTML=`<img src="${imgs[_vv.idx]}" style="width:100%;height:100%;object-fit:contain" draggable="false">`;}
+  const h=$('#vvHint');if(h)h.textContent=imgs.length>1?((_vv.tab==='ext'?'↔ Drag to rotate · ':'')+(_vv.idx+1)+' / '+imgs.length):(imgs.length?'':'No photos');
+  const t=$('#vvThumbs');if(t)t.innerHTML=imgs.map((u,i)=>`<img src="${u}" onclick="_vv.idx=${i};vvRender()" style="width:62px;height:46px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid ${i===_vv.idx?storeAccent():'transparent'}">`).join('');}
+function vvStep(d){const imgs=vvImgs();if(!imgs.length)return;_vv.idx=(_vv.idx+d+imgs.length)%imgs.length;vvRender();}
+function vvBind(){const st=$('#vvStage');if(!st)return;
+  const move=x=>{if(!_vv.drag)return;const dx=x-_vv.lastX;_vv.lastX=x;_vv.acc+=dx;const step=20;while(Math.abs(_vv.acc)>=step){vvStep(_vv.acc>0?-1:1);_vv.acc+=(_vv.acc>0?-step:step);}};
+  st.onpointerdown=e=>{_vv.drag=true;_vv.lastX=e.clientX;_vv.acc=0;try{st.setPointerCapture(e.pointerId);}catch(_){}};
+  st.onpointermove=e=>move(e.clientX);
+  st.onpointerup=()=>{_vv.drag=false;};st.onpointerleave=()=>{_vv.drag=false;};}
 
 /* ===================== PWA: offline + auto-update + install ===================== */
 function setManifest(){try{
