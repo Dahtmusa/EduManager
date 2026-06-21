@@ -1656,6 +1656,7 @@ function renderAuth(){
   const sc=$('#screen');sc.style.display='';$('#app').style.display='none';if(window.setManifest)setManifest();
   if(MODE!=='owner'&&DB&&DB.kind==='pharmacy'){renderPharmacyAuth();return;}
   if(MODE!=='owner'&&DB&&DB.kind==='autoparts'){renderAutoAuth();return;}
+  if(MODE!=='owner'&&DB&&DB.kind==='family'){renderFamilyAuth();return;}
   if(MODE==='check'){renderChecker();return;}
   if(MODE==='parent'){renderParent();return;}
   if(MODE==='owner'){
@@ -1764,6 +1765,7 @@ function enterApp(){
   const owner=USER.role==='owner';
   if(!owner&&DB&&DB.kind==='pharmacy'){return enterPharmacy();}
   if(!owner&&DB&&DB.kind==='autoparts'){return enterAuto();}
+  if(!owner&&DB&&DB.kind==='family'){return enterFamily();}
   $('#topbar').className='topbar'+(owner?' owner':'');
   $('#brandName').textContent=owner?((MASTER.platform.name)||'EduManager Cloud'):DB.settings.schoolName;
   $('#topLogo').textContent=owner?'🛰️':'🎓';
@@ -1785,7 +1787,12 @@ function buildNav(){
     $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
     return;
   }
-  if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['stores','💊','Pharmacies'],['autostores','🔧','Auto Parts'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
+  if(USER.role!=='owner'&&DB&&DB.kind==='family'){
+    items=[['famdash','📊','Dashboard'],['famsections','👪','Sections'],['famdues','💳','Monthly Dues'],['famlevies','📋','Levies'],['famassist','🤝','Assistance'],['famreports','📈','Reports'],['famsettings','⚙️','Settings']];
+    $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
+    return;
+  }
+  if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['stores','💊','Pharmacies'],['autostores','🔧','Auto Parts'],['families','👪','Families'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
   else if(USER.role==='admin'){items=[['dashboard','📊','Dashboard'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👩‍🏫','Teachers'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['calendar','🗓️','Calendar'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
     if(hasModule('staffAttendance'))items.splice(7,0,['staffatt','👔','Staff Att.']);
     if(hasModule('houses'))items.push(['houses','🏠','Houses']);
@@ -1804,7 +1811,8 @@ function buildNav(){
 function toggleNav(open){const sb=document.querySelector('.sidebar'),sc=$('#navScrim');const show=open===undefined?!sb.classList.contains('show'):open;
   sb.classList.toggle('show',show);if(sc)sc.classList.toggle('show',show);}
 function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(false);
-  const map={odash:vODash,schools:vSchools,stores:vPharmacies,autostores:vAutos,pins:vPins,revenue:vRevenue,osettings:vOSettings,
+  const map={odash:vODash,schools:vSchools,stores:vPharmacies,autostores:vAutos,families:vFamilies,pins:vPins,revenue:vRevenue,osettings:vOSettings,
+    famdash:vFamDash,famsections:vFamSections,famdues:vFamDues,famlevies:vFamLevies,famassist:vFamAssist,famreports:vFamReports,famsettings:vFamSettings,
     phdash:vPhDash,pos:vPhPOS,saleshist:vPhSales,inventory:vPhInventory,suppliers:vPhSuppliers,phreports:vPhReports,phsettings:vPhSettings,
     audash:vAuDash,aupos:vAuPOS,ausales:vAuSales,auinventory:vAuInventory,cars:vAuCars,ausuppliers:vAuSuppliers,aureports:vAuReports,ausettings:vAuSettings,
     customers:vStoreCustomers,quotes:vStoreQuotes,
@@ -1815,18 +1823,20 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
 
 /* ===================== OWNER: DASHBOARD ===================== */
 function vODash(){
-  const schools=MASTER.schools.filter(s=>s.type!=='pharmacy'&&s.type!=='autoparts'), active=schools.filter(s=>s.status!=='suspended').length;
+  const schools=MASTER.schools.filter(s=>s.type!=='pharmacy'&&s.type!=='autoparts'&&s.type!=='family'), active=schools.filter(s=>s.status!=='suspended').length;
   const pharmacies=MASTER.schools.filter(s=>s.type==='pharmacy');
   const autos=MASTER.schools.filter(s=>s.type==='autoparts');
+  const families=MASTER.schools.filter(s=>s.type==='family');
   const pinsGen=MASTER.pins.length, pinsUsed=MASTER.pins.filter(p=>p.uses>0).length;
   const revenue=MASTER.batches.reduce((a,b)=>a+(Number(b.price)||0)*(Number(b.qty)||0),0);
   $('#view').innerHTML=`
   <div class="page-head"><div><h2>Owner Dashboard</h2><p>${esc(MASTER.platform.name)} — your SaaS</p></div>
-    <div class="flex gap" style="flex-wrap:wrap"><button class="btn purple" onclick="editSchool()">＋ School</button><button class="btn" onclick="editPharmacy()">＋ Pharmacy</button><button class="btn" style="background:#15366e" onclick="editAuto()">＋ Auto Parts</button></div></div>
+    <div class="flex gap" style="flex-wrap:wrap"><button class="btn purple" onclick="editSchool()">＋ School</button><button class="btn" onclick="editPharmacy()">＋ Pharmacy</button><button class="btn" style="background:#15366e" onclick="editAuto()">＋ Auto Parts</button><button class="btn" style="background:#7a4d12" onclick="editFamily()">＋ Family</button></div></div>
   <div class="cards-row">
     <div class="stat accent purple"><div class="lbl">Schools</div><div class="num">${schools.length}</div><div class="meta">${active} active</div></div>
     <div class="stat accent"><div class="lbl">Pharmacies</div><div class="num">${pharmacies.length}</div><div class="meta">${pharmacies.filter(s=>s.status!=='suspended').length} active</div></div>
     <div class="stat"><div class="lbl">Auto Parts</div><div class="num" style="color:#15366e">${autos.length}</div><div class="meta">${autos.filter(s=>s.status!=='suspended').length} active</div></div>
+    <div class="stat"><div class="lbl">Families</div><div class="num" style="color:#7a4d12">${families.length}</div><div class="meta">${families.filter(s=>s.status!=='suspended').length} active</div></div>
     <div class="stat"><div class="lbl">PIN Revenue</div><div class="num" style="color:var(--green)">${naira(revenue)}</div><div class="meta">${pinsGen} PINs · ${pinsUsed} used</div></div>
   </div>
   ${!supa?`<div class="card pad mb" style="border-left:4px solid var(--gold)"><b>You're in local demo mode.</b> Paste your Supabase keys at the top of <code>index.html</code> (or in Settings) so schools can share live data. See the deploy guide.</div>`:''}
@@ -1842,7 +1852,7 @@ function vODash(){
 }
 /* ===================== OWNER: SCHOOLS ===================== */
 function vSchools(){
-  const list=MASTER.schools.filter(s=>s.type!=='pharmacy'&&s.type!=='autoparts');
+  const list=MASTER.schools.filter(s=>s.type!=='pharmacy'&&s.type!=='autoparts'&&s.type!=='family');
   $('#view').innerHTML=`<div class="page-head"><div><h2>Schools</h2><p>${list.length} registered — admin logins shown below</p></div>
     <button class="btn purple" onclick="editSchool()">＋ Register School</button></div>
   <div class="t-wrap"><table><thead><tr><th>School</th><th>Code</th><th>Pupils</th><th>Admin login (username / password)</th><th>Status</th><th></th></tr></thead><tbody>
@@ -1862,8 +1872,8 @@ function resetCred(code,userId){const d=STORE[code];const u=d.users.find(x=>x.id
 function doResetCred(code,userId){const p=$('#rp_pass').value.trim();if(!p){toast('Enter a password',true);return;}
   const d=STORE[code];d.users.find(x=>x.id===userId).password=p;STORE[code]=d;saveStoreLocal();saveSchoolRow(code);
   closeModal();toast('Password updated');const reg=MASTER.schools.find(s=>s.code===code);
-  if(CURRENT==='schools')vSchools();else if(CURRENT==='stores')vPharmacies();else if(CURRENT==='autostores')vAutos();else if(CURRENT==='odash')vODash();
-  else if(reg&&reg.type==='pharmacy')managePharmacy(code);else if(reg&&reg.type==='autoparts')manageAuto(code);else manageSchool(code);}
+  if(CURRENT==='schools')vSchools();else if(CURRENT==='stores')vPharmacies();else if(CURRENT==='autostores')vAutos();else if(CURRENT==='families')vFamilies();else if(CURRENT==='odash')vODash();
+  else if(reg&&reg.type==='pharmacy')managePharmacy(code);else if(reg&&reg.type==='autoparts')manageAuto(code);else if(reg&&reg.type==='family')manageFamily(code);else manageSchool(code);}
 function editSchool(code){
   const reg=code?MASTER.schools.find(s=>s.code===code):null;const d=code?STORE[code]:null;
   const g=(d&&d.settings.grade)||{ca1:20,ca2:20,exam:60};
@@ -2703,7 +2713,7 @@ async function boot(){
     if(supa){await pullRow(SCHOOL_CODE);if(MASTER&&!STORE[SCHOOL_CODE]){}}
     const _reg=MASTER&&MASTER.schools&&MASTER.schools.find(s=>s.code===SCHOOL_CODE);
     const _t=(_reg&&_reg.type)||(STORE[SCHOOL_CODE]&&STORE[SCHOOL_CODE].kind)||'school';
-    DB=STORE[SCHOOL_CODE]?(_t==='pharmacy'?ensurePharmacy(STORE[SCHOOL_CODE]):_t==='autoparts'?ensureAuto(STORE[SCHOOL_CODE]):ensureSchool(STORE[SCHOOL_CODE])):null;
+    DB=STORE[SCHOOL_CODE]?(_t==='pharmacy'?ensurePharmacy(STORE[SCHOOL_CODE]):_t==='autoparts'?ensureAuto(STORE[SCHOOL_CODE]):_t==='family'?ensureFamily(STORE[SCHOOL_CODE]):ensureSchool(STORE[SCHOOL_CODE])):null;
     if(DB){STORE[SCHOOL_CODE]=DB;}
     setSync(supa?'on':'off',supa?'Synced':'Local');
     // restore session
@@ -4326,6 +4336,410 @@ function vvBind(){const st=$('#vvStage');if(!st)return;
   st.onpointerdown=e=>{_vv.drag=true;_vv.lastX=e.clientX;_vv.acc=0;try{st.setPointerCapture(e.pointerId);}catch(_){}};
   st.onpointermove=e=>move(e.clientX);
   st.onpointerup=()=>{_vv.drag=false;};st.onpointerleave=()=>{_vv.drag=false;};}
+
+/* ===================================================================== */
+/* ===================== FAMILY CONTRIBUTIONS MODULE =================== */
+/* ===================================================================== */
+let FAM_MONTH='';
+const FAM_AC='#7a4d12';
+function seedFamily(code,name){return{kind:'family',
+  settings:{code,familyName:name,shortName:'',address:'Nigeria',phone:'',email:'',logo:'',theme:'maroon',currency:'₦',slogan:'',status:'active',monthlyFee:0,rcptSeq:0},
+  users:[{id:'u1',name:'Family Admin',username:'admin',password:'admin123',role:'admin'}],
+  sections:[],members:[],payments:[],levies:[],disburse:[]};}
+function ensureFamily(d){d.kind='family';d.settings=d.settings||{};const s=d.settings;
+  if(!s.currency)s.currency='₦';if(!s.theme)s.theme='maroon';if(!s.status)s.status='active';if(s.monthlyFee==null)s.monthlyFee=0;if(s.rcptSeq==null)s.rcptSeq=0;
+  if(!s.familyName)s.familyName=s.storeName||s.schoolName||'Family';
+  ['sections','members','payments','levies','disburse'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
+  if(!Array.isArray(d.users)||!d.users.length)d.users=[{id:'u1',name:'Family Admin',username:'admin',password:'admin123',role:'admin'}];
+  return d;}
+/* ---- helpers ---- */
+function famCur(){return DB.settings.currency||'₦';}
+function fmoney(n){return famCur()+(Math.round((Number(n)||0)*100)/100).toLocaleString('en-NG');}
+function famSection(id){return DB.sections.find(s=>s.id===id);}
+function famMember(id){return DB.members.find(m=>m.id===id);}
+function famSectionMembers(sid){return DB.members.filter(m=>m.sectionId===sid).sort((a,b)=>(a.name||'').localeCompare(b.name||''));}
+function famMonthPaid(memberId,period){return DB.payments.find(p=>p.kind==='monthly'&&p.memberId===memberId&&p.period===period);}
+function famLevyPaid(memberId,levyId){return DB.payments.find(p=>p.kind==='levy'&&p.memberId===memberId&&p.levyId===levyId);}
+function famTotalIn(){return DB.payments.reduce((a,p)=>a+Number(p.amount||0),0);}
+function famTotalOut(){return DB.disburse.reduce((a,d)=>a+Number(d.amount||0),0);}
+function famBalance(){return famTotalIn()-famTotalOut();}
+function famSectionTotal(sid){const ids=famSectionMembers(sid).map(m=>m.id);return DB.payments.filter(p=>ids.includes(p.memberId)).reduce((a,p)=>a+Number(p.amount||0),0);}
+function famMemberTotal(mid){return DB.payments.filter(p=>p.memberId===mid).reduce((a,p)=>a+Number(p.amount||0),0);}
+function famMonthLabel(p){const d=new Date(p+'-01');return isNaN(d)?p:d.toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
+function famLevyApplies(levy,member){return levy.scope==='all'||(Array.isArray(levy.sections)&&levy.sections.includes(member.sectionId));}
+function famLevyMembers(levy){return DB.members.filter(m=>famLevyApplies(levy,m));}
+
+/* ---- auth + shell ---- */
+function renderFamilyAuth(){const sc=$('#screen');sc.style.display='';$('#app').style.display='none';const set=DB.settings;
+  if(set.status==='suspended'){sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest">⏸️</div><h1>${esc(set.familyName)}</h1><div class="sub">This account is currently suspended. Please contact your provider to renew.</div></div></div>`;return;}
+  const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`:'👪';
+  sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest" style="background:${FAM_AC}">${logo}</div>
+    <h1>${esc(set.familyName)}</h1>${set.slogan?`<div class="muted" style="font-style:italic;margin-bottom:4px">“${esc(set.slogan)}”</div>`:''}<div class="sub">Family Contributions — Login</div>
+    <div class="auth-err" id="aerr"></div>
+    <div class="field"><label>Username</label><input id="su" placeholder="admin"></div>
+    <div class="field"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>
+    <button class="btn" style="width:100%;justify-content:center;background:${FAM_AC}" onclick="schoolLogin()">Sign in</button>
+    <div class="hint">Use the login your provider gave you.</div></div></div>`;
+  setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);}
+function enterFamily(){const set=DB.settings;
+  $('#topbar').className='topbar';$('#brandName').textContent=set.familyName;$('#topLogo').textContent='👪';
+  $('#whoName').textContent=USER.name;$('#whoRole').textContent='Family Admin';
+  $('#termBadge').textContent=set.shortName||'Family';
+  setSync(supa?'on':'off',supa?'Synced':'Local');buildNav();go('famdash');setManifest();}
+
+/* ---- dashboard ---- */
+function vFamDash(){const tm=today().slice(0,7);const set=DB.settings;
+  const collected=DB.payments.filter(p=>p.kind==='monthly'&&p.period===tm).reduce((a,p)=>a+Number(p.amount||0),0);
+  const expected=DB.members.length*Number(set.monthlyFee||0);
+  const paidMembers=DB.members.filter(m=>famMonthPaid(m.id,tm)).length;
+  const recent=[...DB.payments.map(p=>({t:'in',...p})),...DB.disburse.map(d=>({t:'out',...d}))].sort((a,b)=>(b.date||'').localeCompare(a.date||'')).slice(0,8);
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Dashboard</h2><p>${esc(set.familyName)} — ${famMonthLabel(tm)}</p></div>
+    <button class="btn" style="background:${FAM_AC}" onclick="go('famdues')">💳 Record dues</button></div>
+  <div class="cards-row">
+    <div class="stat"><div class="lbl">Fund balance</div><div class="num" style="color:${famBalance()>=0?'#0a7d33':'#c0392b'}">${fmoney(famBalance())}</div><div class="meta">in ${fmoney(famTotalIn())} · out ${fmoney(famTotalOut())}</div></div>
+    <div class="stat"><div class="lbl">Collected this month</div><div class="num" style="color:${FAM_AC}">${fmoney(collected)}</div><div class="meta">of ${fmoney(expected)} expected</div></div>
+    <div class="stat"><div class="lbl">Paid this month</div><div class="num">${paidMembers}/${DB.members.length}</div><div class="meta">members</div></div>
+    <div class="stat"><div class="lbl">Assistance given</div><div class="num" style="color:#c0392b">${fmoney(famTotalOut())}</div><div class="meta">${DB.disburse.length} payout(s)</div></div>
+  </div>
+  <div class="cards-row">
+    <div class="stat"><div class="lbl">Sections</div><div class="num">${DB.sections.length}</div></div>
+    <div class="stat"><div class="lbl">Members</div><div class="num">${DB.members.length}</div></div>
+    <div class="stat"><div class="lbl">Monthly fee</div><div class="num" style="font-size:20px">${fmoney(set.monthlyFee)}</div><div class="meta">per member</div></div>
+    <div class="stat"><div class="lbl">Active levies</div><div class="num">${DB.levies.length}</div></div>
+  </div>
+  <div class="card pad"><h3 class="mb">Recent activity</h3>
+  ${recent.length?`<div class="t-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Detail</th><th class="right">Amount</th></tr></thead><tbody>
+    ${recent.map(r=>{if(r.t==='in'){const m=famMember(r.memberId);return `<tr><td>${esc((r.date||'').slice(0,10))}</td><td><span class="pill green">IN</span></td><td>${esc(m?m.name:'—')} · ${r.kind==='monthly'?famMonthLabel(r.period||''):'Levy'}</td><td class="right" style="color:#0a7d33">+${fmoney(r.amount)}</td></tr>`;}
+      else return `<tr><td>${esc((r.date||'').slice(0,10))}</td><td><span class="pill red">OUT</span></td><td>${esc(r.beneficiary||'')} · ${esc(r.reason||'assistance')}</td><td class="right" style="color:#c0392b">-${fmoney(r.amount)}</td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="empty"><div class="big">👪</div>No activity yet. Add sections & members, then record dues.</div>`}
+  </div>`;}
+
+/* ---- sections & members ---- */
+function vFamSections(){
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Family Sections</h2><p>Branches / households and their members</p></div>
+    <button class="btn" style="background:${FAM_AC}" onclick="famAddSection()">＋ Add section</button></div>
+  ${DB.sections.length?`<div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
+    ${DB.sections.map(s=>{const mem=famSectionMembers(s.id);const tm=today().slice(0,7);const paid=mem.filter(m=>famMonthPaid(m.id,tm)).length;return `<div class="card pad">
+      <div class="flex" style="justify-content:space-between"><h3>${esc(s.name)}</h3><span class="pill grey">${mem.length}${s.people?'/'+s.people:''} ppl</span></div>
+      ${s.head?`<div class="muted" style="font-size:12.5px">Head: ${esc(s.head)}${s.headPhone?' · '+esc(s.headPhone):''}</div>`:''}
+      <div style="margin:8px 0;font-size:13px">Total contributed: <b>${fmoney(famSectionTotal(s.id))}</b><br>This month: <b>${paid}/${mem.length}</b> paid</div>
+      <div class="flex gap" style="flex-wrap:wrap"><button class="btn sm" style="background:${FAM_AC}" onclick="famSectionView('${s.id}')">Open</button><button class="btn sm sec" onclick="famAddSection('${s.id}')">Edit</button><button class="btn sm danger" onclick="famDelSection('${s.id}')">✕</button></div></div>`;}).join('')}
+  </div>`:`<div class="card"><div class="empty"><div class="big">👪</div>No sections yet. <button class="btn sm mt" style="background:${FAM_AC};color:#fff" onclick="famAddSection()">Add your first section</button></div></div>`}`;}
+function famAddSection(id){const s=id?famSection(id):null;
+  modal(s?'Edit section':'Add family section',`<div class="grid2">
+    <div class="fld full"><label>Section name *</label><input id="fs_name" value="${esc(s?s.name:'')}" placeholder="e.g. Lagos branch / Musa's household"></div>
+    <div class="fld"><label>Head of section</label><input id="fs_head" value="${esc(s?(s.head||''):'')}"></div>
+    <div class="fld"><label>Head phone</label><input id="fs_phone" value="${esc(s?(s.headPhone||''):'')}"></div>
+    <div class="fld"><label>Number of people (optional)</label><input id="fs_people" type="number" min="0" value="${esc(s?(s.people||''):'')}"></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:${FAM_AC}" onclick="famSaveSection('${id||''}')">Save</button>`);}
+function famSaveSection(id){const name=$('#fs_name').value.trim();if(!name){toast('Section name required',true);return;}
+  const data={name,head:$('#fs_head').value.trim(),headPhone:$('#fs_phone').value.trim(),people:Number($('#fs_people').value)||0};
+  if(id){Object.assign(famSection(id),data);}else{DB.sections.push({id:uid('fs'),...data});}save();closeModal();toast('Saved');vFamSections();}
+function famDelSection(id){const s=famSection(id);if(!s)return;const n=famSectionMembers(id).length;
+  modal('Delete section?',`<p>Delete <b>${esc(s.name)}</b>${n?` and its ${n} member(s)`:''}? Past payment records are kept.</p>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="famDoDelSection('${id}')">Delete</button>`);}
+function famDoDelSection(id){DB.members=DB.members.filter(m=>m.sectionId!==id);DB.sections=DB.sections.filter(s=>s.id!==id);save();closeModal();toast('Deleted');vFamSections();}
+function famSectionView(id){const s=famSection(id);if(!s)return;const mem=famSectionMembers(id);const tm=today().slice(0,7);
+  modal(s.name,`<div class="flex" style="justify-content:space-between;flex-wrap:wrap;margin-bottom:8px"><div class="muted" style="font-size:12.5px">${s.head?'Head: '+esc(s.head):''}</div><button class="btn sm" style="background:${FAM_AC}" onclick="famAddMember('${id}')">＋ Add member</button></div>
+   ${mem.length?`<div class="t-wrap"><table><thead><tr><th>Member</th><th>Phone</th><th class="right">Total paid</th><th>${famMonthLabel(tm)}</th><th></th></tr></thead><tbody>
+     ${mem.map(m=>{const pd=famMonthPaid(m.id,tm);return `<tr><td><b>${esc(m.name)}</b></td><td>${esc(m.phone||'—')}</td><td class="right">${fmoney(famMemberTotal(m.id))}</td>
+       <td>${pd?`<span class="pill green">Paid</span>`:`<span class="pill red">Unpaid</span>`}</td>
+       <td class="right" style="white-space:nowrap">${pd?'':`<button class="btn sm" style="background:#0a7d33" onclick="closeModal();famPay('${m.id}')">Pay</button>`}<button class="btn sm sec" onclick="famAddMember('${id}','${m.id}')">Edit</button><button class="btn sm danger" onclick="famDelMember('${m.id}','${id}')">✕</button></td></tr>`;}).join('')}
+   </tbody></table></div>`:`<div class="empty">No members yet.</div>`}`,
+   `<button class="btn sec" onclick="closeModal()">Close</button>`,true);}
+function famAddMember(sid,mid){const m=mid?famMember(mid):null;
+  modal(m?'Edit member':'Add member',`<div class="grid2">
+    <div class="fld full"><label>Full name *</label><input id="fm_name" value="${esc(m?m.name:'')}"></div>
+    <div class="fld"><label>Phone</label><input id="fm_phone" value="${esc(m?(m.phone||''):'')}"></div>
+    <div class="fld"><label>Note</label><input id="fm_note" value="${esc(m?(m.note||''):'')}"></div>
+  </div>`,`<button class="btn sec" onclick="famSectionView('${sid}')">Cancel</button><button class="btn" style="background:${FAM_AC}" onclick="famSaveMember('${sid}','${mid||''}')">Save</button>`);}
+function famSaveMember(sid,mid){const name=$('#fm_name').value.trim();if(!name){toast('Name required',true);return;}
+  const data={name,phone:$('#fm_phone').value.trim(),note:$('#fm_note').value.trim(),sectionId:sid};
+  if(mid){Object.assign(famMember(mid),data);}else{DB.members.push({id:uid('fm'),...data});}save();famSectionView(sid);toast('Saved');}
+function famDelMember(mid,sid){DB.members=DB.members.filter(m=>m.id!==mid);save();toast('Removed');famSectionView(sid);}
+
+/* ---- monthly dues ---- */
+function vFamDues(){if(!FAM_MONTH)FAM_MONTH=today().slice(0,7);
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Monthly Dues</h2><p>Track who has paid the monthly contribution</p></div></div>
+  <div class="toolbar no-print"><div><label>Month</label><input id="fd_month" type="month" value="${FAM_MONTH}" onchange="FAM_MONTH=this.value;famRenderDues()"></div>
+    <div class="muted" style="align-self:flex-end;font-size:12px">Monthly fee: <b>${fmoney(DB.settings.monthlyFee)}</b> · set it in Settings</div></div>
+  <div id="fdArea"></div>`;famRenderDues();}
+function famRenderDues(){const p=FAM_MONTH;const fee=Number(DB.settings.monthlyFee||0);
+  const collected=DB.payments.filter(x=>x.kind==='monthly'&&x.period===p).reduce((a,x)=>a+Number(x.amount||0),0);
+  const expected=DB.members.length*fee;const paidN=DB.members.filter(m=>famMonthPaid(m.id,p)).length;
+  const el=$('#fdArea');if(!el)return;
+  el.innerHTML=`<div class="cards-row">
+    ${phStat('Collected',fmoney(collected),famMonthLabel(p),FAM_AC)}
+    ${phStat('Expected',fmoney(expected),DB.members.length+' members')}
+    ${phStat('Outstanding',fmoney(Math.max(0,expected-collected)),'',expected-collected>0?'#c0392b':'')}
+    ${phStat('Paid',paidN+'/'+DB.members.length,'members')}
+  </div>
+  ${DB.sections.map(s=>{const mem=famSectionMembers(s.id);if(!mem.length)return '';return `<div class="card pad mb"><h3 class="mb">${esc(s.name)} <span class="muted" style="font-size:13px">(${mem.filter(m=>famMonthPaid(m.id,p)).length}/${mem.length} paid)</span></h3>
+    <div class="t-wrap"><table><thead><tr><th>Member</th><th>Status</th><th class="right">Amount</th><th></th></tr></thead><tbody>
+    ${mem.map(m=>{const pd=famMonthPaid(m.id,p);return `<tr><td><b>${esc(m.name)}</b></td><td>${pd?`<span class="pill green">Paid</span>`:`<span class="pill red">Unpaid</span>`}</td><td class="right">${pd?fmoney(pd.amount):'—'}</td>
+      <td class="right">${pd?`<button class="btn sm sec" onclick="famUndoPay('${pd.id}')">Undo</button> <button class="btn sm sec" onclick="famShowReceipt('${pd.id}')">Receipt</button>`:`<button class="btn sm" style="background:#0a7d33" onclick="famPay('${m.id}')">＋ Pay</button>`}</td></tr>`;}).join('')}
+    </tbody></table></div></div>`;}).join('')||`<div class="card"><div class="empty"><div class="big">👪</div>Add sections & members first.</div></div>`}`;}
+function famPay(memberId){const m=famMember(memberId);if(!m)return;const fee=Number(DB.settings.monthlyFee||0);
+  modal('Record dues — '+m.name,`<div class="grid2">
+    <div class="fld"><label>Month</label><input id="fp_month" type="month" value="${FAM_MONTH||today().slice(0,7)}"></div>
+    <div class="fld"><label>Amount (${famCur()})</label><input id="fp_amt" type="number" min="0" step="0.01" value="${fee}"></div>
+    <div class="fld"><label>Method</label><select id="fp_method"><option>Cash</option><option>Transfer</option><option>POS / Card</option></select></div>
+    <div class="fld"><label>Note</label><input id="fp_note" placeholder="optional"></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#0a7d33" onclick="famDoPay('${memberId}')">Record payment</button>`);}
+function famDoPay(memberId){const m=famMember(memberId);const period=$('#fp_month').value||today().slice(0,7);const amt=Math.max(0,Number($('#fp_amt').value)||0);if(amt<=0){toast('Enter an amount',true);return;}
+  const ex=famMonthPaid(memberId,period);if(ex){toast('Already recorded for '+famMonthLabel(period),true);return;}
+  DB.settings.rcptSeq=(DB.settings.rcptSeq||0)+1;
+  const pay={id:uid('pay'),rcptNo:'FC/'+String(DB.settings.rcptSeq).padStart(4,'0'),date:new Date().toISOString(),memberId,sectionId:m.sectionId,kind:'monthly',period,amount:amt,method:$('#fp_method').value,note:$('#fp_note').value.trim()};
+  DB.payments.push(pay);save();closeModal();toast('Payment recorded · '+fmoney(amt));famShowReceipt(pay.id);if(CURRENT==='famdues')famRenderDues();}
+function famUndoPay(payId){const p=DB.payments.find(x=>x.id===payId);if(!p)return;
+  modal('Undo payment?',`<p>Remove this ${fmoney(p.amount)} payment record?</p>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="famDoUndo('${payId}')">Remove</button>`);}
+function famDoUndo(payId){DB.payments=DB.payments.filter(x=>x.id!==payId);save();closeModal();toast('Removed');if(CURRENT==='famdues')famRenderDues();else if(CURRENT==='famlevies')vFamLevies();}
+function famReceiptHTML(p){const set=DB.settings;const m=famMember(p.memberId)||{};const sec=famSection(p.sectionId)||{};const logo=set.logo?`<img src="${set.logo}" style="width:46px;height:46px;border-radius:8px;object-fit:cover">`:'<div style="font-size:34px">👪</div>';
+  const what=p.kind==='monthly'?('Monthly dues — '+famMonthLabel(p.period||'')):('Levy — '+((DB.levies.find(l=>l.id===p.levyId)||{}).name||''));
+  return `<div class="receipt" style="max-width:340px;margin:0 auto;background:#fff;color:#111;padding:16px 18px;border:1px solid #ddd">
+    <div style="text-align:center;border-bottom:1px dashed #999;padding-bottom:8px;margin-bottom:8px">${logo}
+      <div style="font-weight:800;font-size:15px">${esc(set.familyName)}</div>${set.slogan?`<div style="font-size:10px;font-style:italic">${esc(set.slogan)}</div>`:''}
+      ${set.phone?`<div style="font-size:11px">☎ ${esc(set.phone)}</div>`:''}</div>
+    <div style="text-align:center;font-weight:800;letter-spacing:.04em;margin-bottom:8px">CONTRIBUTION RECEIPT</div>
+    <div style="font-size:12.5px;line-height:1.9">
+      <div style="display:flex;justify-content:space-between"><span>Receipt No.</span><b>${esc(p.rcptNo||'')}</b></div>
+      <div style="display:flex;justify-content:space-between"><span>Date</span><span>${esc((p.date||'').slice(0,10))}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Member</span><b>${esc(m.name||'')}</b></div>
+      <div style="display:flex;justify-content:space-between"><span>Section</span><span>${esc(sec.name||'')}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>For</span><span>${esc(what)}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Method</span><span>${esc(p.method||'')}</span></div>
+    </div>
+    <div style="border-top:1px dashed #999;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:800;font-size:17px"><span>AMOUNT PAID</span><span>${fmoney(p.amount)}</span></div>
+    <div style="text-align:center;font-size:11px;margin-top:12px;border-top:1px dashed #999;padding-top:8px">Thank you for your contribution.<br>Powered by Muscode</div>
+  </div>`;}
+function famShowReceipt(payId){const p=DB.payments.find(x=>x.id===payId);if(!p)return;
+  modal('Receipt — '+p.rcptNo,famReceiptHTML(p),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#25d366" onclick="famShareReceipt('${payId}')">💬 WhatsApp</button><button class="btn no-print" style="background:${FAM_AC}" onclick="window.print()">🖨 Print</button>`);}
+function famShareReceipt(payId){const p=DB.payments.find(x=>x.id===payId);if(!p)return;storeShareImage(famReceiptHTML(p),(p.rcptNo||'receipt'),(DB.settings.familyName||'')+' receipt');}
+
+/* ---- levies (special payments) ---- */
+function vFamLevies(){
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Levies & Special Payments</h2><p>Transport, meetings, food, projects — anything beyond monthly dues</p></div>
+    <button class="btn" style="background:${FAM_AC}" onclick="famNewLevy()">＋ New levy</button></div>
+  ${DB.levies.length?`<div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(260px,1fr))">
+    ${DB.levies.slice().reverse().map(l=>{const mem=famLevyMembers(l);const paid=mem.filter(m=>famLevyPaid(m.id,l.id)).length;const got=DB.payments.filter(p=>p.kind==='levy'&&p.levyId===l.id).reduce((a,p)=>a+Number(p.amount||0),0);return `<div class="card pad">
+      <div class="flex" style="justify-content:space-between"><h3>${esc(l.name)}</h3><span class="pill grey">${fmoney(l.amount)}/head</span></div>
+      <div class="muted" style="font-size:12px">${l.scope==='all'?'All sections':((l.sections||[]).length+' section(s)')}${l.note?' · '+esc(l.note):''}</div>
+      <div style="margin:8px 0;font-size:13px">Collected: <b>${fmoney(got)}</b><br>Paid: <b>${paid}/${mem.length}</b></div>
+      <div class="flex gap"><button class="btn sm" style="background:${FAM_AC}" onclick="famLevyView('${l.id}')">Open</button><button class="btn sm danger" onclick="famDelLevy('${l.id}')">✕</button></div></div>`;}).join('')}
+  </div>`:`<div class="card"><div class="empty"><div class="big">📋</div>No levies yet. <button class="btn sm mt" style="background:${FAM_AC};color:#fff" onclick="famNewLevy()">Create one</button></div></div>`}`;}
+function famNewLevy(){
+  modal('New levy / special payment',`<div class="grid2">
+    <div class="fld full"><label>Name *</label><input id="fl_name" placeholder="e.g. December meeting transport"></div>
+    <div class="fld"><label>Amount per member (${famCur()}) *</label><input id="fl_amt" type="number" min="0" step="0.01" value="0"></div>
+    <div class="fld"><label>Applies to</label><select id="fl_scope" onchange="document.getElementById('fl_secWrap').style.display=this.value==='sections'?'block':'none'"><option value="all">All sections</option><option value="sections">Selected sections</option></select></div>
+  </div>
+  <div id="fl_secWrap" style="display:none"><label>Choose sections</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin:4px 0">${DB.sections.map(s=>`<label style="display:flex;align-items:center;gap:6px;text-transform:none;font-weight:500"><input type="checkbox" class="fl_sec" value="${s.id}" style="width:auto"> ${esc(s.name)}</label>`).join('')||'<span class="muted">No sections.</span>'}</div></div>
+  <div class="fld"><label>Note</label><input id="fl_note" placeholder="optional"></div>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:${FAM_AC}" onclick="famSaveLevy()">Create levy</button>`);}
+function famSaveLevy(){const name=$('#fl_name').value.trim(),amt=Number($('#fl_amt').value)||0;if(!name){toast('Name required',true);return;}if(amt<=0){toast('Enter an amount',true);return;}
+  const scope=$('#fl_scope').value;const sections=scope==='sections'?[...document.querySelectorAll('.fl_sec:checked')].map(c=>c.value):[];
+  if(scope==='sections'&&!sections.length){toast('Pick at least one section',true);return;}
+  DB.levies.push({id:uid('lv'),name,amount:amt,scope,sections,note:$('#fl_note').value.trim(),date:new Date().toISOString()});save();closeModal();toast('Levy created');vFamLevies();}
+function famDelLevy(id){const l=DB.levies.find(x=>x.id===id);if(!l)return;modal('Delete levy?',`<p>Delete <b>${esc(l.name)}</b>? Payments already recorded against it are kept in the fund.</p>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="famDoDelLevy('${id}')">Delete</button>`);}
+function famDoDelLevy(id){DB.levies=DB.levies.filter(x=>x.id!==id);save();closeModal();toast('Deleted');vFamLevies();}
+function famLevyView(id){const l=DB.levies.find(x=>x.id===id);if(!l)return;const mem=famLevyMembers(l);
+  modal(l.name+' — '+fmoney(l.amount)+'/member',`${mem.length?`<div class="t-wrap"><table><thead><tr><th>Member</th><th>Section</th><th>Status</th><th></th></tr></thead><tbody>
+    ${mem.map(m=>{const pd=famLevyPaid(m.id,l.id);const sec=famSection(m.sectionId)||{};return `<tr><td><b>${esc(m.name)}</b></td><td>${esc(sec.name||'')}</td><td>${pd?`<span class="pill green">Paid</span>`:`<span class="pill red">Unpaid</span>`}</td>
+      <td class="right">${pd?`<button class="btn sm sec" onclick="famShowReceipt('${pd.id}')">Receipt</button> <button class="btn sm sec" onclick="famUndoPay('${pd.id}')">Undo</button>`:`<button class="btn sm" style="background:#0a7d33" onclick="famPayLevy('${l.id}','${m.id}')">Pay</button>`}</td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="empty">No members in scope.</div>`}`,`<button class="btn sec" onclick="closeModal()">Close</button>`,true);}
+function famPayLevy(levyId,memberId){const l=DB.levies.find(x=>x.id===levyId);const m=famMember(memberId);if(!l||!m)return;if(famLevyPaid(memberId,levyId)){toast('Already paid',true);return;}
+  DB.settings.rcptSeq=(DB.settings.rcptSeq||0)+1;
+  const pay={id:uid('pay'),rcptNo:'FC/'+String(DB.settings.rcptSeq).padStart(4,'0'),date:new Date().toISOString(),memberId,sectionId:m.sectionId,kind:'levy',levyId,amount:Number(l.amount||0),method:'Cash'};
+  DB.payments.push(pay);save();toast('Recorded');famLevyView(levyId);}
+
+/* ---- assistance / disbursements ---- */
+function vFamAssist(){const list=DB.disburse.slice().reverse();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Assistance / Payouts</h2><p>Money given out from the family fund</p></div>
+    <button class="btn" style="background:${FAM_AC}" onclick="famNewAssist()">＋ Record assistance</button></div>
+  <div class="cards-row">
+    ${phStat('Fund balance',fmoney(famBalance()),'',famBalance()>=0?'#0a7d33':'#c0392b')}
+    ${phStat('Total contributions',fmoney(famTotalIn()),'in')}
+    ${phStat('Total given out',fmoney(famTotalOut()),DB.disburse.length+' payout(s)','#c0392b')}
+  </div>
+  <div class="card pad">${list.length?`<div class="t-wrap"><table><thead><tr><th>Date</th><th>Beneficiary</th><th>Section</th><th>Reason</th><th class="right">Amount</th><th></th></tr></thead><tbody>
+    ${list.map(d=>{const sec=famSection(d.sectionId)||{};return `<tr><td>${esc((d.date||'').slice(0,10))}</td><td><b>${esc(d.beneficiary||'')}</b></td><td>${esc(sec.name||'—')}</td><td>${esc(d.reason||'')}${d.note?'<br><span class="muted" style="font-size:11px">'+esc(d.note)+'</span>':''}</td>
+      <td class="right" style="color:#c0392b">${fmoney(d.amount)}</td><td class="right"><button class="btn sm sec" onclick="famAssistReceipt('${d.id}')">Voucher</button> <button class="btn sm danger" onclick="famDelAssist('${d.id}')">✕</button></td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="empty"><div class="big">🤝</div>No assistance recorded yet.</div>`}</div>`;}
+function famNewAssist(){
+  modal('Record assistance / payout',`<div class="grid2">
+    <div class="fld full"><label>Beneficiary name *</label><input id="fa_ben" placeholder="who received it"></div>
+    <div class="fld"><label>Section (optional)</label><select id="fa_sec"><option value="">— none —</option>${DB.sections.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')}</select></div>
+    <div class="fld"><label>Amount (${famCur()}) *</label><input id="fa_amt" type="number" min="0" step="0.01" value="0"></div>
+    <div class="fld"><label>Date</label><input id="fa_date" type="date" value="${today()}"></div>
+    <div class="fld full"><label>Reason</label><input id="fa_reason" placeholder="e.g. medical assistance, bereavement, school fees"></div>
+    <div class="fld full"><label>Note / approved by</label><input id="fa_note" placeholder="optional"></div>
+  </div><p class="muted" style="font-size:12px">Current fund balance: <b>${fmoney(famBalance())}</b></p>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:${FAM_AC}" onclick="famSaveAssist()">Record</button>`);}
+function famSaveAssist(){const ben=$('#fa_ben').value.trim(),amt=Number($('#fa_amt').value)||0;if(!ben){toast('Beneficiary required',true);return;}if(amt<=0){toast('Enter an amount',true);return;}
+  DB.disburse.push({id:uid('ds'),date:($('#fa_date').value?new Date($('#fa_date').value).toISOString():new Date().toISOString()),beneficiary:ben,sectionId:$('#fa_sec').value,amount:amt,reason:$('#fa_reason').value.trim(),note:$('#fa_note').value.trim()});
+  save();closeModal();toast('Assistance recorded');vFamAssist();}
+function famDelAssist(id){DB.disburse=DB.disburse.filter(d=>d.id!==id);save();toast('Removed');vFamAssist();}
+function famAssistReceipt(id){const d=DB.disburse.find(x=>x.id===id);if(!d)return;const set=DB.settings;const sec=famSection(d.sectionId)||{};const logo=set.logo?`<img src="${set.logo}" style="width:46px;height:46px;border-radius:8px;object-fit:cover">`:'<div style="font-size:34px">👪</div>';
+  const html=`<div class="receipt" style="max-width:360px;margin:0 auto;background:#fff;color:#111;padding:16px 18px;border:1px solid #ddd">
+    <div style="text-align:center;border-bottom:1px dashed #999;padding-bottom:8px;margin-bottom:8px">${logo}<div style="font-weight:800;font-size:15px">${esc(set.familyName)}</div>${set.phone?`<div style="font-size:11px">☎ ${esc(set.phone)}</div>`:''}</div>
+    <div style="text-align:center;font-weight:800;letter-spacing:.04em;margin-bottom:8px">ASSISTANCE VOUCHER</div>
+    <div style="font-size:12.5px;line-height:1.9">
+      <div style="display:flex;justify-content:space-between"><span>Date</span><span>${esc((d.date||'').slice(0,10))}</span></div>
+      <div style="display:flex;justify-content:space-between"><span>Paid to</span><b>${esc(d.beneficiary)}</b></div>
+      ${sec.name?`<div style="display:flex;justify-content:space-between"><span>Section</span><span>${esc(sec.name)}</span></div>`:''}
+      <div style="display:flex;justify-content:space-between"><span>Reason</span><span>${esc(d.reason||'')}</span></div>
+      ${d.note?`<div style="display:flex;justify-content:space-between"><span>Approved by</span><span>${esc(d.note)}</span></div>`:''}
+    </div>
+    <div style="border-top:1px dashed #999;margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:800;font-size:17px"><span>AMOUNT</span><span>${fmoney(d.amount)}</span></div>
+    <div style="margin-top:18px;display:flex;justify-content:space-between;font-size:11px"><span>______________<br>Recipient sign</span><span>______________<br>Admin sign</span></div>
+    <div style="text-align:center;font-size:11px;margin-top:10px;border-top:1px dashed #999;padding-top:8px">Powered by Muscode</div>
+  </div>`;
+  window._lastVoucherHTML=html;
+  modal('Assistance Voucher',html,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn no-print" style="background:#25d366" onclick="famShareLastVoucher()">💬 WhatsApp</button><button class="btn no-print" style="background:${FAM_AC}" onclick="window.print()">🖨 Print</button>`);}
+function famShareLastVoucher(){storeShareImage(window._lastVoucherHTML||'','assistance-voucher',(DB.settings.familyName||'')+' assistance voucher');}
+
+/* ---- reports ---- */
+function vFamReports(){const tm=today().slice(0,7);
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Reports</h2><p>Fund summary & section totals</p></div>
+    <button class="btn gold no-print" onclick="window.print()">🖨 Print</button></div>
+  <div class="cards-row">
+    ${phStat('Total contributions',fmoney(famTotalIn()),'all-time')}
+    ${phStat('Total assistance',fmoney(famTotalOut()),'given out','#c0392b')}
+    ${phStat('Fund balance',fmoney(famBalance()),'',famBalance()>=0?'#0a7d33':'#c0392b')}
+    ${phStat('Members',DB.members.length,DB.sections.length+' sections')}
+  </div>
+  <div class="card pad mb"><h3 class="mb">Per-section totals</h3>
+  ${DB.sections.length?`<div class="t-wrap"><table><thead><tr><th>Section</th><th class="center">Members</th><th class="right">Total contributed</th><th class="center">${famMonthLabel(tm)} paid</th></tr></thead><tbody>
+    ${DB.sections.map(s=>{const mem=famSectionMembers(s.id);const paid=mem.filter(m=>famMonthPaid(m.id,tm)).length;return `<tr><td><b>${esc(s.name)}</b></td><td class="center">${mem.length}</td><td class="right">${fmoney(famSectionTotal(s.id))}</td><td class="center">${paid}/${mem.length}</td></tr>`;}).join('')}
+    <tr style="font-weight:800;background:#fafbfa"><td>TOTAL</td><td class="center">${DB.members.length}</td><td class="right">${fmoney(famTotalIn())}</td><td></td></tr>
+  </tbody></table></div>`:`<div class="empty">No sections yet.</div>`}</div>
+  ${DB.levies.length?`<div class="card pad mb"><h3 class="mb">Levies</h3><div class="t-wrap"><table><thead><tr><th>Levy</th><th class="right">Per member</th><th class="right">Collected</th><th class="center">Paid</th></tr></thead><tbody>
+    ${DB.levies.map(l=>{const mem=famLevyMembers(l);const paid=mem.filter(m=>famLevyPaid(m.id,l.id)).length;const got=DB.payments.filter(p=>p.kind==='levy'&&p.levyId===l.id).reduce((a,p)=>a+Number(p.amount||0),0);return `<tr><td>${esc(l.name)}</td><td class="right">${fmoney(l.amount)}</td><td class="right">${fmoney(got)}</td><td class="center">${paid}/${mem.length}</td></tr>`;}).join('')}
+  </tbody></table></div></div>`:''}
+  <div class="card pad"><div class="flex" style="justify-content:space-between"><h3>Assistance log</h3><button class="btn sm sec no-print" onclick="famExportCSV()">⬇ Export payments CSV</button></div>
+  ${DB.disburse.length?`<div class="t-wrap mt"><table><thead><tr><th>Date</th><th>Beneficiary</th><th>Reason</th><th class="right">Amount</th></tr></thead><tbody>
+    ${DB.disburse.slice().reverse().map(d=>`<tr><td>${esc((d.date||'').slice(0,10))}</td><td>${esc(d.beneficiary||'')}</td><td>${esc(d.reason||'')}</td><td class="right" style="color:#c0392b">${fmoney(d.amount)}</td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="empty mt">No assistance given yet.</div>`}</div>`;}
+function famExportCSV(){const rows=[['Receipt','Date','Member','Section','Type','Period/Levy','Amount','Method']];
+  DB.payments.forEach(p=>{const m=famMember(p.memberId)||{};const sec=famSection(p.sectionId)||{};const lv=p.kind==='levy'?((DB.levies.find(l=>l.id===p.levyId)||{}).name||''):famMonthLabel(p.period||'');rows.push([p.rcptNo||'',(p.date||'').slice(0,10),m.name||'',sec.name||'',p.kind||'',lv,p.amount||0,p.method||'']);});
+  const csv=rows.map(r=>r.map(c=>{c=String(c==null?'':c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(DB.settings.shortName||DB.settings.familyName||'family')+'-payments-'+today()+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);toast('CSV downloaded');}
+
+/* ---- settings ---- */
+function vFamSettings(){const s=DB.settings;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Settings</h2><p>Family details & login</p></div></div>
+  <div class="card pad mb"><h3 class="mb">Family details</h3><div class="grid2">
+    <div class="fld"><label>Family / association name</label><input id="ft_name" value="${esc(s.familyName||'')}"></div>
+    <div class="fld"><label>Short name</label><input id="ft_short" value="${esc(s.shortName||'')}"></div>
+    <div class="fld full"><label>Slogan / motto</label><input id="ft_slogan" value="${esc(s.slogan||'')}" placeholder="e.g. Unity is strength"></div>
+    <div class="fld full"><label>Address</label><input id="ft_addr" value="${esc(s.address||'')}"></div>
+    <div class="fld"><label>Phone</label><input id="ft_phone" value="${esc(s.phone||'')}"></div>
+    <div class="fld"><label>Email</label><input id="ft_email" value="${esc(s.email||'')}"></div>
+    <div class="fld"><label>Currency symbol</label><input id="ft_cur" value="${esc(s.currency||'₦')}" style="max-width:90px"></div>
+    <div class="fld"><label>Theme</label><select id="ft_theme">${Object.entries(THEMES).map(([k,t])=>`<option value="${k}" ${(s.theme||'maroon')===k?'selected':''}>${t.n}</option>`).join('')}</select></div>
+    <div class="fld"><label>Monthly contribution fee (${(s.currency||'₦')})</label><input id="ft_fee" type="number" min="0" value="${s.monthlyFee||0}"></div>
+  </div>${logoField(s.logo||'')}
+  <div class="mt"><button class="btn" style="background:${FAM_AC}" onclick="famSaveSettings()">💾 Save settings</button></div></div>
+  <div class="card pad mb"><h3 class="mb">Your login</h3><div class="grid2">
+    <div class="fld"><label>Your name</label><input id="fmy_name" value="${esc(USER.name||'')}"></div>
+    <div class="fld"><label>Username</label><input id="fmy_user" value="${esc(USER.username||'')}"></div>
+    <div class="fld full"><label>Password</label><input id="fmy_pass" value="${esc(USER.password||'')}"></div>
+  </div><div class="mt"><button class="btn" style="background:${FAM_AC}" onclick="famSaveMyLogin()">💾 Update login</button></div></div>`;}
+function famSaveSettings(){const s=DB.settings;_logo=_logo||s.logo||'';
+  s.familyName=$('#ft_name').value.trim()||s.familyName;s.shortName=$('#ft_short').value.trim();s.slogan=$('#ft_slogan').value.trim();s.address=$('#ft_addr').value.trim();
+  s.phone=$('#ft_phone').value.trim();s.email=$('#ft_email').value.trim();s.currency=$('#ft_cur').value.trim()||'₦';s.theme=$('#ft_theme').value;s.monthlyFee=Math.max(0,Number($('#ft_fee').value)||0);
+  if(typeof _logo==='string')s.logo=_logo;save();toast('Settings saved');enterFamily();}
+function famSaveMyLogin(){const name=$('#fmy_name').value.trim(),user=$('#fmy_user').value.trim().toLowerCase(),pass=$('#fmy_pass').value.trim();
+  if(!name||!user||!pass){toast('All fields required',true);return;}
+  USER.name=name;USER.username=user;USER.password=pass;const u=DB.users.find(x=>x.id===USER.id);if(u){u.name=name;u.username=user;u.password=pass;}
+  sessionStorage.setItem('sms_su',SCHOOL_CODE+'|'+USER.id);save();toast('Login updated');enterFamily();}
+
+/* ===================== OWNER: FAMILIES ===================== */
+function vFamilies(){const list=MASTER.schools.filter(s=>s.type==='family');
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Families / Associations</h2><p>${list.length} registered — contribution clients</p></div>
+    <button class="btn" style="background:${FAM_AC}" onclick="editFamily()">＋ Register Family</button></div>
+  <div class="t-wrap"><table><thead><tr><th>Family</th><th>Code</th><th>Admin login</th><th>Subscription</th><th>Status</th><th></th></tr></thead><tbody>
+  ${list.map(s=>{const d=STORE[s.code];const ad=d&&d.users?d.users.find(u=>u.role==='admin'):null;const si=phSubInfo(s);return `<tr>
+    <td><b>${esc(s.name)}</b></td><td class="muted">${esc(s.code)}</td>
+    <td>${ad?`<b>${esc(ad.username)}</b> / <span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(ad.password)}</span>`:'<span class="muted">—</span>'}</td>
+    <td><span class="pill ${si.cls}">${si.txt}</span></td>
+    <td><span class="pill ${s.status==='suspended'?'red':'green'}">${s.status==='suspended'?'Suspended':'Active'}</span></td>
+    <td class="right"><button class="btn sm" onclick="manageFamily('${s.code}')">Manage</button></td></tr>`;}).join('')||`<tr><td colspan=6><div class="empty"><div class="big">👪</div>No families yet. <button class="btn sm mt" onclick="editFamily()">Register one</button></div></td></tr>`}
+  </tbody></table></div>`;}
+function editFamily(code){const reg=code?MASTER.schools.find(s=>s.code===code):null;const d=code?STORE[code]:null;const sub=(reg&&reg.sub)||{};
+  modal(code?'Edit Family':'Register New Family',`<div class="grid2">
+    <div class="fld"><label>Family / association name *</label><input id="ef_name" value="${esc(reg?reg.name:'')}"></div>
+    <div class="fld"><label>Short name</label><input id="ef_short" value="${esc(d?(d.settings.shortName||''):'')}"></div>
+    <div class="fld"><label>Link name / code *</label><input id="ef_code" value="${esc(code||'')}" ${code?'disabled':''} placeholder="e.g. bellofamily"></div>
+    <div class="fld full" style="margin-top:-6px"><span class="muted" style="font-size:12px">Login link: <b>${esc(location.origin)}/</b><b>${esc((code||'').toLowerCase())}</b></span></div>
+    <div class="fld full"><label>Address</label><input id="ef_addr" value="${esc(d?(d.settings.address||''):'')}"></div>
+    <div class="fld"><label>Phone *</label><input id="ef_phone" value="${esc(d?(d.settings.phone||''):'')}"></div>
+    <div class="fld"><label>Email</label><input id="ef_email" value="${esc(d?(d.settings.email||''):'')}"></div>
+    <div class="fld"><label>Currency symbol</label><input id="ef_cur" value="${esc(d?(d.settings.currency||'₦'):'₦')}" style="max-width:90px"></div>
+    <div class="fld"><label>Monthly fee (members pay)</label><input id="ef_fee" type="number" min="0" value="${esc(d?(d.settings.monthlyFee||0):0)}"></div>
+  </div>
+  <hr><label>Subscription (your flat fee)</label><div class="grid2">
+    <div class="fld"><label>Monthly fee (₦)</label><input id="ef_subfee" type="number" min="0" value="${sub.fee||0}"></div>
+    <div class="fld"><label>Next due date</label><input id="ef_due" type="date" value="${esc(sub.due||'')}"></div>
+  </div>
+  ${code?'':`<hr><label>Admin login</label><div class="grid2">
+    <div class="fld"><label>Name</label><input id="ef_aname" value="Family Admin"></div>
+    <div class="fld"><label>Username *</label><input id="ef_auser" value="admin"></div>
+    <div class="fld full"><label>Password *</label><input id="ef_apass" value="admin123"></div></div>`}
+  <div class="fld"><label>Status</label><select id="ef_status"><option value="active" ${reg&&reg.status!=='suspended'?'selected':''}>Active</option><option value="suspended" ${reg&&reg.status==='suspended'?'selected':''}>Suspended</option></select></div>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:${FAM_AC}" onclick="saveFamily('${code||''}')">${code?'Save changes':'Create family'}</button>`,true);}
+function saveFamily(code){const name=$('#ef_name').value.trim(),addr=$('#ef_addr').value.trim(),phone=$('#ef_phone').value.trim();
+  if(!name){toast('Name required',true);return;}if(!phone||phone.replace(/\D/g,'').length<7){toast('Valid phone required',true);return;}
+  const fee=Math.max(0,Number($('#ef_subfee').value)||0),due=$('#ef_due').value,cur=$('#ef_cur').value.trim()||'₦',mfee=Math.max(0,Number($('#ef_fee').value)||0),status=$('#ef_status').value;
+  if(code){const reg=MASTER.schools.find(s=>s.code===code);reg.name=name;reg.status=status;reg.sub=Object.assign(reg.sub||{},{fee,due});
+    const d=STORE[code];Object.assign(d.settings,{familyName:name,shortName:$('#ef_short').value.trim(),address:addr,phone,email:$('#ef_email').value.trim(),currency:cur,monthlyFee:mfee,status});
+    saveMaster();saveSchoolRow(code);closeModal();toast('Family updated');manageFamily(code);return;}
+  const newCode=$('#ef_code').value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,'').replace(/^-+|-+$/g,'');
+  if(!newCode){toast('Code required',true);return;}if(MASTER.schools.some(s=>s.code===newCode)){toast('Code already exists',true);return;}
+  const auser=$('#ef_auser').value.trim(),apass=$('#ef_apass').value.trim();if(!auser||!apass){toast('Admin login required',true);return;}
+  const d=seedFamily(newCode,name);Object.assign(d.settings,{shortName:$('#ef_short').value.trim(),address:addr,phone,email:$('#ef_email').value.trim(),currency:cur,monthlyFee:mfee,status});
+  d.users[0].name=$('#ef_aname').value.trim()||'Family Admin';d.users[0].username=auser;d.users[0].password=apass;
+  STORE[newCode]=d;MASTER.schools.push({code:newCode,name,type:'family',status,createdAt:today(),sub:{fee,due,lastPaid:'',history:[]}});
+  saveStoreLocal();saveMaster();saveSchoolRow(newCode);closeModal();toast('Family created');manageFamily(newCode);}
+function manageFamily(code){const reg=MASTER.schools.find(s=>s.code===code);const d=STORE[code];if(!d){toast('Data not loaded',true);return;}
+  const sub=reg.sub||(reg.sub={fee:0,due:'',lastPaid:'',history:[]});const si=phSubInfo(reg);
+  modal('Manage — '+reg.name,`
+    <div class="cards-row" style="margin-bottom:14px">
+      <div class="stat"><div class="lbl">Members</div><div class="num">${(d.members||[]).length}</div></div>
+      <div class="stat"><div class="lbl">Contributions</div><div class="num" style="font-size:18px">${'₦'+((d.payments||[]).reduce((a,p)=>a+Number(p.amount||0),0)).toLocaleString('en-NG')}</div></div>
+      <div class="stat"><div class="lbl">Subscription</div><div class="num" style="font-size:16px"><span class="pill ${si.cls}">${si.txt}</span></div></div>
+    </div>
+    <label>Login link (give to the family admin)</label>
+    <div class="linkbox mb"><code>${esc(schoolLink(code))}</code><button class="btn sm sec" onclick="copyText('${jq(schoolLink(code))}')">Copy</button></div>
+    <label>Logins (passwords visible — reset any)</label>
+    <div class="t-wrap" style="margin-bottom:6px"><table><tbody>
+      ${d.users.map(u=>`<tr><td><b>${esc(u.name)}</b><br><span class="muted" style="font-size:11px">Family Admin</span></td><td>${esc(u.username)}</td><td><span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(u.password)}</span></td>
+        <td class="right"><button class="btn sm sec" onclick="resetCred('${code}','${u.id}')">🔑 Reset</button></td></tr>`).join('')}
+    </tbody></table></div>
+    <hr><label>Subscription billing</label>
+    <div class="card pad" style="background:#f7faf8"><div class="grid2">
+      <div class="fld"><label>Monthly fee (₦)</label><input id="mf_fee" type="number" min="0" value="${sub.fee||0}"></div>
+      <div class="fld"><label>Next due date</label><input id="mf_due" type="date" value="${esc(sub.due||'')}"></div>
+    </div>
+    <div class="flex gap"><button class="btn sm sec" onclick="famOwnerSaveSub('${code}')">Save</button>
+      <button class="btn sm" style="background:#0a7d33" onclick="famOwnerMarkPaid('${code}')">✓ Mark paid (extend 1 month)</button></div>
+    ${(sub.history&&sub.history.length)?`<div class="muted mt" style="font-size:12px">Last payments: ${sub.history.slice(-4).reverse().map(h=>esc(h.date)+' '+pmoneyOwner(h.amount)).join(' · ')}</div>`:''}
+    </div>`,
+    `<button class="btn sec" onclick="closeModal()">Close</button>
+     <button class="btn ${reg.status==='suspended'?'':'sec'}" onclick="toggleFamily('${code}')">${reg.status==='suspended'?'Re-activate':'Suspend'}</button>
+     <button class="btn sec" onclick="editFamily('${code}')">Edit details</button>
+     <button class="btn danger" onclick="delFamily('${code}')">Delete</button>`,true);}
+function famOwnerSaveSub(code){const reg=MASTER.schools.find(s=>s.code===code);reg.sub=reg.sub||{};reg.sub.fee=Math.max(0,Number($('#mf_fee').value)||0);reg.sub.due=$('#mf_due').value;saveMaster();toast('Subscription saved');manageFamily(code);}
+function famOwnerMarkPaid(code){const reg=MASTER.schools.find(s=>s.code===code);const sub=reg.sub=reg.sub||{fee:0,history:[]};
+  const base=sub.due&&sub.due>today()?new Date(sub.due):new Date(today());base.setMonth(base.getMonth()+1);
+  sub.due=base.toISOString().slice(0,10);sub.lastPaid=today();sub.history=sub.history||[];sub.history.push({date:today(),amount:sub.fee||0});
+  if(reg.status==='suspended'){reg.status='active';if(STORE[code])STORE[code].settings.status='active';saveSchoolRow(code);}
+  saveMaster();toast('Payment recorded · next due '+sub.due);manageFamily(code);}
+function toggleFamily(code){const reg=MASTER.schools.find(s=>s.code===code);reg.status=reg.status==='suspended'?'active':'suspended';
+  if(STORE[code])STORE[code].settings.status=reg.status;saveMaster();saveSchoolRow(code);toast('Family '+reg.status);manageFamily(code);}
+function delFamily(code){modal('Delete family?',`<p>Permanently delete <b>${esc(MASTER.schools.find(s=>s.code===code).name)}</b> and all its records? This cannot be undone.</p>`,
+  `<button class="btn sec" onclick="manageFamily('${code}')">Cancel</button><button class="btn danger" onclick="confirmDelFamily('${code}')">Delete</button>`);}
+async function confirmDelFamily(code){MASTER.schools=MASTER.schools.filter(s=>s.code!==code);delete STORE[code];saveStoreLocal();saveMaster();
+  if(supa){try{await supa.from('school_data').delete().eq('id',code);}catch(e){}}closeModal();toast('Family deleted');vFamilies();}
 
 /* ===================== PWA: offline + auto-update + install ===================== */
 function setManifest(){try{
