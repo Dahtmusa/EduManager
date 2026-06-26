@@ -790,23 +790,88 @@ function admissionLetter(sid){const s=DB.students.find(x=>x.id===sid);const logo
   renderVisuals();}
 
 /* ===================== PRIMARY 6 CERTIFICATE ===================== */
-function certHTMLInner(sid){const s=DB.students.find(x=>x.id===sid);const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';
-  const a=annual(s);const grade=a.avg!=null?gradeOf(a.avg):null;
-  return `<div class="cert">${s.photo?`<img class="cpass" src="${s.photo}">`:''}
-    <div class="lg">${logo}</div>
-    <h1>${esc(DB.settings.schoolName)}</h1><div class="sub2">${addrTel()}</div>
-    <div class="ttl">Primary School Leaving Certificate</div>
-    <p>This is to certify that</p>
-    <div class="nm">${esc(s.name)}</div>
-    <p>having satisfactorily completed the prescribed course of study has successfully graduated from <b>${esc(gradClassName())}</b> in the <b>${esc(DB.settings.session)}</b> academic session${a.avg!=null?` with an overall performance of <b>${a.avg.toFixed(1)}% (Grade ${grade.g})</b>`:''}.</p>
-    <p>Given under the seal of the school this ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}.</p>
-    <div class="crow"><div class="line">Head Teacher</div>
-      <div class="seal">SCHOOL<br>SEAL<br>★</div>
-      <div class="line">Proprietor</div></div>
-    <div style="text-align:center;margin-top:10px"><img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}" style="width:70px;height:70px"><div class="muted" style="font-size:9px">Verify: ${esc(s.admissionNo||'')}</div></div></div>`;}
+function qrDataURL(t){try{const q=qrcode(0,'M');q.addData(String(t||''));q.make();return q.createDataURL(5,1);}catch(e){return '';}}
+function certHTMLInner(sid){const s=DB.students.find(x=>x.id===sid);if(!s)return '';
+  const a=annual(s);const grade=a.avg!=null?gradeOf(a.avg):null;const set=DB.settings;const th=theme();
+  const logo=set.logo?`<img src="${set.logo}" alt="">`:'🎓';
+  const head=(headTeacher()||{}).name||'';const ct=(classTeacher(s.classId)||{}).name||'';
+  const qr=qrDataURL(s.admissionNo||s.id);const isl=isIslamic();const first=esc((s.name||'').split(' ')[0]);
+  return `<style>
+  .cert2{--g:${th.rg};--gd:${th.rgd};--gold:#b8902e;width:1040px;max-width:100%;margin:0 auto;background:#fffdf7;color:#2a2118;font-family:Georgia,'Garamond','Times New Roman',serif;position:relative;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cert2 *{box-sizing:border-box}
+  .cert2 .fr{position:relative;padding:32px 56px 24px;border:10px solid var(--g);outline:2px solid var(--gold);outline-offset:-20px;overflow:hidden}
+  .cert2 .corner{position:absolute;width:44px;height:44px;border:3px solid var(--gold);opacity:.85}
+  .cert2 .c1{top:13px;left:13px;border-right:0;border-bottom:0}.cert2 .c2{top:13px;right:13px;border-left:0;border-bottom:0}
+  .cert2 .c3{bottom:13px;left:13px;border-right:0;border-top:0}.cert2 .c4{bottom:13px;right:13px;border-left:0;border-top:0}
+  .cert2 .wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.05;pointer-events:none}
+  .cert2 .wm img{width:360px;height:360px;object-fit:contain;border-radius:50%}
+  .cert2 .inner{position:relative;text-align:center}
+  .cert2 .crest{width:72px;height:72px;border-radius:50%;border:3px solid var(--gold);background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:36px;overflow:hidden}
+  .cert2 .crest img{width:100%;height:100%;object-fit:cover}
+  .cert2 .sch{font-size:29px;font-weight:700;color:var(--gd);letter-spacing:.02em;margin:7px 0 1px}
+  .cert2 .addr{font-size:12px;color:#6a5d49}
+  .cert2 .bism{font-size:14px;color:var(--gold);margin-top:5px}
+  .cert2 .orn{color:var(--gold);font-size:15px;margin:9px 0 1px;letter-spacing:.4em}
+  .cert2 .ttl{font-size:24px;font-weight:700;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin:3px 0}
+  .cert2 .ttl-s{font-size:11px;color:#6a5d49;letter-spacing:.3em;text-transform:uppercase}
+  .cert2 .cert-line{font-size:14px;color:#5a4c38;margin-top:15px}
+  .cert2 .nm{font-family:'Snell Roundhand','Brush Script MT','Segoe Script','Apple Chancery',cursive;font-size:44px;color:var(--gd);line-height:1.1;margin:4px auto;display:inline-block;padding:0 30px 6px;border-bottom:2px solid var(--gold)}
+  .cert2 .body{font-size:14.5px;line-height:1.7;color:#34291c;max-width:780px;margin:11px auto 0}
+  .cert2 .body b{color:var(--gd)}
+  .cert2 .grade-badge{display:inline-block;margin-top:11px;background:var(--g);color:#fff;border:2px solid var(--gold);border-radius:30px;padding:5px 20px;font-size:13.5px;font-weight:700}
+  .cert2 .photo{position:absolute;top:0;right:4px;width:90px;height:106px;object-fit:cover;border:3px solid #fff;outline:1px solid var(--gold);border-radius:4px}
+  .cert2 .signs{display:flex;justify-content:space-between;align-items:flex-end;margin-top:30px;gap:18px}
+  .cert2 .sg{flex:1;text-align:center}
+  .cert2 .sg .ln{border-top:1.4px solid #4a4233;margin:0 10px;padding-top:5px;font-size:12px;font-weight:700;color:#2a2118}
+  .cert2 .sg .nmn{font-size:12px;min-height:15px;color:#3a3024;font-style:italic}
+  .cert2 .seal{width:92px;height:92px;border-radius:50%;border:3px double var(--gold);color:var(--gd);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:700;text-align:center;letter-spacing:.06em;transform:rotate(-8deg);background:radial-gradient(circle,#fffef9,#fbf2d8)}
+  .cert2 .seal .st{font-size:21px;color:var(--gold)}
+  .cert2 .foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:16px;font-size:11px;color:#6a5d49}
+  .cert2 .qr{width:62px;height:62px;display:block}
+  @media(max-width:760px){.cert2{width:100%}.cert2 .fr{padding:22px 18px}.cert2 .sch{font-size:21px}.cert2 .ttl{font-size:17px}.cert2 .nm{font-size:34px}.cert2 .signs{flex-wrap:wrap}.cert2 .photo{position:static;margin:0 auto 8px}}
+  </style>
+  <div class="cert2"><div class="fr">
+    <span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span>
+    ${set.logo?`<div class="wm"><img src="${set.logo}" alt=""></div>`:''}
+    <div class="inner">
+      ${s.photo?`<img class="photo" src="${s.photo}" alt="">`:''}
+      <div class="crest">${logo}</div>
+      <div class="sch">${esc(set.schoolName)}</div>
+      <div class="addr">${addrTel()}</div>
+      ${isl?`<div class="bism">۞ ${esc(BISMILLAH.a)} ۞</div>`:''}
+      <div class="orn">❦&nbsp;⸺&nbsp;❦</div>
+      <div class="ttl">Primary School Leaving Certificate</div>
+      <div class="ttl-s">${esc(set.session)} Academic Session</div>
+      <div class="cert-line">This is to certify that</div>
+      <div class="nm">${esc(s.name)}</div>
+      <div class="body">having satisfactorily completed the prescribed course of study, has successfully graduated from <b>${esc(gradClassName())}</b> at <b>${esc(set.schoolName)}</b>${a.avg!=null?` with an overall performance of <b>${a.avg.toFixed(1)}% — Grade ${grade.g} (${grade.r})</b>`:''}. ${first} is hereby awarded this certificate in recognition of academic achievement and good conduct.</div>
+      ${a.avg!=null?`<div class="grade-badge">Overall: ${a.avg.toFixed(1)}% · Grade ${grade.g}</div>`:''}
+      <div class="signs">
+        <div class="sg"><div class="nmn">${esc(ct)}</div><div class="ln">Class Teacher</div></div>
+        <div class="seal"><div class="st">★</div>OFFICIAL<br>SEAL</div>
+        <div class="sg"><div class="nmn">${esc(head)}</div><div class="ln">Head Teacher / Principal</div></div>
+      </div>
+      <div class="foot"><div>${qr?`<img class="qr" src="${qr}" alt=""><span>Verify: ${esc(s.admissionNo||s.id)}</span>`:''}</div>
+        <div style="text-align:right">Date issued: ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}${set.motto?'<br>'+esc(set.motto):''}</div></div>
+    </div>
+  </div></div>`;}
+/* print ONLY the given HTML (isolated in a hidden frame — nothing else prints) */
+function printDoc(inner,page){
+  const old=document.getElementById('printFrame');if(old)old.remove();
+  const fr=document.createElement('iframe');fr.id='printFrame';fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0';
+  document.body.appendChild(fr);const d=fr.contentWindow.document;
+  d.open();d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Print</title><style>@page{size:'+(page||'A4 portrait')+';margin:8mm}html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}</style></head><body>'+inner+'</body></html>');d.close();
+  const imgs=[].slice.call(d.images);const fire=()=>{try{fr.contentWindow.focus();fr.contentWindow.print();}catch(e){}};
+  if(!imgs.length){setTimeout(fire,350);}
+  else{let done=0;const chk=()=>{if(++done>=imgs.length)setTimeout(fire,300);};imgs.forEach(im=>{if(im.complete)chk();else{im.onload=chk;im.onerror=chk;}});}
+}
+function printCert(sid){printDoc(certHTMLInner(sid),'A4 landscape');}
+function printAllCerts(classId){const studs=studentsIn(classId);if(!studs.length){toast('No pupils in this class',true);return;}
+  toast('Preparing '+studs.length+' certificate(s)…');
+  const html=studs.map((s,i)=>`<div style="${i<studs.length-1?'page-break-after:always':''}">${certHTMLInner(s.id)}</div>`).join('');
+  printDoc(html,'A4 landscape');}
 function certificate(sid){const s=DB.students.find(x=>x.id===sid);
-  modal('Leaving Certificate — '+s.name,certHTMLInner(sid),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print / Save PDF</button>`,true);
-  renderVisuals();}
+  modal('Leaving Certificate — '+s.name,certHTMLInner(sid),`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="printCert('${sid}')">🖨 Print certificate</button>`,true);}
 
 /* ===================== ANNUAL CUMULATIVE REPORT ===================== */
 function annualReportHTML(sid){const s=DB.students.find(x=>x.id===sid);const subs=DB.subjects[s.classId]||[];const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';
@@ -857,10 +922,12 @@ function renderPromo(){const list=studentsIn(promoClass);const fin=isFinalClass(
     <div class="stat"><div class="lbl">Pupils</div><div class="num">${list.length}</div></div>
     <div class="stat"><div class="lbl">${fin?'Graduating':'Promoted'}</div><div class="num" style="color:var(--green)">${promoted}</div></div>
     <div class="stat"><div class="lbl">${fin?'Not cleared':'Repeating'}</div><div class="num" style="color:var(--red)">${list.length-promoted-rows.filter(r=>r.p.decision==='pending').length}</div></div></div>
+  ${fin?`<div class="card pad mb" style="border-left:4px solid var(--gold);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><b>🎓 Leaving certificates</b><div class="muted" style="font-size:12.5px">Print one click — only the certificate prints, on A4 landscape.</div></div>
+    <button class="btn gold" onclick="printAllCerts('${promoClass}')">🖨 Print ALL certificates (${list.length})</button></div>`:''}
   <div class="t-wrap"><table><thead><tr><th>Pupil</th><th class="center">1st</th><th class="center">2nd</th><th class="center">3rd</th><th class="center">Annual</th><th>Decision</th><th></th></tr></thead><tbody>
   ${rows.map(({s,p})=>`<tr><td><b>${esc(s.name)}</b></td><td class="center">${p.t1!=null?p.t1.toFixed(0):'–'}</td><td class="center">${p.t2!=null?p.t2.toFixed(0):'–'}</td><td class="center">${p.t3!=null?p.t3.toFixed(0):'–'}</td>
     <td class="center"><b>${p.avg!=null?p.avg.toFixed(1)+'%':'–'}</b></td><td><span class="${p.cls}">${esc(p.label)}</span></td>
-    <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="openAnnual('${s.id}')">Report</button>${fin?`<button class="btn sm gold" onclick="certificate('${s.id}')">Certificate</button>`:''}</td></tr>`).join('')}
+    <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="openAnnual('${s.id}')">Report</button>${fin?`<button class="btn sm gold" onclick="printCert('${s.id}')">🖨 Certificate</button> <button class="btn sm sec" onclick="certificate('${s.id}')">Preview</button>`:''}</td></tr>`).join('')}
   </tbody></table></div>`;}
 function printPromoList(){const list=studentsIn(promoClass);const rows=list.map(s=>({s,p:promotionFor(s)}));
   const html=`<div style="padding:6px"><div class="flex" style="gap:12px;border-bottom:2px solid var(--green);padding-bottom:8px;margin-bottom:10px">
@@ -1657,6 +1724,7 @@ function renderAuth(){
   if(MODE!=='owner'&&DB&&DB.kind==='pharmacy'){renderPharmacyAuth();return;}
   if(MODE!=='owner'&&DB&&DB.kind==='autoparts'){renderAutoAuth();return;}
   if(MODE!=='owner'&&DB&&DB.kind==='family'){renderFamilyAuth();return;}
+  if(MODE!=='owner'&&DB&&DB.kind==='posagent'){renderPosAuth();return;}
   if(MODE==='check'){renderChecker();return;}
   if(MODE==='parent'){renderParent();return;}
   if(MODE==='owner'){
@@ -1766,6 +1834,7 @@ function enterApp(){
   if(!owner&&DB&&DB.kind==='pharmacy'){return enterPharmacy();}
   if(!owner&&DB&&DB.kind==='autoparts'){return enterAuto();}
   if(!owner&&DB&&DB.kind==='family'){return enterFamily();}
+  if(!owner&&DB&&DB.kind==='posagent'){return enterPos();}
   $('#topbar').className='topbar'+(owner?' owner':'');
   $('#brandName').textContent=owner?((MASTER.platform.name)||'EduManager Cloud'):DB.settings.schoolName;
   $('#topLogo').textContent=owner?'🛰️':'🎓';
@@ -1792,7 +1861,12 @@ function buildNav(){
     $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
     return;
   }
-  if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['stores','💊','Pharmacies'],['autostores','🔧','Auto Parts'],['families','👪','Families'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
+  if(USER.role!=='owner'&&DB&&DB.kind==='posagent'){
+    items=[['padash','📊','Dashboard'],['palist','🧾','Transactions'],['padebt','🤝','Debtors'],['pareport','📈','Report'],['pasettings','⚙️','Settings']];
+    $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
+    return;
+  }
+  if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['stores','💊','Pharmacies'],['autostores','🔧','Auto Parts'],['families','👪','Families'],['posagents','🏧','POS Agents'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
   else if(USER.role==='admin'){items=[['dashboard','📊','Dashboard'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👩‍🏫','Teachers'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['calendar','🗓️','Calendar'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
     if(hasModule('staffAttendance'))items.splice(7,0,['staffatt','👔','Staff Att.']);
     if(hasModule('houses'))items.push(['houses','🏠','Houses']);
@@ -1811,8 +1885,9 @@ function buildNav(){
 function toggleNav(open){const sb=document.querySelector('.sidebar'),sc=$('#navScrim');const show=open===undefined?!sb.classList.contains('show'):open;
   sb.classList.toggle('show',show);if(sc)sc.classList.toggle('show',show);}
 function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(false);
-  const map={odash:vODash,schools:vSchools,stores:vPharmacies,autostores:vAutos,families:vFamilies,pins:vPins,revenue:vRevenue,osettings:vOSettings,
+  const map={odash:vODash,schools:vSchools,stores:vPharmacies,autostores:vAutos,families:vFamilies,posagents:vPosAgents,pins:vPins,revenue:vRevenue,osettings:vOSettings,
     famdash:vFamDash,famsections:vFamSections,famdues:vFamDues,famlevies:vFamLevies,famassist:vFamAssist,famreports:vFamReports,famsettings:vFamSettings,
+    padash:vPaDash,palist:vPaList,padebt:vPaDebt,pareport:vPaReport,pasettings:vPaSettings,
     phdash:vPhDash,pos:vPhPOS,saleshist:vPhSales,inventory:vPhInventory,suppliers:vPhSuppliers,phreports:vPhReports,phsettings:vPhSettings,
     audash:vAuDash,aupos:vAuPOS,ausales:vAuSales,auinventory:vAuInventory,cars:vAuCars,ausuppliers:vAuSuppliers,aureports:vAuReports,ausettings:vAuSettings,
     customers:vStoreCustomers,quotes:vStoreQuotes,
@@ -1823,20 +1898,22 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
 
 /* ===================== OWNER: DASHBOARD ===================== */
 function vODash(){
-  const schools=MASTER.schools.filter(s=>s.type!=='pharmacy'&&s.type!=='autoparts'&&s.type!=='family'), active=schools.filter(s=>s.status!=='suspended').length;
+  const schools=MASTER.schools.filter(s=>s.type!=='pharmacy'&&s.type!=='autoparts'&&s.type!=='family'&&s.type!=='posagent'), active=schools.filter(s=>s.status!=='suspended').length;
   const pharmacies=MASTER.schools.filter(s=>s.type==='pharmacy');
   const autos=MASTER.schools.filter(s=>s.type==='autoparts');
   const families=MASTER.schools.filter(s=>s.type==='family');
+  const posag=MASTER.schools.filter(s=>s.type==='posagent');
   const pinsGen=MASTER.pins.length, pinsUsed=MASTER.pins.filter(p=>p.uses>0).length;
   const revenue=MASTER.batches.reduce((a,b)=>a+(Number(b.price)||0)*(Number(b.qty)||0),0);
   $('#view').innerHTML=`
   <div class="page-head"><div><h2>Owner Dashboard</h2><p>${esc(MASTER.platform.name)} — your SaaS</p></div>
-    <div class="flex gap" style="flex-wrap:wrap"><button class="btn purple" onclick="editSchool()">＋ School</button><button class="btn" onclick="editPharmacy()">＋ Pharmacy</button><button class="btn" style="background:#15366e" onclick="editAuto()">＋ Auto Parts</button><button class="btn" style="background:#7a4d12" onclick="editFamily()">＋ Family</button></div></div>
+    <div class="flex gap" style="flex-wrap:wrap"><button class="btn purple" onclick="editSchool()">＋ School</button><button class="btn" onclick="editPharmacy()">＋ Pharmacy</button><button class="btn" style="background:#15366e" onclick="editAuto()">＋ Auto Parts</button><button class="btn" style="background:#7a4d12" onclick="editFamily()">＋ Family</button><button class="btn" style="background:#0a7d33" onclick="editPos()">＋ POS Agent</button></div></div>
   <div class="cards-row">
     <div class="stat accent purple"><div class="lbl">Schools</div><div class="num">${schools.length}</div><div class="meta">${active} active</div></div>
     <div class="stat accent"><div class="lbl">Pharmacies</div><div class="num">${pharmacies.length}</div><div class="meta">${pharmacies.filter(s=>s.status!=='suspended').length} active</div></div>
     <div class="stat"><div class="lbl">Auto Parts</div><div class="num" style="color:#15366e">${autos.length}</div><div class="meta">${autos.filter(s=>s.status!=='suspended').length} active</div></div>
     <div class="stat"><div class="lbl">Families</div><div class="num" style="color:#7a4d12">${families.length}</div><div class="meta">${families.filter(s=>s.status!=='suspended').length} active</div></div>
+    <div class="stat"><div class="lbl">POS Agents</div><div class="num" style="color:#0a7d33">${posag.length}</div><div class="meta">${posag.filter(s=>s.status!=='suspended').length} active</div></div>
     <div class="stat"><div class="lbl">PIN Revenue</div><div class="num" style="color:var(--green)">${naira(revenue)}</div><div class="meta">${pinsGen} PINs · ${pinsUsed} used</div></div>
   </div>
   ${!supa?`<div class="card pad mb" style="border-left:4px solid var(--gold)"><b>You're in local demo mode.</b> Paste your Supabase keys at the top of <code>index.html</code> (or in Settings) so schools can share live data. See the deploy guide.</div>`:''}
@@ -1852,7 +1929,7 @@ function vODash(){
 }
 /* ===================== OWNER: SCHOOLS ===================== */
 function vSchools(){
-  const list=MASTER.schools.filter(s=>s.type!=='pharmacy'&&s.type!=='autoparts'&&s.type!=='family');
+  const list=MASTER.schools.filter(s=>s.type!=='pharmacy'&&s.type!=='autoparts'&&s.type!=='family'&&s.type!=='posagent');
   $('#view').innerHTML=`<div class="page-head"><div><h2>Schools</h2><p>${list.length} registered — admin logins shown below</p></div>
     <button class="btn purple" onclick="editSchool()">＋ Register School</button></div>
   <div class="t-wrap"><table><thead><tr><th>School</th><th>Code</th><th>Pupils</th><th>Admin login (username / password)</th><th>Status</th><th></th></tr></thead><tbody>
@@ -1872,8 +1949,8 @@ function resetCred(code,userId){const d=STORE[code];const u=d.users.find(x=>x.id
 function doResetCred(code,userId){const p=$('#rp_pass').value.trim();if(!p){toast('Enter a password',true);return;}
   const d=STORE[code];d.users.find(x=>x.id===userId).password=p;STORE[code]=d;saveStoreLocal();saveSchoolRow(code);
   closeModal();toast('Password updated');const reg=MASTER.schools.find(s=>s.code===code);
-  if(CURRENT==='schools')vSchools();else if(CURRENT==='stores')vPharmacies();else if(CURRENT==='autostores')vAutos();else if(CURRENT==='families')vFamilies();else if(CURRENT==='odash')vODash();
-  else if(reg&&reg.type==='pharmacy')managePharmacy(code);else if(reg&&reg.type==='autoparts')manageAuto(code);else if(reg&&reg.type==='family')manageFamily(code);else manageSchool(code);}
+  if(CURRENT==='schools')vSchools();else if(CURRENT==='stores')vPharmacies();else if(CURRENT==='autostores')vAutos();else if(CURRENT==='families')vFamilies();else if(CURRENT==='posagents')vPosAgents();else if(CURRENT==='odash')vODash();
+  else if(reg&&reg.type==='pharmacy')managePharmacy(code);else if(reg&&reg.type==='autoparts')manageAuto(code);else if(reg&&reg.type==='family')manageFamily(code);else if(reg&&reg.type==='posagent')managePos(code);else manageSchool(code);}
 function editSchool(code){
   const reg=code?MASTER.schools.find(s=>s.code===code):null;const d=code?STORE[code]:null;
   const g=(d&&d.settings.grade)||{ca1:20,ca2:20,exam:60};
@@ -2676,7 +2753,7 @@ function renderCheckResult(){
     <div style="max-width:840px;margin:0 auto">
       <div class="flex no-print" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <div><b>${esc(s.name)}</b> · ${esc(className(s.classId))} <span class="pill blue" style="margin-left:6px">${remaining} check(s) left</span></div>
-        <div class="flex gap"><button class="btn gold" onclick="window.print()">🖨 Print / Save PDF</button><button class="btn sec" onclick="renderChecker()">Check another</button></div></div>
+        <div class="flex gap"><button class="btn gold" onclick="${_ckTab==='cert'?`printCert('${s.id}')`:'window.print()'}">🖨 Print / Save PDF</button><button class="btn sec" onclick="renderChecker()">Check another</button></div></div>
       <div class="subtabs no-print"><button class="subtab${_ckTab==='term'?' active':''}" onclick="setCkTab('term')">Termly Result</button>
         <button class="subtab${_ckTab==='annual'?' active':''}" onclick="setCkTab('annual')">Annual / Promotion</button>
         ${fin?`<button class="subtab${_ckTab==='cert'?' active':''}" onclick="setCkTab('cert')">Leaving Certificate</button>`:''}</div>
@@ -2713,7 +2790,7 @@ async function boot(){
     if(supa){await pullRow(SCHOOL_CODE);if(MASTER&&!STORE[SCHOOL_CODE]){}}
     const _reg=MASTER&&MASTER.schools&&MASTER.schools.find(s=>s.code===SCHOOL_CODE);
     const _t=(_reg&&_reg.type)||(STORE[SCHOOL_CODE]&&STORE[SCHOOL_CODE].kind)||'school';
-    DB=STORE[SCHOOL_CODE]?(_t==='pharmacy'?ensurePharmacy(STORE[SCHOOL_CODE]):_t==='autoparts'?ensureAuto(STORE[SCHOOL_CODE]):_t==='family'?ensureFamily(STORE[SCHOOL_CODE]):ensureSchool(STORE[SCHOOL_CODE])):null;
+    DB=STORE[SCHOOL_CODE]?(_t==='pharmacy'?ensurePharmacy(STORE[SCHOOL_CODE]):_t==='autoparts'?ensureAuto(STORE[SCHOOL_CODE]):_t==='family'?ensureFamily(STORE[SCHOOL_CODE]):_t==='posagent'?ensurePos(STORE[SCHOOL_CODE]):ensureSchool(STORE[SCHOOL_CODE])):null;
     if(DB){STORE[SCHOOL_CODE]=DB;}
     setSync(supa?'on':'off',supa?'Synced':'Local');
     // restore session
@@ -4740,6 +4817,307 @@ function delFamily(code){modal('Delete family?',`<p>Permanently delete <b>${esc(
   `<button class="btn sec" onclick="manageFamily('${code}')">Cancel</button><button class="btn danger" onclick="confirmDelFamily('${code}')">Delete</button>`);}
 async function confirmDelFamily(code){MASTER.schools=MASTER.schools.filter(s=>s.code!==code);delete STORE[code];saveStoreLocal();saveMaster();
   if(supa){try{await supa.from('school_data').delete().eq('id',code);}catch(e){}}closeModal();toast('Family deleted');vFamilies();}
+
+/* ===================================================================== */
+/* ===================== POS AGENT LEDGER MODULE ====================== */
+/* ===================================================================== */
+let PA_FROM='', PA_TO='', PA_Q='';
+const PA_AC='#0a7d33';
+const PA_TYPES={withdrawal:{lbl:'Withdrawal (cash out)',cash:-1,bank:1},deposit:{lbl:'Deposit / Send (cash in)',cash:1,bank:-1},transfer:{lbl:'Transfer (cash in)',cash:1,bank:-1},airtime:{lbl:'Airtime / Data',cash:1,bank:-1},bills:{lbl:'Bills payment',cash:1,bank:-1}};
+const PA_ADJ={addcash:{lbl:'Add cash (float in)',cash:1,bank:0},removecash:{lbl:'Remove cash (float out)',cash:-1,bank:0},fundbank:{lbl:'Move cash → bank',cash:-1,bank:1},tocash:{lbl:'Move bank → cash',cash:1,bank:-1}};
+function seedPos(code,name){return{kind:'posagent',
+  settings:{code,storeName:name,agentName:'',shortName:'',address:'Nigeria',phone:'',email:'',logo:'',theme:'green',currency:'₦',slogan:'',status:'active',rcptSeq:0,cash:0,bank:0},
+  users:[{id:'u1',name:'POS Operator',username:'admin',password:'admin123',role:'admin'}],
+  txns:[],debtors:[],expenses:[]};}
+function ensurePos(d){d.kind='posagent';d.settings=d.settings||{};const s=d.settings;
+  if(!s.currency)s.currency='₦';if(!s.theme)s.theme='green';if(!s.status)s.status='active';if(s.rcptSeq==null)s.rcptSeq=0;
+  if(s.cash==null)s.cash=0;if(s.bank==null)s.bank=0;if(!s.storeName)s.storeName=s.familyName||'POS Business';
+  ['txns','debtors','expenses'].forEach(k=>{if(!Array.isArray(d[k]))d[k]=[];});
+  if(!Array.isArray(d.users)||!d.users.length)d.users=[{id:'u1',name:'POS Operator',username:'admin',password:'admin123',role:'admin'}];
+  return d;}
+/* helpers */
+function paCur(){return DB.settings.currency||'₦';}
+function pamoney(n){return paCur()+(Math.round((Number(n)||0)*100)/100).toLocaleString('en-NG');}
+function paTxnsIn(from,to){return DB.txns.filter(t=>{const d=(t.date||'').slice(0,10);return (!from||d>=from)&&(!to||d<=to);});}
+function paEarnIn(from,to){return paTxnsIn(from,to).reduce((a,t)=>a+Number(t.charge||0),0);}
+function paDebtTotal(){return DB.debtors.filter(d=>!d.settled).reduce((a,d)=>a+Number(d.amount||0),0);}
+
+/* auth + shell */
+function renderPosAuth(){const sc=$('#screen');sc.style.display='';$('#app').style.display='none';const set=DB.settings;
+  if(set.status==='suspended'){sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest">⏸️</div><h1>${esc(set.storeName)}</h1><div class="sub">This account is currently suspended. Please contact your provider to renew.</div></div></div>`;return;}
+  const logo=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover;border-radius:16px">`:'🏧';
+  sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest" style="background:${PA_AC}">${logo}</div>
+    <h1>${esc(set.storeName)}</h1>${set.slogan?`<div class="muted" style="font-style:italic;margin-bottom:4px">“${esc(set.slogan)}”</div>`:''}<div class="sub">POS Agent — Login</div>
+    <div class="auth-err" id="aerr"></div>
+    <div class="field"><label>Username</label><input id="su" placeholder="admin"></div>
+    <div class="field"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>
+    <button class="btn" style="width:100%;justify-content:center;background:${PA_AC}" onclick="schoolLogin()">Sign in</button>
+    <div class="hint">Use the login your provider gave you.</div></div></div>`;
+  setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);}
+function enterPos(){const set=DB.settings;
+  $('#topbar').className='topbar';$('#brandName').textContent=set.storeName;$('#topLogo').textContent='🏧';
+  $('#whoName').textContent=USER.name;$('#whoRole').textContent='POS Operator';
+  $('#termBadge').textContent=set.shortName||'POS';
+  setSync(supa?'on':'off',supa?'Synced':'Local');buildNav();go('padash');setManifest();}
+
+/* dashboard */
+function vPaDash(){const t=today();const set=DB.settings;const tt=paTxnsIn(t,t);
+  const vol=tt.reduce((a,x)=>a+Number(x.amount||0),0);const earn=tt.reduce((a,x)=>a+Number(x.charge||0),0);
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Dashboard</h2><p>${esc(set.storeName)} — ${new Date().toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'})}</p></div>
+    <button class="btn" style="background:${PA_AC}" onclick="paRecord()">＋ New transaction</button></div>
+  <div class="cards-row">
+    <div class="stat"><div class="lbl">Cash on hand</div><div class="num" style="color:${Number(set.cash)<0?'#c0392b':PA_AC}">${pamoney(set.cash)}</div><div class="meta">physical cash</div></div>
+    <div class="stat"><div class="lbl">Bank / wallet</div><div class="num" style="color:${Number(set.bank)<0?'#c0392b':'#15366e'}">${pamoney(set.bank)}</div><div class="meta">account balance</div></div>
+    <div class="stat"><div class="lbl">Today's earnings</div><div class="num" style="color:#0a7d33">${pamoney(earn)}</div><div class="meta">${tt.length} txn · vol ${pamoney(vol)}</div></div>
+    <div class="stat"><div class="lbl">Debtors</div><div class="num" style="color:${paDebtTotal()?'#c0392b':''}">${pamoney(paDebtTotal())}</div><div class="meta">owed to you</div></div>
+  </div>
+  <div class="card pad mb"><div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><h3>Quick record</h3>
+    <div class="flex gap" style="flex-wrap:wrap"><button class="btn sm" style="background:${PA_AC}" onclick="paRecord('withdrawal')">Withdrawal</button><button class="btn sm" style="background:#15366e" onclick="paRecord('deposit')">Deposit/Send</button><button class="btn sm sec" onclick="paRecord('airtime')">Airtime</button><button class="btn sm sec" onclick="paAdjust()">⚖ Adjust float</button></div></div>
+    <p class="muted mt" style="font-size:12px">Cash and bank balances update automatically with each transaction. Set your starting balances in Settings.</p></div>
+  <div class="card pad"><h3 class="mb">Recent transactions</h3>
+  ${DB.txns.length?`<div class="t-wrap"><table><thead><tr><th>Time</th><th>Type</th><th class="right">Amount</th><th class="right">Charge</th><th></th></tr></thead><tbody>
+    ${DB.txns.slice(-10).reverse().map(x=>`<tr><td>${esc((x.date||'').replace('T',' ').slice(0,16))}</td><td>${esc(paTypeLabel(x.type))}${x.customer?'<br><span class="muted" style="font-size:11px">'+esc(x.customer)+'</span>':''}</td><td class="right">${pamoney(x.amount)}</td><td class="right" style="color:#0a7d33">${x.charge?'+'+pamoney(x.charge):'—'}</td><td class="right"><button class="btn sm sec" onclick="paUndo('${x.id}')">Undo</button></td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="empty"><div class="big">🏧</div>No transactions yet. <button class="btn sm mt" style="background:${PA_AC};color:#fff" onclick="paRecord()">Record your first</button></div>`}
+  </div>`;}
+function paTypeLabel(t){return (PA_TYPES[t]||PA_ADJ[t]||{lbl:t}).lbl;}
+
+/* record transaction */
+function paRecord(preType){
+  modal('Record transaction',`<div class="grid2">
+    <div class="fld full"><label>Type</label><select id="pa_type">${Object.entries(PA_TYPES).map(([k,v])=>`<option value="${k}" ${preType===k?'selected':''}>${v.lbl}</option>`).join('')}</select></div>
+    <div class="fld"><label>Amount (${paCur()}) *</label><input id="pa_amt" type="number" min="0" step="0.01" value="" autofocus></div>
+    <div class="fld"><label>Charge / commission (${paCur()})</label><input id="pa_charge" type="number" min="0" step="0.01" value=""></div>
+    <div class="fld"><label>Customer (optional)</label><input id="pa_cust" placeholder="name"></div>
+    <div class="fld"><label>Phone (optional)</label><input id="pa_phone" placeholder="080…"></div>
+    <div class="fld full"><label>Note</label><input id="pa_note" placeholder="optional"></div>
+  </div>
+  <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;margin-top:6px"><input type="checkbox" id="pa_credit" style="width:auto"> Customer didn't pay cash — record as debt (owed to you)</label>
+  <p class="muted" style="font-size:11.5px;margin-top:6px">Withdrawal = you give cash. Deposit/Send/Airtime/Bills = customer gives you cash. Balances update automatically.</p>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:${PA_AC}" onclick="paSaveTxn()">Record</button>`);}
+function paSaveTxn(){const type=$('#pa_type').value;const amt=Math.max(0,Number($('#pa_amt').value)||0);if(amt<=0){toast('Enter an amount',true);return;}
+  const charge=Math.max(0,Number($('#pa_charge').value)||0);const def=PA_TYPES[type];const credit=$('#pa_credit').checked;
+  let cashD=def.cash*amt+charge;let bankD=def.bank*amt;
+  if(credit){ // customer didn't hand over the cash; remove the cash leg, keep bank leg, log a debtor for amount(+charge)
+    if(def.cash>0){cashD=0;} // they owe the cash they should have given
+    DB.debtors.push({id:uid('db'),date:new Date().toISOString(),name:($('#pa_cust').value||'Customer').trim(),phone:$('#pa_phone').value.trim(),amount:amt+charge,reason:paTypeLabel(type),settled:false});
+  }
+  DB.settings.cash=Number(DB.settings.cash||0)+cashD;DB.settings.bank=Number(DB.settings.bank||0)+bankD;
+  DB.settings.rcptSeq=(DB.settings.rcptSeq||0)+1;
+  DB.txns.push({id:uid('tx'),rcptNo:'PA/'+String(DB.settings.rcptSeq).padStart(4,'0'),date:new Date().toISOString(),type,amount:amt,charge,customer:$('#pa_cust').value.trim(),phone:$('#pa_phone').value.trim(),note:$('#pa_note').value.trim(),credit,cashD,bankD});
+  save();closeModal();toast('Recorded · earning '+pamoney(charge));if(CURRENT==='padash')vPaDash();else if(CURRENT==='palist')vPaList();}
+function paAdjust(){
+  modal('Adjust float / balances',`<p class="muted mb">Use when you add your own cash, move money between cash and bank, or correct a balance.</p><div class="grid2">
+    <div class="fld full"><label>Action</label><select id="paj_type">${Object.entries(PA_ADJ).map(([k,v])=>`<option value="${k}">${v.lbl}</option>`).join('')}<option value="setcash">Set cash balance to…</option><option value="setbank">Set bank balance to…</option></select></div>
+    <div class="fld"><label>Amount (${paCur()})</label><input id="paj_amt" type="number" step="0.01" value=""></div>
+    <div class="fld"><label>Note</label><input id="paj_note"></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:${PA_AC}" onclick="paSaveAdjust()">Save</button>`);}
+function paSaveAdjust(){const type=$('#paj_type').value;const amt=Number($('#paj_amt').value)||0;const s=DB.settings;
+  if(type==='setcash'){s.cash=amt;}else if(type==='setbank'){s.bank=amt;}
+  else{if(amt<=0){toast('Enter an amount',true);return;}const def=PA_ADJ[type];const cashD=def.cash*amt,bankD=def.bank*amt;s.cash=Number(s.cash||0)+cashD;s.bank=Number(s.bank||0)+bankD;
+    DB.settings.rcptSeq=(DB.settings.rcptSeq||0)+1;DB.txns.push({id:uid('tx'),rcptNo:'PA/'+String(DB.settings.rcptSeq).padStart(4,'0'),date:new Date().toISOString(),type,amount:amt,charge:0,note:$('#paj_note').value.trim(),cashD,bankD,adj:true});}
+  save();closeModal();toast('Balances updated');if(CURRENT==='padash')vPaDash();else if(CURRENT==='palist')vPaList();else if(CURRENT==='pasettings')vPaSettings();}
+function paUndo(id){const x=DB.txns.find(t=>t.id===id);if(!x)return;
+  modal('Undo transaction?',`<p>Reverse <b>${esc(paTypeLabel(x.type))}</b> of ${pamoney(x.amount)}? Balances will be restored.</p>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="paDoUndo('${id}')">Undo</button>`);}
+function paDoUndo(id){const x=DB.txns.find(t=>t.id===id);if(!x)return;DB.settings.cash=Number(DB.settings.cash||0)-Number(x.cashD||0);DB.settings.bank=Number(DB.settings.bank||0)-Number(x.bankD||0);
+  DB.txns=DB.txns.filter(t=>t.id!==id);save();closeModal();toast('Reversed');if(CURRENT==='palist')vPaList();else vPaDash();}
+
+/* transactions list */
+function vPaList(){const t=today();if(!PA_FROM)PA_FROM=t;if(!PA_TO)PA_TO=t;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Transactions</h2><p>Daily log — cash & bank update automatically</p></div>
+    <button class="btn" style="background:${PA_AC}" onclick="paRecord()">＋ New</button></div>
+  <div class="toolbar no-print"><div><label>From</label><input id="pal_from" type="date" value="${PA_FROM}" onchange="PA_FROM=this.value;paRenderList()"></div>
+    <div><label>To</label><input id="pal_to" type="date" value="${PA_TO}" onchange="PA_TO=this.value;paRenderList()"></div>
+    <div style="flex:1"><label>Search</label><input id="pal_q" value="${esc(PA_Q)}" placeholder="customer / note / receipt" oninput="PA_Q=this.value;paRenderList()"></div>
+    <div style="align-self:flex-end"><button class="btn sm sec" onclick="paRange('today')">Today</button><button class="btn sm sec" onclick="paRange('month')">Month</button><button class="btn sm sec" onclick="paRange('all')">All</button></div></div>
+  <div id="palArea"></div>`;paRenderList();}
+function paRange(k){const t=today();if(k==='today'){PA_FROM=t;PA_TO=t;}else if(k==='month'){PA_FROM=t.slice(0,8)+'01';PA_TO=t;}else{PA_FROM='2000-01-01';PA_TO=t;}
+  const f=$('#pal_from'),to=$('#pal_to');if(f)f.value=PA_FROM;if(to)to.value=PA_TO;paRenderList();}
+function paRenderList(){const q=PA_Q.toLowerCase().trim();let list=paTxnsIn(PA_FROM,PA_TO);
+  if(q)list=list.filter(x=>(x.customer||'').toLowerCase().includes(q)||(x.note||'').toLowerCase().includes(q)||(x.rcptNo||'').toLowerCase().includes(q)||paTypeLabel(x.type).toLowerCase().includes(q));
+  list=list.slice().reverse();
+  const vol=list.reduce((a,x)=>a+Number(x.amount||0),0),earn=list.reduce((a,x)=>a+Number(x.charge||0),0);
+  const el=$('#palArea');if(!el)return;
+  el.innerHTML=`<div class="cards-row">
+    ${phStat('Transactions',list.length,PA_FROM+' → '+PA_TO)}
+    ${phStat('Volume',pamoney(vol),'total value','#15366e')}
+    ${phStat('Earnings',pamoney(earn),'commission','#0a7d33')}
+  </div>
+  ${list.length?`<div class="t-wrap"><table><thead><tr><th>Time</th><th>Type</th><th>Customer</th><th class="right">Amount</th><th class="right">Charge</th><th></th></tr></thead><tbody>
+    ${list.map(x=>`<tr><td>${esc((x.date||'').replace('T',' ').slice(0,16))}</td><td>${esc(paTypeLabel(x.type))}${x.adj?' <span class="pill grey">adj</span>':''}${x.credit?' <span class="pill gold">credit</span>':''}</td><td>${esc(x.customer||'—')}</td><td class="right">${pamoney(x.amount)}</td><td class="right" style="color:#0a7d33">${x.charge?'+'+pamoney(x.charge):'—'}</td><td class="right"><button class="btn sm sec" onclick="paUndo('${x.id}')">Undo</button></td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">🧾</div>No transactions in range.</div></div>`}`;}
+
+/* debtors */
+function vPaDebt(){const list=DB.debtors.slice().reverse();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Debtors</h2><p>Customers who owe you</p></div>
+    <button class="btn" style="background:${PA_AC}" onclick="paAddDebt()">＋ Add debt</button></div>
+  <div class="cards-row">${phStat('Total owed',pamoney(paDebtTotal()),DB.debtors.filter(d=>!d.settled).length+' debtor(s)',paDebtTotal()?'#c0392b':'')}</div>
+  <div class="card pad">${list.length?`<div class="t-wrap"><table><thead><tr><th>Date</th><th>Name</th><th>Phone</th><th>Reason</th><th class="right">Amount</th><th></th></tr></thead><tbody>
+    ${list.map(d=>`<tr${d.settled?' style="opacity:.5"':''}><td>${esc((d.date||'').slice(0,10))}</td><td><b>${esc(d.name||'')}</b></td><td>${esc(d.phone||'—')}</td><td>${esc(d.reason||'')}${d.settled?' <span class="pill green">paid</span>':''}</td><td class="right" style="color:${d.settled?'':'#c0392b'}">${pamoney(d.amount)}</td>
+      <td class="right" style="white-space:nowrap">${!d.settled?`<button class="btn sm" style="background:#0a7d33" onclick="paSettleDebt('${d.id}')">Mark paid</button>`:''}<button class="btn sm danger" onclick="paDelDebt('${d.id}')">✕</button></td></tr>`).join('')}
+  </tbody></table></div>`:`<div class="empty"><div class="big">🤝</div>No debtors. 👍</div>`}</div>`;}
+function paAddDebt(){modal('Add debt',`<div class="grid2">
+    <div class="fld full"><label>Name *</label><input id="pad_name"></div>
+    <div class="fld"><label>Phone</label><input id="pad_phone"></div>
+    <div class="fld"><label>Amount (${paCur()}) *</label><input id="pad_amt" type="number" min="0" step="0.01" value=""></div>
+    <div class="fld full"><label>Reason</label><input id="pad_reason" placeholder="e.g. withdrawal not paid"></div>
+  </div>`,`<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:${PA_AC}" onclick="paSaveDebt()">Save</button>`);}
+function paSaveDebt(){const name=$('#pad_name').value.trim(),amt=Math.max(0,Number($('#pad_amt').value)||0);if(!name||amt<=0){toast('Name and amount required',true);return;}
+  DB.debtors.push({id:uid('db'),date:new Date().toISOString(),name,phone:$('#pad_phone').value.trim(),amount:amt,reason:$('#pad_reason').value.trim(),settled:false});save();closeModal();toast('Saved');vPaDebt();}
+function paSettleDebt(id){const d=DB.debtors.find(x=>x.id===id);if(!d)return;d.settled=true;d.settledDate=today();
+  DB.settings.cash=Number(DB.settings.cash||0)+Number(d.amount||0);save();toast('Marked paid · cash updated');vPaDebt();}
+function paDelDebt(id){DB.debtors=DB.debtors.filter(d=>d.id!==id);save();toast('Removed');vPaDebt();}
+
+/* report (end of day) */
+function vPaReport(){const d=PA_TO&&PA_FROM===PA_TO?PA_TO:today();window._paRepDate=d;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Daily Report</h2><p>End-of-day summary & reconciliation</p></div>
+    <button class="btn gold no-print" onclick="window.print()">🖨 Print</button></div>
+  <div class="toolbar no-print"><div><label>Date</label><input id="par_date" type="date" value="${d}" onchange="window._paRepDate=this.value;paRenderReport()"></div></div>
+  <div id="parArea"></div>`;paRenderReport();}
+function paRenderReport(){const d=window._paRepDate||today();const set=DB.settings;const tt=paTxnsIn(d,d).filter(x=>!x.adj);
+  const byType={};tt.forEach(x=>{const k=paTypeLabel(x.type);byType[k]=byType[k]||{n:0,vol:0,charge:0};byType[k].n++;byType[k].vol+=Number(x.amount||0);byType[k].charge+=Number(x.charge||0);});
+  const vol=tt.reduce((a,x)=>a+Number(x.amount||0),0),earn=tt.reduce((a,x)=>a+Number(x.charge||0),0);
+  const exp=storeExpensesIn(d,d);const expTot=exp.reduce((a,e)=>a+Number(e.amount||0),0);const net=earn-expTot;
+  const el=$('#parArea');if(!el)return;
+  el.innerHTML=`<div class="cards-row">
+    ${phStat('Transactions',tt.length,famMonthLabelSafe(d))}
+    ${phStat('Volume',pamoney(vol),'value moved','#15366e')}
+    ${phStat('Commission earned',pamoney(earn),'','#0a7d33')}
+    ${phStat('Net after expenses',pamoney(net),'',net>=0?'#0a7d33':'#c0392b')}
+  </div>
+  <div class="flex gap" style="flex-wrap:wrap;align-items:flex-start">
+    <div class="card pad" style="flex:1;min-width:280px"><h3 class="mb">By type</h3>
+      ${Object.keys(byType).length?`<div class="t-wrap"><table><thead><tr><th>Type</th><th class="right">Count</th><th class="right">Volume</th><th class="right">Charge</th></tr></thead><tbody>${Object.entries(byType).map(([k,v])=>`<tr><td>${esc(k)}</td><td class="right">${v.n}</td><td class="right">${pamoney(v.vol)}</td><td class="right">${pamoney(v.charge)}</td></tr>`).join('')}</tbody></table></div>`:`<div class="empty">No transactions.</div>`}</div>
+    <div class="card pad" style="flex:1;min-width:240px"><h3 class="mb">Current position</h3>
+      <div class="flex" style="justify-content:space-between;font-size:15px;margin:4px 0"><span>Cash on hand</span><b>${pamoney(set.cash)}</b></div>
+      <div class="flex" style="justify-content:space-between;font-size:15px;margin:4px 0"><span>Bank / wallet</span><b>${pamoney(set.bank)}</b></div>
+      <hr><div class="flex" style="justify-content:space-between;font-weight:800;font-size:16px"><span>Total worth</span><span>${pamoney(Number(set.cash||0)+Number(set.bank||0))}</span></div>
+      <div class="flex" style="justify-content:space-between;color:#c0392b;margin-top:4px"><span>Owed to you</span><b>${pamoney(paDebtTotal())}</b></div>
+    </div>
+  </div>
+  ${storeExpensesCardHTML(d,d,'paRenderReport')}`;}
+function famMonthLabelSafe(d){return d;}
+
+/* settings */
+function vPaSettings(){const s=DB.settings;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Settings</h2><p>Business details, balances & login</p></div></div>
+  <div class="card pad mb"><h3 class="mb">Starting balances</h3><div class="grid2">
+    <div class="fld"><label>Cash on hand (${(s.currency||'₦')})</label><input id="ps_cash" type="number" step="0.01" value="${s.cash||0}"></div>
+    <div class="fld"><label>Bank / wallet balance</label><input id="ps_bank" type="number" step="0.01" value="${s.bank||0}"></div>
+  </div><div class="mt"><button class="btn" style="background:${PA_AC}" onclick="paSaveBalances()">💾 Set balances</button></div>
+  <p class="muted mt" style="font-size:12px">Set these when you start the day; transactions adjust them automatically afterwards.</p></div>
+  <div class="card pad mb"><h3 class="mb">Business details</h3><div class="grid2">
+    <div class="fld"><label>Business name</label><input id="ps_name" value="${esc(s.storeName||'')}"></div>
+    <div class="fld"><label>Operator name</label><input id="ps_agent" value="${esc(s.agentName||'')}"></div>
+    <div class="fld full"><label>Slogan</label><input id="ps_slogan" value="${esc(s.slogan||'')}"></div>
+    <div class="fld full"><label>Address</label><input id="ps_addr" value="${esc(s.address||'')}"></div>
+    <div class="fld"><label>Phone</label><input id="ps_phone" value="${esc(s.phone||'')}"></div>
+    <div class="fld"><label>Currency symbol</label><input id="ps_cur" value="${esc(s.currency||'₦')}" style="max-width:90px"></div>
+    <div class="fld"><label>Theme</label><select id="ps_theme">${Object.entries(THEMES).map(([k,t])=>`<option value="${k}" ${(s.theme||'green')===k?'selected':''}>${t.n}</option>`).join('')}</select></div>
+  </div>${logoField(s.logo||'')}
+  <div class="mt"><button class="btn" style="background:${PA_AC}" onclick="paSaveSettings()">💾 Save details</button></div></div>
+  <div class="card pad mb"><h3 class="mb">Your login</h3><div class="grid2">
+    <div class="fld"><label>Your name</label><input id="pmy_name" value="${esc(USER.name||'')}"></div>
+    <div class="fld"><label>Username</label><input id="pmy_user" value="${esc(USER.username||'')}"></div>
+    <div class="fld full"><label>Password</label><input id="pmy_pass" value="${esc(USER.password||'')}"></div>
+  </div><div class="mt"><button class="btn" style="background:${PA_AC}" onclick="paSaveMyLogin()">💾 Update login</button></div></div>
+  <div class="card pad"><h3 class="mb">Data</h3><button class="btn sec" onclick="paExportCSV()">⬇ Export transactions (CSV)</button></div>`;}
+function paSaveBalances(){DB.settings.cash=Number($('#ps_cash').value)||0;DB.settings.bank=Number($('#ps_bank').value)||0;save();toast('Balances set');}
+function paSaveSettings(){const s=DB.settings;_logo=_logo||s.logo||'';
+  s.storeName=$('#ps_name').value.trim()||s.storeName;s.agentName=$('#ps_agent').value.trim();s.slogan=$('#ps_slogan').value.trim();s.address=$('#ps_addr').value.trim();s.phone=$('#ps_phone').value.trim();s.currency=$('#ps_cur').value.trim()||'₦';s.theme=$('#ps_theme').value;
+  if(typeof _logo==='string')s.logo=_logo;save();toast('Saved');enterPos();}
+function paSaveMyLogin(){const name=$('#pmy_name').value.trim(),user=$('#pmy_user').value.trim().toLowerCase(),pass=$('#pmy_pass').value.trim();if(!name||!user||!pass){toast('All fields required',true);return;}
+  USER.name=name;USER.username=user;USER.password=pass;const u=DB.users.find(x=>x.id===USER.id);if(u){u.name=name;u.username=user;u.password=pass;}
+  sessionStorage.setItem('sms_su',SCHOOL_CODE+'|'+USER.id);save();toast('Login updated');enterPos();}
+function paExportCSV(){const rows=[['Receipt','Date','Type','Amount','Charge','Customer','Phone','Note']];
+  DB.txns.forEach(x=>rows.push([x.rcptNo||'',(x.date||'').replace('T',' ').slice(0,16),paTypeLabel(x.type),x.amount||0,x.charge||0,x.customer||'',x.phone||'',x.note||'']));
+  const csv=rows.map(r=>r.map(c=>{c=String(c==null?'':c);return /[",\n]/.test(c)?'"'+c.replace(/"/g,'""')+'"':c;}).join(',')).join('\n');
+  const blob=new Blob([csv],{type:'text/csv'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=(DB.settings.shortName||DB.settings.storeName||'pos')+'-txns-'+today()+'.csv';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),2000);toast('CSV downloaded');}
+
+/* ===================== OWNER: POS AGENTS ===================== */
+function vPosAgents(){const list=MASTER.schools.filter(s=>s.type==='posagent');
+  $('#view').innerHTML=`<div class="page-head"><div><h2>POS Agents</h2><p>${list.length} registered — agency-banking clients</p></div>
+    <button class="btn" style="background:${PA_AC}" onclick="editPos()">＋ Register POS Agent</button></div>
+  <div class="t-wrap"><table><thead><tr><th>Business</th><th>Code</th><th>Admin login</th><th>Subscription</th><th>Status</th><th></th></tr></thead><tbody>
+  ${list.map(s=>{const d=STORE[s.code];const ad=d&&d.users?d.users.find(u=>u.role==='admin'):null;const si=phSubInfo(s);return `<tr>
+    <td><b>${esc(s.name)}</b></td><td class="muted">${esc(s.code)}</td>
+    <td>${ad?`<b>${esc(ad.username)}</b> / <span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(ad.password)}</span>`:'<span class="muted">—</span>'}</td>
+    <td><span class="pill ${si.cls}">${si.txt}</span></td>
+    <td><span class="pill ${s.status==='suspended'?'red':'green'}">${s.status==='suspended'?'Suspended':'Active'}</span></td>
+    <td class="right"><button class="btn sm" onclick="managePos('${s.code}')">Manage</button></td></tr>`;}).join('')||`<tr><td colspan=6><div class="empty"><div class="big">🏧</div>No POS agents yet. <button class="btn sm mt" onclick="editPos()">Register one</button></div></td></tr>`}
+  </tbody></table></div>`;}
+function editPos(code){const reg=code?MASTER.schools.find(s=>s.code===code):null;const d=code?STORE[code]:null;const sub=(reg&&reg.sub)||{};
+  modal(code?'Edit POS Agent':'Register New POS Agent',`<div class="grid2">
+    <div class="fld"><label>Business name *</label><input id="ep_name" value="${esc(reg?reg.name:'')}"></div>
+    <div class="fld"><label>Short name</label><input id="ep_short" value="${esc(d?(d.settings.shortName||''):'')}"></div>
+    <div class="fld"><label>Link name / code *</label><input id="ep_code" value="${esc(code||'')}" ${code?'disabled':''} placeholder="e.g. musapos"></div>
+    <div class="fld full" style="margin-top:-6px"><span class="muted" style="font-size:12px">Login link: <b>${esc(location.origin)}/</b><b>${esc((code||'').toLowerCase())}</b></span></div>
+    <div class="fld full"><label>Address</label><input id="ep_addr" value="${esc(d?(d.settings.address||''):'')}"></div>
+    <div class="fld"><label>Phone *</label><input id="ep_phone" value="${esc(d?(d.settings.phone||''):'')}"></div>
+    <div class="fld"><label>Currency symbol</label><input id="ep_cur" value="${esc(d?(d.settings.currency||'₦'):'₦')}" style="max-width:90px"></div>
+  </div>
+  <hr><label>Subscription (your flat fee)</label><div class="grid2">
+    <div class="fld"><label>Monthly fee (₦)</label><input id="ep_subfee" type="number" min="0" value="${sub.fee||0}"></div>
+    <div class="fld"><label>Next due date</label><input id="ep_due" type="date" value="${esc(sub.due||'')}"></div>
+  </div>
+  ${code?'':`<hr><label>Operator login</label><div class="grid2">
+    <div class="fld"><label>Name</label><input id="ep_aname" value="POS Operator"></div>
+    <div class="fld"><label>Username *</label><input id="ep_auser" value="admin"></div>
+    <div class="fld full"><label>Password *</label><input id="ep_apass" value="admin123"></div></div>`}
+  <div class="fld"><label>Status</label><select id="ep_status"><option value="active" ${reg&&reg.status!=='suspended'?'selected':''}>Active</option><option value="suspended" ${reg&&reg.status==='suspended'?'selected':''}>Suspended</option></select></div>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:${PA_AC}" onclick="savePos('${code||''}')">${code?'Save changes':'Create agent'}</button>`,true);}
+function savePos(code){const name=$('#ep_name').value.trim(),addr=$('#ep_addr').value.trim(),phone=$('#ep_phone').value.trim();
+  if(!name){toast('Name required',true);return;}if(!phone||phone.replace(/\D/g,'').length<7){toast('Valid phone required',true);return;}
+  const fee=Math.max(0,Number($('#ep_subfee').value)||0),due=$('#ep_due').value,cur=$('#ep_cur').value.trim()||'₦',status=$('#ep_status').value;
+  if(code){const reg=MASTER.schools.find(s=>s.code===code);reg.name=name;reg.status=status;reg.sub=Object.assign(reg.sub||{},{fee,due});
+    const d=STORE[code];Object.assign(d.settings,{storeName:name,shortName:$('#ep_short').value.trim(),address:addr,phone,currency:cur,status});
+    saveMaster();saveSchoolRow(code);closeModal();toast('Agent updated');managePos(code);return;}
+  const newCode=$('#ep_code').value.trim().toUpperCase().replace(/[^A-Z0-9-]/g,'').replace(/^-+|-+$/g,'');
+  if(!newCode){toast('Code required',true);return;}if(MASTER.schools.some(s=>s.code===newCode)){toast('Code already exists',true);return;}
+  const auser=$('#ep_auser').value.trim(),apass=$('#ep_apass').value.trim();if(!auser||!apass){toast('Operator login required',true);return;}
+  const d=seedPos(newCode,name);Object.assign(d.settings,{shortName:$('#ep_short').value.trim(),address:addr,phone,currency:cur,status});
+  d.users[0].name=$('#ep_aname').value.trim()||'POS Operator';d.users[0].username=auser;d.users[0].password=apass;
+  STORE[newCode]=d;MASTER.schools.push({code:newCode,name,type:'posagent',status,createdAt:today(),sub:{fee,due,lastPaid:'',history:[]}});
+  saveStoreLocal();saveMaster();saveSchoolRow(newCode);closeModal();toast('POS agent created');managePos(newCode);}
+function managePos(code){const reg=MASTER.schools.find(s=>s.code===code);const d=STORE[code];if(!d){toast('Data not loaded',true);return;}
+  const sub=reg.sub||(reg.sub={fee:0,due:'',lastPaid:'',history:[]});const si=phSubInfo(reg);
+  modal('Manage — '+reg.name,`
+    <div class="cards-row" style="margin-bottom:14px">
+      <div class="stat"><div class="lbl">Transactions</div><div class="num">${(d.txns||[]).length}</div></div>
+      <div class="stat"><div class="lbl">Cash + Bank</div><div class="num" style="font-size:17px">${'₦'+((Number(d.settings.cash||0)+Number(d.settings.bank||0))).toLocaleString('en-NG')}</div></div>
+      <div class="stat"><div class="lbl">Subscription</div><div class="num" style="font-size:16px"><span class="pill ${si.cls}">${si.txt}</span></div></div>
+    </div>
+    <label>Login link (give to the operator)</label>
+    <div class="linkbox mb"><code>${esc(schoolLink(code))}</code><button class="btn sm sec" onclick="copyText('${jq(schoolLink(code))}')">Copy</button></div>
+    <label>Logins (passwords visible — reset any)</label>
+    <div class="t-wrap" style="margin-bottom:6px"><table><tbody>
+      ${d.users.map(u=>`<tr><td><b>${esc(u.name)}</b><br><span class="muted" style="font-size:11px">POS Operator</span></td><td>${esc(u.username)}</td><td><span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(u.password)}</span></td>
+        <td class="right"><button class="btn sm sec" onclick="resetCred('${code}','${u.id}')">🔑 Reset</button></td></tr>`).join('')}
+    </tbody></table></div>
+    <hr><label>Subscription billing</label>
+    <div class="card pad" style="background:#f7faf8"><div class="grid2">
+      <div class="fld"><label>Monthly fee (₦)</label><input id="mp_fee" type="number" min="0" value="${sub.fee||0}"></div>
+      <div class="fld"><label>Next due date</label><input id="mp_due" type="date" value="${esc(sub.due||'')}"></div>
+    </div>
+    <div class="flex gap"><button class="btn sm sec" onclick="posOwnerSaveSub('${code}')">Save</button>
+      <button class="btn sm" style="background:#0a7d33" onclick="posOwnerMarkPaid('${code}')">✓ Mark paid (extend 1 month)</button></div>
+    ${(sub.history&&sub.history.length)?`<div class="muted mt" style="font-size:12px">Last payments: ${sub.history.slice(-4).reverse().map(h=>esc(h.date)+' '+pmoneyOwner(h.amount)).join(' · ')}</div>`:''}
+    </div>`,
+    `<button class="btn sec" onclick="closeModal()">Close</button>
+     <button class="btn ${reg.status==='suspended'?'':'sec'}" onclick="togglePos('${code}')">${reg.status==='suspended'?'Re-activate':'Suspend'}</button>
+     <button class="btn sec" onclick="editPos('${code}')">Edit details</button>
+     <button class="btn danger" onclick="delPos('${code}')">Delete</button>`,true);}
+function posOwnerSaveSub(code){const reg=MASTER.schools.find(s=>s.code===code);reg.sub=reg.sub||{};reg.sub.fee=Math.max(0,Number($('#mp_fee').value)||0);reg.sub.due=$('#mp_due').value;saveMaster();toast('Subscription saved');managePos(code);}
+function posOwnerMarkPaid(code){const reg=MASTER.schools.find(s=>s.code===code);const sub=reg.sub=reg.sub||{fee:0,history:[]};
+  const base=sub.due&&sub.due>today()?new Date(sub.due):new Date(today());base.setMonth(base.getMonth()+1);
+  sub.due=base.toISOString().slice(0,10);sub.lastPaid=today();sub.history=sub.history||[];sub.history.push({date:today(),amount:sub.fee||0});
+  if(reg.status==='suspended'){reg.status='active';if(STORE[code])STORE[code].settings.status='active';saveSchoolRow(code);}
+  saveMaster();toast('Payment recorded · next due '+sub.due);managePos(code);}
+function togglePos(code){const reg=MASTER.schools.find(s=>s.code===code);reg.status=reg.status==='suspended'?'active':'suspended';
+  if(STORE[code])STORE[code].settings.status=reg.status;saveMaster();saveSchoolRow(code);toast('Agent '+reg.status);managePos(code);}
+function delPos(code){modal('Delete POS agent?',`<p>Permanently delete <b>${esc(MASTER.schools.find(s=>s.code===code).name)}</b> and all its records? This cannot be undone.</p>`,
+  `<button class="btn sec" onclick="managePos('${code}')">Cancel</button><button class="btn danger" onclick="confirmDelPos('${code}')">Delete</button>`);}
+async function confirmDelPos(code){MASTER.schools=MASTER.schools.filter(s=>s.code!==code);delete STORE[code];saveStoreLocal();saveMaster();
+  if(supa){try{await supa.from('school_data').delete().eq('id',code);}catch(e){}}closeModal();toast('Agent deleted');vPosAgents();}
 
 /* ===================== PWA: offline + auto-update + install ===================== */
 function setManifest(){try{
