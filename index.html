@@ -793,68 +793,91 @@ function admissionLetter(sid){const s=DB.students.find(x=>x.id===sid);const logo
 function qrDataURL(t){try{const q=qrcode(0,'M');q.addData(String(t||''));q.make();return q.createDataURL(5,1);}catch(e){return '';}}
 function certHTMLInner(sid){const s=DB.students.find(x=>x.id===sid);if(!s)return '';
   const a=annual(s);const grade=a.avg!=null?gradeOf(a.avg):null;const set=DB.settings;const th=theme();
-  const logo=set.logo?`<img src="${set.logo}" alt="">`:'🎓';
   const head=(headTeacher()||{}).name||'';const ct=(classTeacher(s.classId)||{}).name||'';
-  const qr=qrDataURL(s.admissionNo||s.id);const isl=isIslamic();const first=esc((s.name||'').split(' ')[0]);
+  const qr=qrDataURL(s.admissionNo||s.id);const isl=isIslamic();
+  const gid='c'+(sid||'').replace(/[^a-z0-9]/gi,'');const C=th.rg,CD=th.rgd;
+  const dateStr=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
   return `<style>
-  .cert2{--g:${th.rg};--gd:${th.rgd};--gold:#b8902e;width:1040px;max-width:100%;margin:0 auto;background:#fffdf7;color:#2a2118;font-family:Georgia,'Garamond','Times New Roman',serif;position:relative;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-  .cert2 *{box-sizing:border-box}
-  .cert2 .fr{position:relative;padding:32px 56px 24px;border:10px solid var(--g);outline:2px solid var(--gold);outline-offset:-20px;overflow:hidden}
-  .cert2 .corner{position:absolute;width:44px;height:44px;border:3px solid var(--gold);opacity:.85}
-  .cert2 .c1{top:13px;left:13px;border-right:0;border-bottom:0}.cert2 .c2{top:13px;right:13px;border-left:0;border-bottom:0}
-  .cert2 .c3{bottom:13px;left:13px;border-right:0;border-top:0}.cert2 .c4{bottom:13px;right:13px;border-left:0;border-top:0}
-  .cert2 .wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.05;pointer-events:none}
-  .cert2 .wm img{width:360px;height:360px;object-fit:contain;border-radius:50%}
-  .cert2 .inner{position:relative;text-align:center}
-  .cert2 .crest{width:72px;height:72px;border-radius:50%;border:3px solid var(--gold);background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:36px;overflow:hidden}
-  .cert2 .crest img{width:100%;height:100%;object-fit:cover}
-  .cert2 .sch{font-size:29px;font-weight:700;color:var(--gd);letter-spacing:.02em;margin:7px 0 1px}
-  .cert2 .addr{font-size:12px;color:#6a5d49}
-  .cert2 .bism{font-size:14px;color:var(--gold);margin-top:5px}
-  .cert2 .orn{color:var(--gold);font-size:15px;margin:9px 0 1px;letter-spacing:.4em}
-  .cert2 .ttl{font-size:24px;font-weight:700;color:var(--gold);letter-spacing:.15em;text-transform:uppercase;margin:3px 0}
-  .cert2 .ttl-s{font-size:11px;color:#6a5d49;letter-spacing:.3em;text-transform:uppercase}
-  .cert2 .cert-line{font-size:14px;color:#5a4c38;margin-top:15px}
-  .cert2 .nm{font-family:'Snell Roundhand','Brush Script MT','Segoe Script','Apple Chancery',cursive;font-size:44px;color:var(--gd);line-height:1.1;margin:4px auto;display:inline-block;padding:0 30px 6px;border-bottom:2px solid var(--gold)}
-  .cert2 .body{font-size:14.5px;line-height:1.7;color:#34291c;max-width:780px;margin:11px auto 0}
-  .cert2 .body b{color:var(--gd)}
-  .cert2 .grade-badge{display:inline-block;margin-top:11px;background:var(--g);color:#fff;border:2px solid var(--gold);border-radius:30px;padding:5px 20px;font-size:13.5px;font-weight:700}
-  .cert2 .photo{position:absolute;top:0;right:4px;width:90px;height:106px;object-fit:cover;border:3px solid #fff;outline:1px solid var(--gold);border-radius:4px}
-  .cert2 .signs{display:flex;justify-content:space-between;align-items:flex-end;margin-top:30px;gap:18px}
-  .cert2 .sg{flex:1;text-align:center}
-  .cert2 .sg .ln{border-top:1.4px solid #4a4233;margin:0 10px;padding-top:5px;font-size:12px;font-weight:700;color:#2a2118}
-  .cert2 .sg .nmn{font-size:12px;min-height:15px;color:#3a3024;font-style:italic}
-  .cert2 .seal{width:92px;height:92px;border-radius:50%;border:3px double var(--gold);color:var(--gd);display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:10px;font-weight:700;text-align:center;letter-spacing:.06em;transform:rotate(-8deg);background:radial-gradient(circle,#fffef9,#fbf2d8)}
-  .cert2 .seal .st{font-size:21px;color:var(--gold)}
-  .cert2 .foot{display:flex;justify-content:space-between;align-items:flex-end;margin-top:16px;font-size:11px;color:#6a5d49}
-  .cert2 .qr{width:62px;height:62px;display:block}
-  @media(max-width:760px){.cert2{width:100%}.cert2 .fr{padding:22px 18px}.cert2 .sch{font-size:21px}.cert2 .ttl{font-size:17px}.cert2 .nm{font-size:34px}.cert2 .signs{flex-wrap:wrap}.cert2 .photo{position:static;margin:0 auto 8px}}
+  .cert3{position:relative;width:1040px;max-width:100%;margin:0 auto;background:#fff;color:#3a2c12;font-family:Georgia,'Times New Roman',serif;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cert3 *{box-sizing:border-box}
+  .cert3 .dec{position:absolute;left:0;width:100%;z-index:1;display:block}
+  .cert3 .dec.top{top:0}.cert3 .dec.bot{bottom:0}
+  .cert3 .frame{position:absolute;inset:18px;border:2px solid #caa53f;z-index:2;pointer-events:none}
+  .cert3 .frame:after{content:"";position:absolute;inset:5px;border:1px solid #e0c873}
+  .cert3 .wm{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:.045;z-index:1}
+  .cert3 .wm img{width:330px;height:330px;object-fit:contain;border-radius:50%}
+  .cert3 .body3{position:relative;z-index:3;text-align:center;padding:40px 78px 70px}
+  .cert3 .emblem{width:54px;height:54px;border-radius:50%;border:2px solid #caa53f;background:#fff;display:inline-flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;vertical-align:middle}
+  .cert3 .emblem img{width:100%;height:100%;object-fit:cover}
+  .cert3 .sch{font-size:20px;font-weight:700;color:${CD};letter-spacing:.04em;margin-top:5px}
+  .cert3 .addr{font-size:11px;color:#8a7a5c}
+  .cert3 .bism{font-size:12px;color:#b8902e;margin-top:3px}
+  .cert3 .gt{font-size:46px;font-weight:800;letter-spacing:.05em;line-height:1;margin-top:14px;
+     background:linear-gradient(180deg,#f6dd92 0%,#e2b85a 38%,#bf8a2c 72%,#9c6a18 100%);-webkit-background-clip:text;background-clip:text;color:#bf8a2c}
+  .cert3 .gs{font-size:21px;font-weight:700;letter-spacing:.36em;color:#6a5638;margin-top:2px}
+  .cert3 .pres{font-size:11.5px;letter-spacing:.24em;text-transform:uppercase;color:#8a7556;margin-top:14px}
+  .cert3 .nm{font-family:'Snell Roundhand','Brush Script MT','Segoe Script','Apple Chancery',cursive;font-size:44px;color:#c08e2c;line-height:1.1;margin:6px auto 2px;display:inline-block;padding:0 26px 4px}
+  .cert3 .nm-u{width:360px;max-width:70%;height:2px;background:#caa53f;margin:0 auto 4px}
+  .cert3 .date{font-size:13px;color:#4a3c22;margin-top:8px}
+  .cert3 .date b{border-bottom:1px solid #b9a36a;padding:0 14px}
+  .cert3 .txt{font-size:13px;line-height:1.65;color:#4a3c24;max-width:660px;margin:12px auto 0}
+  .cert3 .txt b{color:${CD}}
+  .cert3 .gradepill{display:inline-block;margin-top:10px;background:${C};color:#fff;border:1.5px solid #e0c873;border-radius:30px;padding:4px 18px;font-size:12.5px;font-weight:700}
+  .cert3 .row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:24px;gap:16px}
+  .cert3 .sg{flex:1;max-width:210px;text-align:center}
+  .cert3 .sg .ln{border-top:1.4px solid #5a4a2a;padding-top:5px;font-size:12px;font-weight:700;color:#3a2c12}
+  .cert3 .sg .who{font-size:12px;min-height:15px;color:#5a4a2a;font-style:italic}
+  .cert3 .photo{position:absolute;top:30px;right:34px;z-index:3;width:84px;height:100px;object-fit:cover;border:3px solid #fff;outline:1.5px solid #caa53f;border-radius:4px}
+  .cert3 .qr{position:absolute;left:34px;bottom:26px;z-index:3;text-align:center;font-size:8.5px;color:#8a7a5c}
+  .cert3 .qr img{width:54px;height:54px;display:block}
+  @media(max-width:760px){.cert3{width:100%}.cert3 .body3{padding:26px 26px 56px}.cert3 .gt{font-size:30px}.cert3 .gs{font-size:15px;letter-spacing:.2em}.cert3 .nm{font-size:32px}.cert3 .photo{display:none}.cert3 .row{flex-wrap:wrap}}
   </style>
-  <div class="cert2"><div class="fr">
-    <span class="corner c1"></span><span class="corner c2"></span><span class="corner c3"></span><span class="corner c4"></span>
+  <div class="cert3">
+    <svg class="dec top" viewBox="0 0 1040 150" preserveAspectRatio="none" height="150" xmlns="http://www.w3.org/2000/svg"><defs>
+      <linearGradient id="gold${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7e09a"/><stop offset=".45" stop-color="#dca94e"/><stop offset="1" stop-color="#a9761f"/></linearGradient>
+      <linearGradient id="deep${gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${C}"/><stop offset="1" stop-color="${CD}"/></linearGradient></defs>
+      <g><path d="M0,0 H352 C214,46 108,100 0,126 Z" fill="url(#gold${gid})"/><path d="M0,0 H318 C196,40 98,90 0,112 Z" fill="url(#deep${gid})"/></g>
+      <g transform="translate(1040,0) scale(-1,1)"><path d="M0,0 H352 C214,46 108,100 0,126 Z" fill="url(#gold${gid})"/><path d="M0,0 H318 C196,40 98,90 0,112 Z" fill="url(#deep${gid})"/></g>
+    </svg>
+    <svg class="dec bot" viewBox="0 0 1040 160" preserveAspectRatio="none" height="160" xmlns="http://www.w3.org/2000/svg">
+      <path d="M0,160 V96 C300,168 760,38 1040,108 V160 Z" fill="url(#deep${gid})"/>
+      <path d="M0,160 V126 C320,182 760,78 1040,140 V160 Z" fill="url(#gold${gid})"/>
+    </svg>
+    <div class="frame"></div>
     ${set.logo?`<div class="wm"><img src="${set.logo}" alt=""></div>`:''}
-    <div class="inner">
-      ${s.photo?`<img class="photo" src="${s.photo}" alt="">`:''}
-      <div class="crest">${logo}</div>
+    ${s.photo?`<img class="photo" src="${s.photo}" alt="">`:''}
+    <div class="body3">
+      <div class="emblem">${set.logo?`<img src="${set.logo}" alt="">`:'🎓'}</div>
       <div class="sch">${esc(set.schoolName)}</div>
       <div class="addr">${addrTel()}</div>
       ${isl?`<div class="bism">۞ ${esc(BISMILLAH.a)} ۞</div>`:''}
-      <div class="orn">❦&nbsp;⸺&nbsp;❦</div>
-      <div class="ttl">Primary School Leaving Certificate</div>
-      <div class="ttl-s">${esc(set.session)} Academic Session</div>
-      <div class="cert-line">This is to certify that</div>
-      <div class="nm">${esc(s.name)}</div>
-      <div class="body">having satisfactorily completed the prescribed course of study, has successfully graduated from <b>${esc(gradClassName())}</b> at <b>${esc(set.schoolName)}</b>${a.avg!=null?` with an overall performance of <b>${a.avg.toFixed(1)}% — Grade ${grade.g} (${grade.r})</b>`:''}. ${first} is hereby awarded this certificate in recognition of academic achievement and good conduct.</div>
-      ${a.avg!=null?`<div class="grade-badge">Overall: ${a.avg.toFixed(1)}% · Grade ${grade.g}</div>`:''}
-      <div class="signs">
-        <div class="sg"><div class="nmn">${esc(ct)}</div><div class="ln">Class Teacher</div></div>
-        <div class="seal"><div class="st">★</div>OFFICIAL<br>SEAL</div>
-        <div class="sg"><div class="nmn">${esc(head)}</div><div class="ln">Head Teacher / Principal</div></div>
+      <div class="gt">GRADUATION</div>
+      <div class="gs">CERTIFICATE</div>
+      <div class="pres">This certificate is proudly presented to</div>
+      <div class="nm">${esc(s.name)}</div><div class="nm-u"></div>
+      <div class="date">Date of Issue: <b>${dateStr}</b></div>
+      <div class="txt">This certifies that <b>${esc(s.name)}</b> has satisfactorily completed the prescribed course of study and successfully graduated from <b>${esc(gradClassName())}</b> in the <b>${esc(set.session)}</b> academic session${a.avg!=null?`, with an overall performance of <b>${a.avg.toFixed(1)}% — Grade ${grade.g} (${grade.r})</b>`:''}. Awarded in recognition of academic achievement and good conduct.</div>
+      ${a.avg!=null?`<div class="gradepill">Overall: ${a.avg.toFixed(1)}% · Grade ${grade.g}</div>`:''}
+      ${medalSVG(gid)}
+      <div class="row">
+        <div class="sg"><div class="who">${esc(ct)}</div><div class="ln">Class Teacher</div></div>
+        <div class="sg"><div class="who">${esc(head)}</div><div class="ln">Head Teacher / Principal</div></div>
       </div>
-      <div class="foot"><div>${qr?`<img class="qr" src="${qr}" alt=""><span>Verify: ${esc(s.admissionNo||s.id)}</span>`:''}</div>
-        <div style="text-align:right">Date issued: ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}${set.motto?'<br>'+esc(set.motto):''}</div></div>
     </div>
-  </div></div>`;}
+    ${qr?`<div class="qr"><img src="${qr}" alt="">Verify<br>${esc(s.admissionNo||'')}</div>`:''}
+  </div>`;}
+function medalSVG(gid){return `<div style="margin-top:14px"><svg width="120" height="150" viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg" style="display:inline-block">
+  <path d="M45,86 L33,150 L52,135 L55,90 Z" fill="url(#deep${gid})"/>
+  <path d="M75,86 L87,150 L68,135 L65,90 Z" fill="url(#gold${gid})"/>
+  <circle cx="60" cy="56" r="46" fill="url(#gold${gid})"/>
+  <circle cx="60" cy="56" r="37" fill="url(#deep${gid})" stroke="#f0d480" stroke-width="1.5"/>
+  <text x="44" y="40" font-size="10" fill="#f3d986">★</text><text x="57.5" y="36" font-size="11" fill="#f7e3a0">★</text><text x="70" y="40" font-size="10" fill="#f3d986">★</text>
+  <path d="M60,46 L86,55 L60,64 L34,55 Z" fill="#fff"/>
+  <path d="M47,58 L73,58 L70,70 C70,75 50,75 50,70 Z" fill="#fff"/>
+  <circle cx="60" cy="50" r="2.4" fill="#caa53f"/>
+  <path d="M60,50 L88,57 L88,74" fill="none" stroke="#caa53f" stroke-width="2"/>
+  <circle cx="88" cy="76" r="3.4" fill="#caa53f"/>
+</svg></div>`;}
 /* print ONLY the given HTML (isolated in a hidden frame — nothing else prints) */
 function printDoc(inner,page){
   const old=document.getElementById('printFrame');if(old)old.remove();
