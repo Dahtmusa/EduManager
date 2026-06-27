@@ -960,8 +960,8 @@ function renderPromo(){const list=studentsIn(promoClass);const fin=isFinalClass(
     <div class="stat"><div class="lbl">Pupils</div><div class="num">${list.length}</div></div>
     <div class="stat"><div class="lbl">${fin?'Graduating':'Promoted'}</div><div class="num" style="color:var(--green)">${promoted}</div></div>
     <div class="stat"><div class="lbl">${fin?'Not cleared':'Repeating'}</div><div class="num" style="color:var(--red)">${list.length-promoted-rows.filter(r=>r.p.decision==='pending').length}</div></div></div>
-  ${fin?`<div class="card pad mb" style="border-left:4px solid var(--gold);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><b>🎓 Leaving certificates</b><div class="muted" style="font-size:12.5px">Print one click — only the certificate prints, on A4 landscape.</div></div>
-    <button class="btn gold" onclick="printAllCerts('${promoClass}')">🖨 Print ALL certificates (${list.length})</button></div>`:''}
+  ${fin?`<div class="card pad mb" style="border-left:4px solid var(--gold)"><div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px"><div><b>🎓 Certificates for graduands</b><div class="muted" style="font-size:12.5px">One click — only the certificate prints, on A4 landscape.</div></div>
+    <div class="flex gap" style="flex-wrap:wrap"><button class="btn gold" onclick="printAllCerts('${promoClass}')">🖨 Graduation (${list.length})</button>${(isIslamic()||hasModule('quran'))?`<button class="btn" style="background:#2f7d4f" onclick="printRecitationCerts('${promoClass}')">📖 Qur’an recitation (${list.length})</button>`:''}</div></div></div>`:''}
   <div class="t-wrap"><table><thead><tr><th>Pupil</th><th class="center">1st</th><th class="center">2nd</th><th class="center">3rd</th><th class="center">Annual</th><th>Decision</th><th></th></tr></thead><tbody>
   ${rows.map(({s,p})=>`<tr><td><b>${esc(s.name)}</b></td><td class="center">${p.t1!=null?p.t1.toFixed(0):'–'}</td><td class="center">${p.t2!=null?p.t2.toFixed(0):'–'}</td><td class="center">${p.t3!=null?p.t3.toFixed(0):'–'}</td>
     <td class="center"><b>${p.avg!=null?p.avg.toFixed(1)+'%':'–'}</b></td><td><span class="${p.cls}">${esc(p.label)}</span></td>
@@ -1556,7 +1556,7 @@ function quranCertTemplate(o){o=o||{};const set=DB.settings;const gid=o.gid||('q
   .qcert .note{font-size:11px;font-style:italic;color:#5f7065;margin-top:6px;max-width:560px}
   .qcert .badge{display:inline-block;margin-top:8px;background:${G};color:#fff;border:1.5px solid #d8c178;border-radius:30px;padding:3px 16px;font-size:12px;font-weight:700}
   .qcert .yr{font-size:13px;font-weight:700;letter-spacing:.18em;color:#9c7d2c;margin-top:5px}
-  .qcert .qwm{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);width:560px;max-width:74%;z-index:1;opacity:.07;pointer-events:none}
+  .qcert .qwm{position:absolute;left:50%;top:53%;transform:translate(-50%,-50%);width:470px;max-width:62%;z-index:1;opacity:.08;pointer-events:none}
   .qcert .row{display:flex;justify-content:space-between;width:100%;max-width:660px;margin-top:auto;gap:20px;padding-top:12px}
   .qcert .sg{flex:1;max-width:220px;text-align:center}
   .qcert .sg .ln{border-top:1.3px solid #50624f;padding-top:4px;font-size:11.5px;font-weight:700;color:#22321f}
@@ -1587,14 +1587,16 @@ function quranCertTemplate(o){o=o||{};const set=DB.settings;const gid=o.gid||('q
       <use href="#cor${gid}" transform="translate(0,720) scale(1,-1)"/>
       <use href="#cor${gid}" transform="translate(1040,720) scale(-1,-1)"/>
     </svg>
-    <svg class="qwm" viewBox="0 0 420 290" xmlns="http://www.w3.org/2000/svg">
-      <text x="210" y="22" text-anchor="middle" font-size="22" fill="#1c5b39" font-family="'Amiri','Traditional Arabic',serif" direction="rtl">${esc('الْقُرْآنُ الْكَرِيم')}</text>
-      <g fill="#fff" stroke="#1c5b39" stroke-width="2.4"><path d="M210,58 C150,36 78,40 30,60 L30,242 C78,222 150,218 210,240 Z"/><path d="M210,58 C270,36 342,40 390,60 L390,242 C342,222 270,218 210,240 Z"/></g>
-      <line x1="210" y1="58" x2="210" y2="240" stroke="#1c5b39" stroke-width="2"/>
-      <g stroke="#2f7d4f" stroke-width="1.6"><line x1="56" y1="104" x2="184" y2="100"/><line x1="56" y1="126" x2="184" y2="122"/><line x1="56" y1="148" x2="184" y2="144"/><line x1="56" y1="170" x2="184" y2="166"/><line x1="56" y1="192" x2="184" y2="188"/>
-        <line x1="236" y1="100" x2="364" y2="104"/><line x1="236" y1="122" x2="364" y2="126"/><line x1="236" y1="144" x2="364" y2="148"/><line x1="236" y1="166" x2="364" y2="170"/><line x1="236" y1="188" x2="364" y2="192"/></g>
-      <text x="120" y="84" text-anchor="middle" font-size="12" fill="#1c5b39" font-family="'Amiri',serif" direction="rtl">${esc('بِسْمِ اللَّهِ')}</text>
-      <text x="300" y="84" text-anchor="middle" font-size="12" fill="#1c5b39" font-family="'Amiri',serif" direction="rtl">${esc('الرَّحْمَٰنِ الرَّحِيم')}</text>
+    <svg class="qwm" viewBox="0 0 440 380" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="qwg${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6c879"/><stop offset="1" stop-color="#a9831f"/></linearGradient></defs>
+      <g stroke="#1c5b39" stroke-width="13" stroke-linecap="round" fill="none"><line x1="138" y1="176" x2="312" y2="362"/><line x1="302" y1="176" x2="128" y2="362"/></g>
+      <g stroke="#2f7d4f" stroke-width="6" fill="none" opacity=".6"><line x1="172" y1="172" x2="300" y2="350"/><line x1="268" y1="172" x2="140" y2="350"/></g>
+      <g transform="translate(220,282)"><circle r="29" fill="#fff" stroke="#1c5b39" stroke-width="2.6"/><g stroke="#2f7d4f" stroke-width="2" fill="none"><circle r="18"/><path d="M0,-27 L7,-7 27,0 7,7 0,27 -7,7 -27,0 -7,-7 Z"/></g></g>
+      <g fill="#fff" stroke="#1c5b39" stroke-width="2.6"><path d="M220,64 C156,44 90,50 48,78 L64,186 C108,164 172,160 220,178 Z"/><path d="M220,64 C284,44 350,50 392,78 L376,186 C332,164 268,160 220,178 Z"/></g>
+      <line x1="220" y1="64" x2="220" y2="178" stroke="#1c5b39" stroke-width="2"/>
+      <g fill="none" stroke="url(#qwg${gid})" stroke-width="2.4"><rect x="78" y="86" width="118" height="18" rx="4"/><rect x="244" y="86" width="118" height="18" rx="4"/></g>
+      <g stroke="#2f7d4f" stroke-width="1.7"><line x1="84" y1="120" x2="192" y2="116"/><line x1="84" y1="136" x2="192" y2="132"/><line x1="84" y1="152" x2="192" y2="148"/><line x1="84" y1="168" x2="192" y2="164"/>
+        <line x1="248" y1="116" x2="356" y2="120"/><line x1="248" y1="132" x2="356" y2="136"/><line x1="248" y1="148" x2="356" y2="152"/><line x1="248" y1="164" x2="356" y2="168"/></g>
+      <text x="210" y="30" text-anchor="middle" font-size="20" fill="#1c5b39" font-family="'Amiri','Traditional Arabic',serif" direction="rtl">${esc('الْقُرْآنُ الْكَرِيم')}</text>
     </svg>
     <div class="medal-top"><div style="font-size:19px">☪</div><div class="ar" style="font-size:10px">${esc('بِسْمِ اللَّه')}</div></div>
     <div class="panel">
@@ -1632,6 +1634,18 @@ function qCertsBulk(levelId){const l=qLevel(levelId);const rows=qStudents(levelI
 function printQCerts(levelId){const rows=qStudents(levelId);if(!rows.length){toast('No pupils',true);return;}
   modal('Qur’an Certificates — '+qLevel(levelId).name,qCertsBulk(levelId),
   `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="printDoc(qCertsBulk('${levelId}'),'A4 landscape')">🖨 Print all certificates</button>`,true);}
+/* Qur’an Recitation — participation certificate (e.g. for all graduands) */
+function recitationCertHTML(sid){const s=DB.students.find(x=>x.id===sid);if(!s)return '';const first=esc((s.name||'').split(' ')[0]);
+  return quranCertTemplate({gid:'rc'+(sid||'').replace(/[^a-z0-9]/gi,''),name:s.name,
+    title:'Certificate of Participation',titleAr:'شَهَادَةُ مُشَارَكَة',
+    body:`participated in the <b>Holy Qur’an Recitation</b> for the <b>${esc(DB.settings.session)}</b> academic session, showing dedication to the recitation and memorisation of the Noble Qur’an. May Allah accept it and increase ${first} in beneficial knowledge.`,
+    note:'“Read the Qur’an, for it will come as an intercessor for its companions on the Day of Resurrection.” — Hadith, Muslim',
+    sign1:{who:(headTeacher()||{}).name||'',label:'Head Teacher'},sign2:{who:(proprietor()||{}).name||'',label:'Proprietor'},
+    qrText:s.admissionNo||s.id,year:certYear()});}
+function printRecitationCerts(classId){const studs=studentsIn(classId);if(!studs.length){toast('No pupils in this class',true);return;}
+  toast('Preparing '+studs.length+' recitation certificate(s)…');
+  const html=studs.map((s,i)=>`<div style="${i<studs.length-1?'page-break-after:always':''}">${recitationCertHTML(s.id)}</div>`).join('');
+  printDoc(html,'A4 landscape');}
 
 /* ===================== HOUSES & ACTIVITIES ===================== */
 const INSPECT_WEEKS=[3,4,5,6,7,8,9];
