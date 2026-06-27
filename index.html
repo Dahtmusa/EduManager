@@ -680,7 +680,9 @@ function teacherClasses(){return USER.role==='admin'?DB.classes:DB.classes.filte
 const POSITION_RANK={'Proprietor / Director':1,'Director':1,'Proprietor':1,'Principal':2,'Vice Principal':3,'Head Teacher':4,'Assistant Head Teacher':5,'Senior Master / Mistress':6,'Head of Department':7,'Exam Officer':8,'Accountant / Bursar':9,'Counsellor':10,'Sports Master / Mistress':11,'ICT Teacher':12,'Mu’allim / Islamic Studies':13,'Imam / Chaplain':14,'Librarian':15,'Form Teacher':16,'Teacher':20};
 function rankOf(u){if(u.rank!=null&&u.rank!=='')return Number(u.rank);const p=u.position||'Teacher';return POSITION_RANK[p]!=null?POSITION_RANK[p]:22;}
 function classTeacher(classId){return DB.users.find(u=>u.role==='teacher'&&(u.classes||[]).includes(classId))||null;}
-function headTeacher(){const staff=DB.users.filter(u=>u.role==='teacher');const order=['Principal','Head Teacher','Proprietor / Director','Director','Proprietor','Vice Principal','Assistant Head Teacher'];for(const p of order){const m=staff.find(u=>u.position===p);if(m)return m;}return staff.slice().sort((a,b)=>rankOf(a)-rankOf(b))[0]||null;}
+function headTeacher(){const staff=DB.users.filter(u=>u.role==='teacher');const order=['Principal','Head Teacher','Vice Principal','Assistant Head Teacher'];for(const p of order){const m=staff.find(u=>u.position===p);if(m)return m;}return staff.slice().sort((a,b)=>rankOf(a)-rankOf(b))[0]||null;}
+function proprietor(){const staff=DB.users.filter(u=>u.role==='teacher');const order=['Proprietor / Director','Proprietor','Director'];for(const p of order){const m=staff.find(u=>u.position===p);if(m)return m;}return null;}
+function certYear(){return new Date().getFullYear();}
 function signCell(name,label){return `<div><div style="font-size:10px;font-weight:700;color:#333;min-height:14px">${name?esc(name):''}</div><div class="ln">${label}</div></div>`;}
 function avatar(p,f){return p?`<img class="avatar" src="${p}">`:`<span class="avatar">${f||'👤'}</span>`;}
 function pendingPayCount(){return DB.payments.filter(p=>p.status==='pending').length;}
@@ -791,12 +793,10 @@ function admissionLetter(sid){const s=DB.students.find(x=>x.id===sid);const logo
 
 /* ===================== PRIMARY 6 CERTIFICATE ===================== */
 function qrDataURL(t){try{const q=qrcode(0,'M');q.addData(String(t||''));q.make();return q.createDataURL(5,1);}catch(e){return '';}}
-function certHTMLInner(sid){const s=DB.students.find(x=>x.id===sid);if(!s)return '';
-  const a=annual(s);const grade=a.avg!=null?gradeOf(a.avg):null;const set=DB.settings;const th=theme();
-  const head=(headTeacher()||{}).name||'';const ct=(classTeacher(s.classId)||{}).name||'';
-  const qr=qrDataURL(s.admissionNo||s.id);const isl=isIslamic();
-  const gid='c'+(sid||'').replace(/[^a-z0-9]/gi,'');const C=th.rg,CD=th.rgd;
-  const dateStr=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+function certTemplate(o){o=o||{};const set=DB.settings;const th=theme();const C=o.color||th.rg,CD=o.colorD||th.rgd;
+  const gid=o.gid||('c'+Math.random().toString(36).slice(2,8));
+  const qr=o.qrText?qrDataURL(o.qrText):'';const dateStr=o.dateValue||new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  const s1=o.sign1||{},s2=o.sign2||{};const dateLabel=o.dateLabel||'Date of Issue';
   return `<style>
   .cert3{position:relative;width:1040px;max-width:100%;margin:0 auto;background:#fff;color:#3a2c12;font-family:Georgia,'Times New Roman',serif;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .cert3 *{box-sizing:border-box}
@@ -814,7 +814,7 @@ function certHTMLInner(sid){const s=DB.students.find(x=>x.id===sid);if(!s)return
   .cert3 .bism{font-size:12px;color:#b8902e;margin-top:3px}
   .cert3 .gt{font-size:46px;font-weight:800;letter-spacing:.05em;line-height:1;margin-top:14px;
      background:linear-gradient(180deg,#f6dd92 0%,#e2b85a 38%,#bf8a2c 72%,#9c6a18 100%);-webkit-background-clip:text;background-clip:text;color:#bf8a2c}
-  .cert3 .gs{font-size:21px;font-weight:700;letter-spacing:.36em;color:#6a5638;margin-top:2px}
+  .cert3 .gs{font-size:21px;font-weight:700;letter-spacing:.34em;color:#6a5638;margin-top:2px}
   .cert3 .pres{font-size:11.5px;letter-spacing:.24em;text-transform:uppercase;color:#8a7556;margin-top:14px}
   .cert3 .nm{font-family:'Snell Roundhand','Brush Script MT','Segoe Script','Apple Chancery',cursive;font-size:44px;color:#c08e2c;line-height:1.1;margin:6px auto 2px;display:inline-block;padding:0 26px 4px}
   .cert3 .nm-u{width:360px;max-width:70%;height:2px;background:#caa53f;margin:0 auto 4px}
@@ -822,14 +822,16 @@ function certHTMLInner(sid){const s=DB.students.find(x=>x.id===sid);if(!s)return
   .cert3 .date b{border-bottom:1px solid #b9a36a;padding:0 14px}
   .cert3 .txt{font-size:13px;line-height:1.65;color:#4a3c24;max-width:660px;margin:12px auto 0}
   .cert3 .txt b{color:${CD}}
+  .cert3 .note{font-size:11.5px;font-style:italic;color:#6a5638;max-width:600px;margin:8px auto 0}
   .cert3 .gradepill{display:inline-block;margin-top:10px;background:${C};color:#fff;border:1.5px solid #e0c873;border-radius:30px;padding:4px 18px;font-size:12.5px;font-weight:700}
+  .cert3 .yr{font-size:13px;font-weight:700;letter-spacing:.18em;color:#9c6a18;margin-top:6px}
   .cert3 .row{display:flex;justify-content:space-between;align-items:flex-end;margin-top:24px;gap:16px}
   .cert3 .sg{flex:1;max-width:210px;text-align:center}
   .cert3 .sg .ln{border-top:1.4px solid #5a4a2a;padding-top:5px;font-size:12px;font-weight:700;color:#3a2c12}
   .cert3 .sg .who{font-size:12px;min-height:15px;color:#5a4a2a;font-style:italic}
   .cert3 .photo{position:absolute;top:30px;right:34px;z-index:3;width:84px;height:100px;object-fit:cover;border:3px solid #fff;outline:1.5px solid #caa53f;border-radius:4px}
-  .cert3 .qr{position:absolute;left:34px;bottom:26px;z-index:3;text-align:center;font-size:8.5px;color:#8a7a5c}
-  .cert3 .qr img{width:54px;height:54px;display:block}
+  .cert3 .qr{position:absolute;left:50%;transform:translateX(-50%);bottom:12px;z-index:4;text-align:center;font-size:8px;color:#5a4a2a;background:rgba(255,255,255,.92);padding:4px 8px;border-radius:7px;box-shadow:0 0 0 1px #e0c873}
+  .cert3 .qr img{width:50px;height:50px;display:block;margin:0 auto}
   @media(max-width:760px){.cert3{width:100%}.cert3 .body3{padding:26px 26px 56px}.cert3 .gt{font-size:30px}.cert3 .gs{font-size:15px;letter-spacing:.2em}.cert3 .nm{font-size:32px}.cert3 .photo{display:none}.cert3 .row{flex-wrap:wrap}}
   </style>
   <div class="cert3">
@@ -845,38 +847,51 @@ function certHTMLInner(sid){const s=DB.students.find(x=>x.id===sid);if(!s)return
     </svg>
     <div class="frame"></div>
     ${set.logo?`<div class="wm"><img src="${set.logo}" alt=""></div>`:''}
-    ${s.photo?`<img class="photo" src="${s.photo}" alt="">`:''}
+    ${o.photo?`<img class="photo" src="${o.photo}" alt="">`:''}
     <div class="body3">
-      <div class="emblem">${set.logo?`<img src="${set.logo}" alt="">`:'🎓'}</div>
+      <div class="emblem">${set.logo?`<img src="${set.logo}" alt="">`:(o.icon||'🎓')}</div>
       <div class="sch">${esc(set.schoolName)}</div>
       <div class="addr">${addrTel()}</div>
-      ${isl?`<div class="bism">۞ ${esc(BISMILLAH.a)} ۞</div>`:''}
-      <div class="gt">GRADUATION</div>
-      <div class="gs">CERTIFICATE</div>
-      <div class="pres">This certificate is proudly presented to</div>
-      <div class="nm">${esc(s.name)}</div><div class="nm-u"></div>
-      <div class="date">Date of Issue: <b>${dateStr}</b></div>
-      <div class="txt">This certifies that <b>${esc(s.name)}</b> has satisfactorily completed the prescribed course of study and successfully graduated from <b>${esc(gradClassName())}</b> in the <b>${esc(set.session)}</b> academic session${a.avg!=null?`, with an overall performance of <b>${a.avg.toFixed(1)}% — Grade ${grade.g} (${grade.r})</b>`:''}. Awarded in recognition of academic achievement and good conduct.</div>
-      ${a.avg!=null?`<div class="gradepill">Overall: ${a.avg.toFixed(1)}% · Grade ${grade.g}</div>`:''}
-      ${medalSVG(gid)}
+      ${o.bism?`<div class="bism">۞ ${esc(BISMILLAH.a)} ۞</div>`:''}
+      <div class="gt">${o.title||'CERTIFICATE'}</div>
+      ${o.sub?`<div class="gs">${o.sub}</div>`:''}
+      <div class="pres">${o.pre||'This certificate is proudly presented to'}</div>
+      <div class="nm">${esc(o.name||'')}</div><div class="nm-u"></div>
+      <div class="date">${esc(dateLabel)}: <b>${esc(dateStr)}</b></div>
+      <div class="txt">${o.body||''}</div>
+      ${o.badge?`<div class="gradepill">${o.badge}</div>`:''}
+      ${o.note?`<div class="note">${o.note}</div>`:''}
+      ${medalSVG(gid,o.medal)}
+      ${o.year?`<div class="yr">${o.yearLabel?esc(o.yearLabel)+' ':''}${esc(String(o.year))}</div>`:''}
       <div class="row">
-        <div class="sg"><div class="who">${esc(ct)}</div><div class="ln">Class Teacher</div></div>
-        <div class="sg"><div class="who">${esc(head)}</div><div class="ln">Head Teacher / Principal</div></div>
+        <div class="sg"><div class="who">${esc(s1.who||'')}</div><div class="ln">${esc(s1.label||'Head Teacher')}</div></div>
+        <div class="sg"><div class="who">${esc(s2.who||'')}</div><div class="ln">${esc(s2.label||'Proprietor')}</div></div>
       </div>
     </div>
-    ${qr?`<div class="qr"><img src="${qr}" alt="">Verify<br>${esc(s.admissionNo||'')}</div>`:''}
+    ${qr?`<div class="qr"><img src="${qr}" alt="">Verify<br>${esc(o.qrText||'')}</div>`:''}
   </div>`;}
-function medalSVG(gid){return `<div style="margin-top:14px"><svg width="120" height="150" viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg" style="display:inline-block">
+function certHTMLInner(sid){const s=DB.students.find(x=>x.id===sid);if(!s)return '';
+  const a=annual(s);const grade=a.avg!=null?gradeOf(a.avg):null;const set=DB.settings;
+  const head=(headTeacher()||{}).name||'';const prop=(proprietor()||{}).name||'';
+  return certTemplate({gid:'c'+(sid||'').replace(/[^a-z0-9]/gi,''),name:s.name,photo:s.photo,bism:isIslamic(),
+    title:'GRADUATION',sub:'CERTIFICATE',pre:'This certificate is proudly presented to',medal:'cap',
+    year:certYear(),yearLabel:'Class of',
+    body:`This certifies that <b>${esc(s.name)}</b> has satisfactorily completed the prescribed course of study and successfully graduated from <b>${esc(gradClassName())}</b> in the <b>${esc(set.session)}</b> academic session${a.avg!=null?`, with an overall performance of <b>${a.avg.toFixed(1)}% — Grade ${grade.g} (${grade.r})</b>`:''}. Awarded in recognition of academic achievement and good conduct.`,
+    badge:a.avg!=null?`Overall: ${a.avg.toFixed(1)}% · Grade ${grade.g}`:'',
+    sign1:{who:head,label:'Head Teacher'},sign2:{who:prop,label:'Proprietor'},
+    qrText:s.admissionNo||s.id,dateLabel:'Date of Issue'});}
+function medalSVG(gid,kind){
+  const center=(kind==='star')
+    ? `<path d="M60,37 l6.8,14 15.2,2.1 -11,10.7 2.6,15.1 -13.6,-7.1 -13.6,7.1 2.6,-15.1 -11,-10.7 15.2,-2.1 Z" fill="#fff"/>`
+    : `<text x="44" y="40" font-size="10" fill="#f3d986">★</text><text x="57.5" y="36" font-size="11" fill="#f7e3a0">★</text><text x="70" y="40" font-size="10" fill="#f3d986">★</text>
+       <path d="M60,46 L86,55 L60,64 L34,55 Z" fill="#fff"/><path d="M47,58 L73,58 L70,70 C70,75 50,75 50,70 Z" fill="#fff"/>
+       <circle cx="60" cy="50" r="2.4" fill="#caa53f"/><path d="M60,50 L88,57 L88,74" fill="none" stroke="#caa53f" stroke-width="2"/><circle cx="88" cy="76" r="3.4" fill="#caa53f"/>`;
+  return `<div style="margin-top:14px"><svg width="120" height="150" viewBox="0 0 120 150" xmlns="http://www.w3.org/2000/svg" style="display:inline-block">
   <path d="M45,86 L33,150 L52,135 L55,90 Z" fill="url(#deep${gid})"/>
   <path d="M75,86 L87,150 L68,135 L65,90 Z" fill="url(#gold${gid})"/>
   <circle cx="60" cy="56" r="46" fill="url(#gold${gid})"/>
   <circle cx="60" cy="56" r="37" fill="url(#deep${gid})" stroke="#f0d480" stroke-width="1.5"/>
-  <text x="44" y="40" font-size="10" fill="#f3d986">★</text><text x="57.5" y="36" font-size="11" fill="#f7e3a0">★</text><text x="70" y="40" font-size="10" fill="#f3d986">★</text>
-  <path d="M60,46 L86,55 L60,64 L34,55 Z" fill="#fff"/>
-  <path d="M47,58 L73,58 L70,70 C70,75 50,75 50,70 Z" fill="#fff"/>
-  <circle cx="60" cy="50" r="2.4" fill="#caa53f"/>
-  <path d="M60,50 L88,57 L88,74" fill="none" stroke="#caa53f" stroke-width="2"/>
-  <circle cx="88" cy="76" r="3.4" fill="#caa53f"/>
+  ${center}
 </svg></div>`;}
 /* print ONLY the given HTML (isolated in a hidden frame — nothing else prints) */
 function printDoc(inner,page){
@@ -1519,22 +1534,104 @@ function qRenderResults(){
     </tbody></table></div></div>`;}).join('')||'<div class="card"><div class="empty">Assign pupils to levels first.</div></div>'}`;
 }
 function setQScore(sid,val){const k=qScoreKey(sid);if(val==='')delete DB.quranScores[k];else DB.quranScores[k]=Number(val);save();qRenderResults();}
-function printQCerts(levelId){const l=qLevel(levelId);const rows=qStudents(levelId).map(s=>({s,score:Number(DB.quranScores[qScoreKey(s.id)])||0,has:DB.quranScores[qScoreKey(s.id)]!=null}));
+function quranCertTemplate(o){o=o||{};const set=DB.settings;const gid=o.gid||('q'+Math.random().toString(36).slice(2,7));
+  const qr=o.qrText?qrDataURL(o.qrText):'';const dateStr=o.dateValue||new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  const s1=o.sign1||{},s2=o.sign2||{};const G='#2f7d4f',GD='#1c5b39';
+  return `<style>
+  .qcert{position:relative;width:1040px;max-width:100%;margin:0 auto;background:#e9f1ea;color:#27352c;font-family:Georgia,'Times New Roman',serif;overflow:hidden;-webkit-print-color-adjust:exact;print-color-adjust:exact;aspect-ratio:26/18}
+  .qcert *{box-sizing:border-box}
+  .qcert svg.bg{position:absolute;inset:0;width:100%;height:100%;z-index:1}
+  .qcert .ar{font-family:'Amiri','Traditional Arabic','Scheherazade New','Segoe UI Historic',serif;direction:rtl}
+  .qcert .panel{position:absolute;inset:0;z-index:2;display:flex;flex-direction:column;align-items:center;text-align:center;padding:98px 132px 88px}
+  .qcert .sch{font-size:19px;font-weight:700;color:${GD};letter-spacing:.02em}
+  .qcert .addr{font-size:10.5px;color:#6f8475}
+  .qcert .ayah{font-size:21px;color:${G};margin:7px 0 2px}
+  .qcert .ttl{font-size:23px;font-weight:700;color:#9c7d2c;letter-spacing:.13em;text-transform:uppercase;margin-top:8px}
+  .qcert .ttl-ar{font-size:18px;color:${G};margin-top:1px}
+  .qcert .pres{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:#7a8a7d;margin-top:10px}
+  .qcert .nm{font-family:'Snell Roundhand','Brush Script MT','Segoe Script','Apple Chancery',cursive;font-size:38px;color:${GD};margin:4px 0 1px;padding:0 24px}
+  .qcert .nm-u{width:380px;max-width:62%;height:2px;background:#c2a24e;margin:0 auto 6px}
+  .qcert .txt{font-size:12.5px;line-height:1.6;color:#34433a;max-width:620px;margin:5px auto 0}
+  .qcert .txt b{color:${GD}}
+  .qcert .note{font-size:11px;font-style:italic;color:#5f7065;margin-top:6px;max-width:560px}
+  .qcert .badge{display:inline-block;margin-top:8px;background:${G};color:#fff;border:1.5px solid #d8c178;border-radius:30px;padding:3px 16px;font-size:12px;font-weight:700}
+  .qcert .yr{font-size:13px;font-weight:700;letter-spacing:.18em;color:#9c7d2c;margin-top:5px}
+  .qcert .qwm{position:absolute;left:50%;top:54%;transform:translate(-50%,-50%);width:560px;max-width:74%;z-index:1;opacity:.07;pointer-events:none}
+  .qcert .row{display:flex;justify-content:space-between;width:100%;max-width:660px;margin-top:auto;gap:20px;padding-top:12px}
+  .qcert .sg{flex:1;max-width:220px;text-align:center}
+  .qcert .sg .ln{border-top:1.3px solid #50624f;padding-top:4px;font-size:11.5px;font-weight:700;color:#22321f}
+  .qcert .sg .who{font-size:11.5px;min-height:14px;color:#46584a;font-style:italic}
+  .qcert .medal-top{position:absolute;top:16px;left:50%;transform:translateX(-50%);z-index:3;width:82px;height:82px;border-radius:50%;background:#fff;border:3px solid #c2a24e;display:flex;flex-direction:column;align-items:center;justify-content:center;color:${G};box-shadow:0 0 0 4px #e9f1ea}
+  .qcert .seal-bot{position:absolute;bottom:10px;left:50%;transform:translateX(-50%);z-index:3;width:52px;height:52px;border-radius:50%;background:${G};border:3px solid #c2a24e;display:flex;align-items:center;justify-content:center;color:#fbe9a8;font-size:21px;box-shadow:0 0 0 4px #e9f1ea}
+  .qcert .qr{position:absolute;right:98px;bottom:96px;z-index:3;text-align:center;font-size:8px;color:#6f8475;background:rgba(255,255,255,.92);padding:3px 6px;border-radius:6px}
+  .qcert .qr img{width:46px;height:46px;display:block;margin:0 auto}
+  @media(max-width:760px){.qcert{aspect-ratio:auto}.qcert .panel{position:relative;padding:78px 24px 64px}.qcert .ttl{font-size:18px}.qcert .nm{font-size:30px}.qcert .qr{display:none}}
+  </style>
+  <div class="qcert">
+    <svg class="bg" viewBox="0 0 1040 720" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg"><defs>
+      <linearGradient id="gld${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0d98f"/><stop offset=".5" stop-color="#c7a24e"/><stop offset="1" stop-color="#9c7d2c"/></linearGradient>
+      <g id="cor${gid}">
+        <path d="M30,168 C30,88 88,30 168,30" fill="none" stroke="url(#gld${gid})" stroke-width="3"/>
+        <path d="M48,168 C48,100 100,48 168,48" fill="none" stroke="#2f7d4f" stroke-width="1.3"/>
+        <path d="M168,30 C132,44 102,72 88,108 C108,98 132,94 152,100 C140,80 146,54 168,30 Z" fill="#2f7d4f"/>
+        <path d="M64,150 C84,138 104,138 120,150 C104,150 86,156 78,168 C76,160 70,154 64,150 Z" fill="url(#gld${gid})"/>
+        <circle cx="168" cy="30" r="3.2" fill="url(#gld${gid})"/><circle cx="30" cy="168" r="3.2" fill="url(#gld${gid})"/>
+      </g></defs>
+      <rect x="8" y="8" width="1024" height="704" fill="#eef4ec" stroke="url(#gld${gid})" stroke-width="2"/>
+      <rect x="40" y="40" width="960" height="640" fill="#2f7d4f"/>
+      <rect x="45" y="45" width="950" height="630" fill="none" stroke="url(#gld${gid})" stroke-width="1.4"/>
+      <rect x="78" y="78" width="884" height="564" fill="#fffef8" stroke="url(#gld${gid})" stroke-width="2"/>
+      <rect x="90" y="90" width="860" height="540" fill="none" stroke="#d3bf83" stroke-width="1"/>
+      <use href="#cor${gid}"/>
+      <use href="#cor${gid}" transform="translate(1040,0) scale(-1,1)"/>
+      <use href="#cor${gid}" transform="translate(0,720) scale(1,-1)"/>
+      <use href="#cor${gid}" transform="translate(1040,720) scale(-1,-1)"/>
+    </svg>
+    <svg class="qwm" viewBox="0 0 420 290" xmlns="http://www.w3.org/2000/svg">
+      <text x="210" y="22" text-anchor="middle" font-size="22" fill="#1c5b39" font-family="'Amiri','Traditional Arabic',serif" direction="rtl">${esc('الْقُرْآنُ الْكَرِيم')}</text>
+      <g fill="#fff" stroke="#1c5b39" stroke-width="2.4"><path d="M210,58 C150,36 78,40 30,60 L30,242 C78,222 150,218 210,240 Z"/><path d="M210,58 C270,36 342,40 390,60 L390,242 C342,222 270,218 210,240 Z"/></g>
+      <line x1="210" y1="58" x2="210" y2="240" stroke="#1c5b39" stroke-width="2"/>
+      <g stroke="#2f7d4f" stroke-width="1.6"><line x1="56" y1="104" x2="184" y2="100"/><line x1="56" y1="126" x2="184" y2="122"/><line x1="56" y1="148" x2="184" y2="144"/><line x1="56" y1="170" x2="184" y2="166"/><line x1="56" y1="192" x2="184" y2="188"/>
+        <line x1="236" y1="100" x2="364" y2="104"/><line x1="236" y1="122" x2="364" y2="126"/><line x1="236" y1="144" x2="364" y2="148"/><line x1="236" y1="166" x2="364" y2="170"/><line x1="236" y1="188" x2="364" y2="192"/></g>
+      <text x="120" y="84" text-anchor="middle" font-size="12" fill="#1c5b39" font-family="'Amiri',serif" direction="rtl">${esc('بِسْمِ اللَّهِ')}</text>
+      <text x="300" y="84" text-anchor="middle" font-size="12" fill="#1c5b39" font-family="'Amiri',serif" direction="rtl">${esc('الرَّحْمَٰنِ الرَّحِيم')}</text>
+    </svg>
+    <div class="medal-top"><div style="font-size:19px">☪</div><div class="ar" style="font-size:10px">${esc('بِسْمِ اللَّه')}</div></div>
+    <div class="panel">
+      <div class="sch">${esc(set.schoolName)}</div>
+      <div class="addr">${addrTel()}</div>
+      <div class="ayah ar">۞ ${esc(BISMILLAH.a)} ۞</div>
+      <div class="ttl">${o.title||'Certificate of Participation'}</div>
+      ${o.titleAr?`<div class="ttl-ar ar">${o.titleAr}</div>`:''}
+      <div class="pres">This is to certify that</div>
+      <div class="nm">${esc(o.name||'')}</div><div class="nm-u"></div>
+      <div class="txt">${o.body||''}</div>
+      ${o.badge?`<div class="badge">${o.badge}</div>`:''}
+      ${o.note?`<div class="note">${o.note}</div>`:''}
+      ${o.year?`<div class="yr">${esc(String(o.year))}</div>`:''}
+      <div class="row">
+        <div class="sg"><div class="who">${esc(s1.who||'')}</div><div class="ln">${esc(s1.label||'Head Teacher')}</div></div>
+        <div class="sg"><div class="who">${esc(s2.who||'')}</div><div class="ln">${esc(s2.label||'Proprietor')}</div></div>
+      </div>
+    </div>
+    <div class="seal-bot">★</div>
+    ${qr?`<div class="qr"><img src="${qr}" alt="">Verify</div>`:''}
+  </div>`;}
+function qCertHTML(s,l,score,pos){const top5=pos&&pos<=5;const ord5=pos?ord(pos):'';
+  return quranCertTemplate({gid:'q'+(s.id||'').replace(/[^a-z0-9]/gi,''),name:s.name,
+    title:top5?'Certificate of Excellence':'Certificate of Participation',titleAr:top5?'شَهَادَةُ تَفَوُّق':'شَهَادَةُ مُشَارَكَة',
+    body:`participated in the Qur’an Competition (<b>${esc(l.name)}</b> level) for <b>${esc(DB.settings.term)}, ${esc(DB.settings.session)}</b>${score?` and scored <b>${score}</b>`:''}${top5?`, finishing in <b>${ord5} position</b>`:''}.`,
+    badge:top5?`${ord5} Position`:'',
+    note:'“The best of you are those who learn the Qur’an and teach it.” — Hadith, Bukhari',
+    sign1:{who:(headTeacher()||{}).name||'',label:'Head Teacher'},sign2:{who:(proprietor()||{}).name||'',label:'Proprietor'},
+    qrText:s.admissionNo||s.id,year:certYear()});}
+function qCertsBulk(levelId){const l=qLevel(levelId);const rows=qStudents(levelId).map(s=>({s,score:Number(DB.quranScores[qScoreKey(s.id)])||0,has:DB.quranScores[qScoreKey(s.id)]!=null}));
   const ranked=rows.slice().filter(r=>r.has).sort((a,b)=>b.score-a.score);ranked.forEach((r,i)=>r.pos=i+1);
   const posOf={};ranked.forEach(r=>posOf[r.s.id]=r.pos);
-  if(!rows.length){toast('No pupils',true);return;}
-  modal('Qur’an Certificates — '+l.name,rows.map(r=>qCertHTML(r.s,l,r.score,posOf[r.s.id])).join(''),
-  `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print all</button>`,true);}
-function qCertHTML(s,l,score,pos){const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';const top5=pos&&pos<=5;const ord5=pos?ord(pos):'';
-  return `<div class="cert" style="page-break-after:always">${s.photo?`<img class="cpass" src="${s.photo}">`:''}
-    <div class="lg">${logo}</div><h1>${esc(DB.settings.schoolName)}</h1><div class="sub2">${addrTel()}</div>
-    <div style="font-family:'Amiri',serif;font-size:18px;color:var(--green-dark);direction:rtl;margin:4px 0">۞ ${BISMILLAH.a} ۞</div>
-    <div class="ttl">Qur’an Competition — Certificate ${top5?'of Excellence':'of Participation'}</div>
-    <p>This is to certify that</p><div class="nm">${esc(s.name)}</div>
-    <p>participated in the Qur’an Competition (<b>${esc(l.name)}</b> level) for <b>${esc(DB.settings.term)}, ${esc(DB.settings.session)}</b>${score?` and scored <b>${score}</b>`:''}${top5?`, finishing in <b>${ord5} position</b>`:''}.</p>
-    <p style="font-style:italic;color:#5a6b62">“The best of you are those who learn the Qur’an and teach it.” — Hadith, Bukhari</p>
-    <p>Awarded this ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}.</p>
-    <div class="crow"><div class="line">Mu’allim / Examiner</div><div class="seal">★</div><div class="line">Head Teacher</div></div></div>`;}
+  return rows.map((r,i)=>`<div style="${i<rows.length-1?'page-break-after:always':''}">${qCertHTML(r.s,l,r.score,posOf[r.s.id])}</div>`).join('');}
+function printQCerts(levelId){const rows=qStudents(levelId);if(!rows.length){toast('No pupils',true);return;}
+  modal('Qur’an Certificates — '+qLevel(levelId).name,qCertsBulk(levelId),
+  `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="printDoc(qCertsBulk('${levelId}'),'A4 landscape')">🖨 Print all certificates</button>`,true);}
 
 /* ===================== HOUSES & ACTIVITIES ===================== */
 const INSPECT_WEEKS=[3,4,5,6,7,8,9];
@@ -1619,15 +1716,16 @@ function renderStandings(){if(!DB.houses.length){$('#houseArea').innerHTML=`<div
   ${best&&scored?`<div class="card pad mt"><div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div>🏆 <b>Best house of the term:</b> ${esc(best.h.name)} — ${best.total} pts</div>
     <button class="btn gold" onclick="bestHouseCert()">🏅 Generate best-house certificate</button></div></div>`:'<p class="muted mt">Enter inspection & activity scores to rank houses.</p>'}`;
 }
-function bestHouseCert(){const best=houseRank()[0];if(!best||!best.total){toast('No scores yet',true);return;}const h=best.h;const m=DB.users.find(u=>u.id===h.masterId);const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';
-  modal('Best House Certificate',`<div class="cert" style="border-color:${esc(h.color)}">
-    <div class="lg">${logo}</div><h1>${esc(DB.settings.schoolName)}</h1><div class="sub2">${addrTel()}</div>
-    <div class="ttl" style="color:${esc(h.color)}">Best House of the Term</div>
-    <p>This is to certify that</p><div class="nm">${esc(h.name)}</div>
-    <p>emerged the <b>overall best house</b> for <b>${esc(DB.settings.term)}, ${esc(DB.settings.session)}</b> with a total of <b>${best.total} points</b> across inspections and house activities.</p>
-    <p>Awarded this ${new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'})}.</p>
-    <div class="crow"><div class="line">${m?esc(m.name)+' (House Master)':'House Master'}</div><div class="seal">★</div><div class="line">Head Teacher</div></div></div>`,
-    `<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print / Save PDF</button>`,true);}
+function houseCertHTML(){const best=houseRank()[0];if(!best||!best.total)return '';const h=best.h;const m=DB.users.find(u=>u.id===h.masterId);
+  return certTemplate({gid:'h'+(h.id||'').replace(/[^a-z0-9]/gi,''),name:h.name,medal:'star',
+    color:h.color||theme().rg,colorD:h.color||theme().rgd,
+    title:'BEST HOUSE',sub:'OF THE TERM',pre:'This certificate is proudly awarded to',
+    body:`for emerging the <b>overall best house</b> for <b>${esc(DB.settings.term)}, ${esc(DB.settings.session)}</b> with a total of <b>${best.total} points</b> across inspections and house activities. Congratulations to all members.`,
+    badge:`${best.total} points`,year:certYear(),
+    sign1:{who:(headTeacher()||{}).name||'',label:'Head Teacher'},sign2:{who:(proprietor()||{}).name||'',label:'Proprietor'},
+    dateLabel:'Awarded'});}
+function bestHouseCert(){const html=houseCertHTML();if(!html){toast('No scores yet',true);return;}
+  modal('Best House Certificate',html,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="printDoc(houseCertHTML(),'A4 landscape')">🖨 Print certificate</button>`,true);}
 
 /* ===================== LESSON PLANS ===================== */
 let lpClass='';
