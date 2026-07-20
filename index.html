@@ -539,7 +539,7 @@ const DEFAULT_CLASSES=['Nursery 1','Nursery 2','Primary 1','Primary 2','Primary 
 const NURSERY_SUBJECTS=['Numeracy','Literacy','Rhymes','Colouring & Drawing','Social Habits','Health Habits'];
 const PRIMARY_SUBJECTS=['English Language','Mathematics','Basic Science','Social Studies','Verbal Reasoning','Quantitative Reasoning','Civic Education','Computer Studies','Agricultural Science','Christian Religious Studies','Creative Arts','Physical & Health Education'];
 let MODE='owner', SCHOOL_CODE='', DB=null, MASTER=null, USER=null, supa=null;
-let STORE={}, pushTimers={};
+let STORE={}, BASE={}, pushTimers={};
 
 /* ===================== STORAGE ===================== */
 function loadStore(){try{STORE=JSON.parse(localStorage.getItem('sms_store'))||{};}catch(e){STORE={};}}
@@ -550,18 +550,93 @@ function initSupa(){
   if(url&&key&&window.supabase){try{supa=window.supabase.createClient(url,key);return true;}catch(e){supa=null;}}
   return false;
 }
-async function pullRow(id){if(!supa)return STORE[id];try{const{data}=await supa.from('school_data').select('data').eq('id',id).maybeSingle();if(data&&data.data){STORE[id]=data.data;saveStoreLocal();}return STORE[id];}catch(e){console.warn(e);return STORE[id];}}
-async function pullAll(){if(!supa)return;try{const{data,error}=await supa.from('school_data').select('id,data');if(error)throw error;if(data){data.forEach(r=>STORE[r.id]=r.data);saveStoreLocal();}}catch(e){console.warn(e);setSync('err','Sync error');}}
-function pushRow(id){STORE[id]=(id==='__master__')?MASTER:(id===SCHOOL_CODE?DB:STORE[id]);saveStoreLocal();
-  if(!supa)return;clearTimeout(pushTimers[id]);setSync('saving','Saving…');
-  pushTimers[id]=setTimeout(async()=>{try{const{error}=await supa.from('school_data').upsert({id,data:STORE[id],updated_at:new Date().toISOString()});if(error)throw error;setSync('on','Synced');}catch(e){console.warn(e);setSync('err','Sync error');}},700);}
+function _clone(x){try{return JSON.parse(JSON.stringify(x));}catch(e){return x;}}
+function loadBase(){try{BASE=JSON.parse(localStorage.getItem('sms_base'))||{};}catch(e){BASE={};}}
+function saveBase(){try{localStorage.setItem('sms_base',JSON.stringify(BASE));}catch(e){}}
+async function pullRow(id){if(!supa)return STORE[id];try{const{data}=await supa.from('school_data').select('data').eq('id',id).maybeSingle();if(data&&data.data){STORE[id]=data.data;BASE[id]=_clone(data.data);saveStoreLocal();saveBase();}return STORE[id];}catch(e){console.warn(e);return STORE[id];}}
+async function pullAll(){if(!supa)return;try{const{data,error}=await supa.from('school_data').select('id,data');if(error)throw error;if(data){data.forEach(r=>{STORE[r.id]=r.data;BASE[r.id]=_clone(r.data);});saveStoreLocal();saveBase();}}catch(e){console.warn(e);setSync('err','Sync error');}}
+/* ---- conflict-safe 3-way merge: never wipes newer cloud data, still honours edits & deletes ---- */
+function _isObj(x){return x&&typeof x==='object'&&!Array.isArray(x);}
+function _keyOf(it){if(it&&typeof it==='object'){if(it.id!=null)return '#'+it.id;if(it.code!=null)return '@'+it.code;if(it.pin!=null)return 'P'+it.pin;}return 'J'+JSON.stringify(it);}
+function _idx(a){const m={};(a||[]).forEach(it=>{m[_keyOf(it)]=it;});return m;}
+function _keys(){const k={};for(let i=0;i<arguments.length;i++){const o=arguments[i];if(o)Object.keys(o).forEach(x=>k[x]=1);}return Object.keys(k);}
+function _eq(a,b){return JSON.stringify(a)===JSON.stringify(b);}
+function merge3(base,local,server){
+  if(Array.isArray(local)||Array.isArray(server)||Array.isArray(base)){
+    const bi=_idx(base),li=_idx(local),si=_idx(server);const res={};
+    _keys(bi,li,si).forEach(k=>{const inB=k in bi,inL=k in li,inS=k in si;
+      if(inL){res[k]=(inB&&inS&&_isObj(bi[k])&&_isObj(li[k])&&_isObj(si[k]))?merge3(bi[k],li[k],si[k]):li[k];}
+      else if(inB&&inS){if(!_eq(si[k],bi[k]))res[k]=si[k];}
+      else if(!inB&&inS){res[k]=si[k];}});
+    const out=[],seen={};
+    (local||[]).forEach(it=>{const k=_keyOf(it);if(k in res&&!seen[k]){out.push(res[k]);seen[k]=1;}});
+    (server||[]).forEach(it=>{const k=_keyOf(it);if(k in res&&!seen[k]){out.push(res[k]);seen[k]=1;}});
+    return out;
+  }
+  if(_isObj(local)||_isObj(server)||_isObj(base)){
+    const b=_isObj(base)?base:{},l=_isObj(local)?local:{},s=_isObj(server)?server:{};const out={};
+    _keys(b,l,s).forEach(k=>{const inB=k in b,inL=k in l,inS=k in s;
+      if(inL){out[k]=merge3(b[k],l[k],s[k]);}
+      else if(inB&&inS){if(!_eq(s[k],b[k]))out[k]=s[k];}
+      else if(!inB&&inS){out[k]=s[k];}});
+    return out;
+  }
+  if(_eq(local,base)&&server!==undefined)return server;
+  return local!==undefined?local:server;
+}
+/* ---- rolling local backups (recovery net; per device) ---- */
+function backupSnapshot(id){try{const doc=STORE[id];if(!doc)return;const key='sms_bak_'+id;let arr=[];try{arr=JSON.parse(localStorage.getItem(key))||[];}catch(e){}
+  const last=arr[arr.length-1];if(last&&_eq(last.data,doc))return;arr.push({t:Date.now(),data:doc});while(arr.length>6)arr.shift();try{localStorage.setItem(key,JSON.stringify(arr));}catch(e){}}catch(e){}}
+function listBackups(id){try{return JSON.parse(localStorage.getItem('sms_bak_'+id))||[];}catch(e){return [];}}
+/* ---- safe push: read latest cloud, 3-way merge, then write. If cloud read fails, DO NOT overwrite. ---- */
+async function flushPush(id){if(!supa)return;
+  try{setSync('saving','Saving…');
+    let server,readOk=true;try{const{data}=await supa.from('school_data').select('data').eq('id',id).maybeSingle();server=data&&data.data;}catch(e){readOk=false;}
+    if(!readOk){setSync('err','Sync error — will retry');clearTimeout(pushTimers[id]);pushTimers[id]=setTimeout(()=>flushPush(id),4000);return;}
+    const base=BASE[id]!==undefined?BASE[id]:(server||STORE[id]);
+    const merged=server?merge3(base,STORE[id],server):STORE[id];
+    STORE[id]=merged;if(id===SCHOOL_CODE&&DB)DB=merged;if(id==='__master__'&&MASTER)MASTER=merged;
+    BASE[id]=_clone(merged);saveStoreLocal();saveBase();
+    const{error}=await supa.from('school_data').upsert({id,data:merged,updated_at:new Date().toISOString()});if(error)throw error;setSync('on','Synced');
+  }catch(e){console.warn(e);setSync('err','Sync error');}}
+function pushRow(id){STORE[id]=(id==='__master__')?MASTER:(id===SCHOOL_CODE?DB:STORE[id]);saveStoreLocal();backupSnapshot(id);
+  if(!supa)return;clearTimeout(pushTimers[id]);setSync('saving','Saving…');pushTimers[id]=setTimeout(()=>flushPush(id),700);}
 function save(){pushRow(SCHOOL_CODE);}
 function saveMaster(){pushRow('__master__');}
-function saveSchoolRow(code){STORE[code]=STORE[code];saveStoreLocal();if(!supa)return;clearTimeout(pushTimers[code]);
-  pushTimers[code]=setTimeout(async()=>{try{await supa.from('school_data').upsert({id:code,data:STORE[code],updated_at:new Date().toISOString()});setSync('on','Synced');}catch(e){setSync('err','Sync error');}},400);}
+function saveSchoolRow(code){saveStoreLocal();backupSnapshot(code);if(!supa)return;clearTimeout(pushTimers[code]);setSync('saving','Saving…');pushTimers[code]=setTimeout(()=>flushPush(code),400);}
+/* ---- restore from a local backup (recover data already lost from the cloud) ---- */
+function restoreBackupModal(code){const list=listBackups(code);
+  modal('Restore a backup',`<p class="muted mb">Restoring replaces the cloud copy for this account with the chosen backup.</p>
+   <label>Snapshots saved on this device</label>
+   ${list.length?list.slice().reverse().map((b)=>{const d=b.data||{};const idx=list.indexOf(b);const np=(d.students||[]).length;const nr=Object.keys(d.results||{}).length;return `<div class="flex" style="justify-content:space-between;align-items:center;border:1px solid var(--line);border-radius:10px;padding:9px 11px;margin-bottom:6px"><div><b>${new Date(b.t).toLocaleString()}</b><div class="muted" style="font-size:12px">${np} pupil(s) · ${nr} result record(s)</div></div><button class="btn sm gold" onclick="doRestore('${esc(code)}',${idx})">Restore</button></div>`;}).join(''):`<div class="empty" style="padding:14px">No snapshots on this device.</div>`}
+   <hr><label>Or restore from a downloaded backup file (.json)</label>
+   <input type="file" accept=".json,application/json" onchange="importBackupFile('${esc(code)}',this)" class="mt">`,
+   `<button class="btn sec" onclick="closeModal()">Cancel</button>`,true);}
+function importBackupFile(code,inp){const f=inp.files[0];if(!f)return;const r=new FileReader();
+  r.onload=e=>{try{const j=JSON.parse(e.target.result);const doc=(j&&j.data&&typeof j.data==='object')?j.data:j;
+    if(!doc||typeof doc!=='object'){toast('Not a valid backup file',true);return;}
+    if(!confirm('Restore this backup file to the cloud? Current cloud data for this account will be replaced.'))return;
+    STORE[code]=_clone(doc);BASE[code]=_clone(doc);saveStoreLocal();saveBase();if(code===SCHOOL_CODE)DB=STORE[code];
+    if(supa){setSync('saving','Restoring…');supa.from('school_data').upsert({id:code,data:STORE[code],updated_at:new Date().toISOString()}).then(()=>setSync('on','Synced')).catch(()=>setSync('err','Sync error'));}
+    closeModal();toast('Backup file restored');if(USER&&CURRENT){buildNav();go(CURRENT);}
+  }catch(err){toast('Could not read that file',true);}};r.readAsText(f);}
+async function doRestore(code,idx){const list=listBackups(code);const b=list[idx];if(!b){toast('Backup not found',true);return;}
+  STORE[code]=_clone(b.data);BASE[code]=_clone(b.data);saveStoreLocal();saveBase();if(code===SCHOOL_CODE)DB=STORE[code];
+  if(supa){try{setSync('saving','Restoring…');await supa.from('school_data').upsert({id:code,data:STORE[code],updated_at:new Date().toISOString()});setSync('on','Synced');}catch(e){setSync('err','Sync error');}}
+  closeModal();toast('Backup restored');if(USER&&CURRENT){buildNav();go(CURRENT);}}
+/* ---- download a dated JSON archive (off-site safety net) ---- */
+function downloadBackup(code){code=code||SCHOOL_CODE;const doc=STORE[code]||(code===SCHOOL_CODE?DB:null);if(!doc){toast('No data to back up',true);return;}
+  const st=doc.settings||{};const name=st.shortName||st.schoolName||st.storeName||st.familyName||code;
+  const blob=new Blob([JSON.stringify({code,exportedAt:new Date().toISOString(),data:doc},null,2)],{type:'application/json'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=String(name).replace(/[^\w]+/g,'-')+'-backup-'+today()+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);}
+function maybeWeeklyBackup(){try{if(!SCHOOL_CODE||!DB)return;const k='sms_lastdl_'+SCHOOL_CODE;const last=Number(localStorage.getItem(k)||0);
+  if(Date.now()-last<7*24*3600*1000)return;localStorage.setItem(k,String(Date.now()));
+  setTimeout(()=>{downloadBackup(SCHOOL_CODE);toast('📦 Weekly backup saved to your device');},1600);}catch(e){}}
 async function manualSync(){if(!supa){toast('Cloud is off. Owner sets keys in the file or Settings.',true);return;}
-  if(MODE==='owner'){await pullAll();MASTER=STORE['__master__'];}else{await pullRow(SCHOOL_CODE);await pullRow('__master__');DB=STORE[SCHOOL_CODE];MASTER=STORE['__master__'];}
-  if(USER){buildNav();go(CURRENT);}toast('Synced');}
+  if(!navigator.onLine){toast('You are offline. Connect to the internet to sync.',true);setSync('err','Offline');return;}
+  if(MODE==='owner'){const ok=await pullAllStrict();if(!ok){toast('Could not reach the cloud. Check your connection.',true);setSync('err','Sync error');return;}MASTER=STORE['__master__'];}
+  else{const r=await cloudPull(SCHOOL_CODE);const m=await cloudPull('__master__');if(!r.ok||!m.ok){toast('Could not reach the cloud. Check your connection.',true);setSync('err','Sync error');return;}DB=STORE[SCHOOL_CODE]?ensureByKind(STORE[SCHOOL_CODE]):DB;MASTER=STORE['__master__'];}
+  if(USER){buildNav();go(CURRENT);}setSync('on','Synced');toast('Synced from cloud');}
 function setSync(state,txt){const c=$('#syncChip');if(!c)return;c.className='sync-chip '+(state==='on'?'':state);$('#syncTxt').textContent=txt;}
 
 /* ===================== SEEDS ===================== */
@@ -1003,6 +1078,9 @@ function vSession(){
     <div class="fld" style="max-width:340px"><label>Records email (for your reference)</label><input id="se_email" value="${esc(DB.settings.recordEmail||'')}" placeholder="admin@school.com"></div>
     ${done.includes(cur)?`<p class="pill green">${esc(cur)} already completed.</p>`:`<button class="btn" onclick="completeTerm()">✓ Complete ${esc(cur)} & download records</button>`}
   </div>
+  <div class="card pad mb" style="max-width:680px;border-left:4px solid var(--green)"><h3 class="mb">🛟 Backup & restore</h3>
+    <p class="muted mb">Your data lives in the cloud and is merged safely so nothing gets overwritten. Tap <b>Download backup</b> anytime to save a dated file to your device (keep it in Google Drive or email it to yourself for extra safety). To recover, tap <b>Restore</b> and choose a snapshot or a downloaded file. This device keeps <b>${listBackups(SCHOOL_CODE).length} automatic snapshot(s)</b>.</p>
+    <div class="flex gap" style="flex-wrap:wrap"><button class="btn sec" onclick="manualSync()">🔄 Sync now</button><button class="btn gold" onclick="downloadBackup(SCHOOL_CODE)">⬇ Download backup</button><button class="btn sec" onclick="restoreBackupModal(SCHOOL_CODE)">↩ Restore</button></div></div>
   ${hasModule('weeks')?`<div class="card pad mb" style="max-width:680px"><h3 class="mb">📅 School week</h3>
     <div class="flex gap" style="align-items:center;flex-wrap:wrap"><div class="stat" style="padding:10px 18px"><div class="lbl">Current week</div><div class="num">Week ${currentWeek()} <span style="font-size:15px;color:var(--muted)">of ${termWeeks()}</span></div></div>
       <div style="flex:1;min-width:160px"><div style="background:#eef2ef;border-radius:6px;height:10px;overflow:hidden"><div class="bar" style="width:${Math.round(currentWeek()/termWeeks()*100)}%;height:10px"></div></div></div></div>
@@ -2184,6 +2262,8 @@ function manageSchool(code){
      <button class="btn sec" onclick="go('pins');closeModal()">Generate PINs</button>
      <button class="btn ${reg.status==='suspended'?'':'sec'}" onclick="toggleSchool('${code}')">${reg.status==='suspended'?'Re-activate':'Suspend'}</button>
      <button class="btn sec" onclick="editSchool('${code}')">Edit details</button>
+     <button class="btn sec" onclick="downloadBackup('${code}')">⬇ Backup</button>
+     <button class="btn gold" onclick="restoreBackupModal('${code}')">🛟 Restore</button>
      <button class="btn danger" onclick="delSchool('${code}')">Delete</button>`,true);
 }
 function fixTerm(code){const d=STORE[code];const done=d.settings.termsDone||[];
@@ -2898,44 +2978,61 @@ function renderCheckResult(){
   window.scrollTo(0,0);renderVisuals();
 }
 
-/* ===================== BOOT ===================== */
+/* ===================== BOOT (cloud-first: always loads live data; requires internet) ===================== */
+function ensureByKind(d,type){const t=type||(d&&d.kind)||'school';
+  return t==='pharmacy'?ensurePharmacy(d):t==='autoparts'?ensureAuto(d):t==='family'?ensureFamily(d):t==='posagent'?ensurePos(d):ensureSchool(d);}
+async function cloudPull(id){if(!supa)return{ok:false,net:false};
+  try{const{data,error}=await supa.from('school_data').select('data').eq('id',id).maybeSingle();if(error)throw error;
+    if(data&&data.data){STORE[id]=data.data;BASE[id]=_clone(data.data);saveStoreLocal();saveBase();return{ok:true,found:true};}
+    return{ok:true,found:false};
+  }catch(e){console.warn('cloudPull',e);return{ok:false,net:true};}}
+async function pullAllStrict(){if(!supa)return false;try{const{data,error}=await supa.from('school_data').select('id,data');if(error)throw error;
+  if(data){data.forEach(r=>{STORE[r.id]=r.data;BASE[r.id]=_clone(r.data);});saveStoreLocal();saveBase();}return true;}catch(e){console.warn(e);return false;}}
+function renderOffline(msg){window._offline=1;const app=$('#app');if(app)app.style.display='none';const sc=$('#screen');if(!sc)return;sc.style.display='';
+  sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest" style="background:#64748b">📡</div><h1>You're offline</h1>
+    <div class="sub">${esc(msg||'This app loads your data live from the cloud, so it needs an internet connection. Please connect and try again.')}</div>
+    <button class="btn" style="width:100%;justify-content:center;margin-top:16px" onclick="location.reload()">🔄 Retry</button></div></div>`;}
+window.addEventListener('online',()=>{if(window._offline)location.reload();else if(USER)toast('Back online');});
+window.addEventListener('offline',()=>{if(USER){toast('You are offline — changes will sync when you reconnect.',true);setSync('err','Offline');}});
 async function boot(){
-  loadStore();
+  loadStore();loadBase();
   const params=new URLSearchParams(location.search);
   let code=params.get('s')||'';
   let wantCheck=params.get('check')==='1';
-  // pretty path support: /greenfield  or  /greenfield/check
   const segs=location.pathname.split('/').filter(Boolean).filter(x=>!/\.html?$/i.test(x)&&!/^index$/i.test(x));
   if(!code&&segs.length){code=segs[0];if(segs[1]&&segs[1].toLowerCase()==='check')wantCheck=true;}
   SCHOOL_CODE=code.toUpperCase();
   initSupa();
-  // ensure master
-  if(supa){await pullRow('__master__');}
+  if(!supa){renderOffline('This app is not configured for cloud sync. Please contact the provider.');return;}
+  if(!navigator.onLine){renderOffline();return;}
+  // MASTER (required, live)
+  const mp=await cloudPull('__master__');
+  if(!mp.ok){renderOffline();return;}
   MASTER=STORE['__master__'];
-  // custom domain → school detection (when no ?s= and no path code)
+  if(!MASTER){ // first run only
+    MASTER=seedMaster();STORE['__master__']=MASTER;if(!STORE['DEMO'])STORE['DEMO']=seedSchool('DEMO','Demo Nursery & Primary');
+    saveStoreLocal();saveMaster();saveSchoolRow('DEMO');MASTER=STORE['__master__'];}
+  // custom domain → school detection
   if(!code&&MASTER&&MASTER.schools){const host=location.hostname.replace(/^www\./i,'').toLowerCase();
     const m=MASTER.schools.find(s=>s.domain&&s.domain.replace(/^https?:\/\//,'').replace(/\/.*$/,'').replace(/^www\./i,'').toLowerCase()===host);
     if(m){code=m.code;SCHOOL_CODE=code.toUpperCase();}}
-  if(!MASTER){MASTER=seedMaster();STORE['__master__']=MASTER;saveStoreLocal();
-    // also seed DEMO school
-    if(!STORE['DEMO']){STORE['DEMO']=seedSchool('DEMO','Demo Nursery & Primary');saveStoreLocal();}
-    if(supa){saveMaster();saveSchoolRow('DEMO');}}
   if(SCHOOL_CODE){
     MODE=wantCheck?'check':'school';
-    if(supa){await pullRow(SCHOOL_CODE);if(MASTER&&!STORE[SCHOOL_CODE]){}}
+    const rp=await cloudPull(SCHOOL_CODE);
+    if(!rp.ok){renderOffline();return;}
     const _reg=MASTER&&MASTER.schools&&MASTER.schools.find(s=>s.code===SCHOOL_CODE);
     const _t=(_reg&&_reg.type)||(STORE[SCHOOL_CODE]&&STORE[SCHOOL_CODE].kind)||'school';
-    DB=STORE[SCHOOL_CODE]?(_t==='pharmacy'?ensurePharmacy(STORE[SCHOOL_CODE]):_t==='autoparts'?ensureAuto(STORE[SCHOOL_CODE]):_t==='family'?ensureFamily(STORE[SCHOOL_CODE]):_t==='posagent'?ensurePos(STORE[SCHOOL_CODE]):ensureSchool(STORE[SCHOOL_CODE])):null;
+    DB=STORE[SCHOOL_CODE]?ensureByKind(STORE[SCHOOL_CODE],_t):null;
     if(DB){STORE[SCHOOL_CODE]=DB;}
-    setSync(supa?'on':'off',supa?'Synced':'Local');
-    // restore session
+    setSync('on','Synced');
     const sess=sessionStorage.getItem('sms_su');
     if(!wantCheck&&DB&&sess&&sess.startsWith(SCHOOL_CODE+'|')){const uidp=sess.split('|')[1];const u=DB.users.find(x=>x.id===uidp);if(u){USER=u;enterApp();return;}}
     renderAuth();
   }else{
     MODE='owner';
-    if(supa){await pullAll();MASTER=STORE['__master__']||MASTER;}
-    setSync(supa?'on':'off',supa?'Synced':'Local');renderAuth();
+    const ok=await pullAllStrict();
+    if(!ok){renderOffline();return;}
+    MASTER=STORE['__master__']||MASTER;setSync('on','Synced');renderAuth();
   }
 }
 boot();
