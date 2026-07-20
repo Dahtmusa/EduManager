@@ -448,6 +448,7 @@ tbody tr:hover{background:#fafbfa}
   .rc-scale,.rc-perf{padding:8px 16px}.rc-scale{font-size:9.5px}
   .rc-comments{padding:8px 16px;gap:10px}.rc-comments .c .box{min-height:36px;padding:6px}
   .rc-meta2{padding:6px 16px;font-size:10px}
+  .rc-aff{padding:4px 16px!important;gap:10px}.rc-aff div>div{font-size:9px!important;padding:2px 6px!important}.rc-aff div>div:first-child{font-size:8px!important}
   .rc-sign{padding:10px 16px 6px}
   .rc-foot{padding:6px}
   .rc,.rc-tbl,.rc-comments,.rc-sign,.rc-two{break-inside:avoid;page-break-inside:avoid}
@@ -632,6 +633,23 @@ function downloadBackup(code){code=code||SCHOOL_CODE;const doc=STORE[code]||(cod
 function maybeWeeklyBackup(){try{if(!SCHOOL_CODE||!DB)return;const k='sms_lastdl_'+SCHOOL_CODE;const last=Number(localStorage.getItem(k)||0);
   if(Date.now()-last<7*24*3600*1000)return;localStorage.setItem(k,String(Date.now()));
   setTimeout(()=>{downloadBackup(SCHOOL_CODE);toast('📦 Weekly backup saved to your device');},1600);}catch(e){}}
+/* ---- Backup module (owner can enable per tenant; shows a Backup nav page) ---- */
+function hasBackup(){return !!(DB&&DB.settings)&&DB.settings.backup!==false;}
+function tenantAccent(){return (DB&&DB.kind==='autoparts')?'#15366e':(DB&&DB.kind==='pharmacy')?'#0c5b56':(DB&&DB.kind==='family')?'#7a4d12':(DB&&DB.kind==='posagent')?'#0a7d33':'var(--green)';}
+function vBackup(){const ac=tenantAccent();const snaps=listBackups(SCHOOL_CODE);
+  $('#view').innerHTML=`<div class="page-head"><div><h2>🛟 Backup & Restore</h2><p>Save a copy of your data, or restore it if ever needed</p></div>
+    <button class="btn" style="background:${ac}" onclick="downloadBackup(SCHOOL_CODE)">⬇ Download backup</button></div>
+  <div class="card pad mb"><h3 class="mb">Your data is safe</h3>
+    <p class="muted mb">Everything is stored in the cloud and merged so nothing is overwritten. For extra peace of mind, download a dated backup file to your device and keep it in Google Drive or email it to yourself. If anything ever looks wrong, tap <b>Sync now</b> first, then <b>Restore</b>.</p>
+    <div class="flex gap" style="flex-wrap:wrap"><button class="btn sec" onclick="manualSync()">🔄 Sync now</button><button class="btn" style="background:${ac}" onclick="downloadBackup(SCHOOL_CODE)">⬇ Download backup file</button><button class="btn gold" onclick="restoreBackupModal(SCHOOL_CODE)">↩ Restore</button></div></div>
+  <div class="card pad"><h3 class="mb">Automatic snapshots on this device (${snaps.length})</h3>
+   ${snaps.length?`<div class="t-wrap"><table><thead><tr><th>Saved</th><th>Contents</th><th></th></tr></thead><tbody>${snaps.slice().reverse().map(b=>{const d=b.data||{};const idx=snaps.indexOf(b);const n=(d.students||d.products||d.members||d.txns||[]).length;return `<tr><td>${new Date(b.t).toLocaleString()}</td><td class="muted">${n} record(s)</td><td class="right"><button class="btn sm gold" onclick="doRestore('${SCHOOL_CODE}',${idx})">Restore</button></td></tr>`;}).join('')}</tbody></table></div>`:`<div class="empty">Snapshots build up automatically as you work.</div>`}
+  </div>`;}
+function toggleBackup(code){const d=STORE[code];if(!d)return;const cur=d.settings.backup!==false;d.settings.backup=!cur;STORE[code]=d;saveStoreLocal();saveSchoolRow(code);
+  toast('Backup module '+(!cur?'enabled':'disabled')+' for this account');
+  const reg=MASTER.schools.find(s=>s.code===code);const t=reg&&reg.type;
+  if(t==='pharmacy')managePharmacy(code);else if(t==='autoparts')manageAuto(code);else if(t==='family')manageFamily(code);else if(t==='posagent')managePos(code);else manageSchool(code);}
+function backupToggleBtn(code){const d=STORE[code];const on=!d||d.settings.backup!==false;return `<button class="btn sec" onclick="toggleBackup('${code}')">🛟 Backup module: ${on?'ON':'OFF'}</button>`;}
 async function manualSync(){if(!supa){toast('Cloud is off. Owner sets keys in the file or Settings.',true);return;}
   if(!navigator.onLine){toast('You are offline. Connect to the internet to sync.',true);setSync('err','Offline');return;}
   if(MODE==='owner'){const ok=await pullAllStrict();if(!ok){toast('Could not reach the cloud. Check your connection.',true);setSync('err','Sync error');return;}MASTER=STORE['__master__'];}
@@ -742,8 +760,12 @@ const THEMES={green:{n:'Green & Gold',rg:'#0b5e3a',rgd:'#08482c',gold:'#caa64e'}
 function theme(){return THEMES[(DB&&DB.settings&&DB.settings.theme)||'green']||THEMES.green;}
 function themeVars(){const t=theme();return `--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}`;}
 const MODULES=[['gradPry5','Graduate at Primary 5'],['staffAttendance','Staff attendance & charges'],['weeks','School weeks (inspection basis)'],['lessonPlans','Lesson plans (manual + AI draft)'],['houses','Houses & activities'],['quran','Qur’an competition'],['finance','School accounts & finance'],['gallery','Events gallery (photos/videos)'],['affective','Affective & Psychomotor on report cards'],['broadsheet','Class broadsheet (master-sheet)'],['parentPortal','Parent portal + announcements']];
-const AFFECTIVE=['Punctuality','Attendance','Neatness','Politeness','Honesty','Cooperation','Attentiveness','Leadership','Self-control','Relationship with others'];
-const PSYCHO=['Handwriting','Drawing & Painting','Sports & Games','Handling of tools','Musical skills','Verbal fluency','Physical fitness'];
+const AFFECTIVE=['Punctuality','Neatness','Politeness','Honesty','Attentiveness','Cooperation'];
+const PSYCHO=['Handwriting','Sports & Games','Verbal Fluency','Physical Fitness'];
+function affectiveList(){return AFFECTIVE;}
+function psychoList(){return isIslamic()
+  ?['Qur’an Recitation','Qur’an Memorisation','Handwriting','Sports & Games','Verbal Fluency','Physical Fitness']
+  :['Handwriting','Drawing & Craft','Sports & Games','Verbal Fluency','Physical Fitness','Practical Skills'];}
 const RATEWORD={5:'Excellent',4:'Very Good',3:'Good',2:'Fair',1:'Poor'};
 function hasModule(m){return !!(DB&&DB.settings&&DB.settings.modules&&DB.settings.modules[m]);}
 function gradClassName(){return (DB.settings.modules&&DB.settings.modules.gradPry5)?'Primary 5':'Primary 6';}
@@ -978,6 +1000,23 @@ function printDoc(inner,page){
   if(!imgs.length){setTimeout(fire,350);}
   else{let done=0;const chk=()=>{if(++done>=imgs.length)setTimeout(fire,300);};imgs.forEach(im=>{if(im.complete)chk();else{im.onload=chk;im.onerror=chk;}});}
 }
+/* print a report card / annual report on EXACTLY one A4 page (auto shrink-to-fit) */
+function printRC(html){
+  const old=document.getElementById('printFrame');if(old)old.remove();
+  const fr=document.createElement('iframe');fr.id='printFrame';fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0';document.body.appendChild(fr);
+  const styles=[].slice.call(document.querySelectorAll('style')).map(s=>s.textContent).join('\n');
+  const d=fr.contentWindow.document;d.open();
+  d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>'+styles+'</style>'+
+    '<style>@page{size:A4 portrait;margin:7mm}html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.no-print{display:none!important}#rcfit{transform-origin:top center;width:733px;margin:0 auto}#rcfit .rc{max-width:100%!important;margin:0!important;box-shadow:none!important;border:none!important}</style>'+
+    '</head><body><div id="rcfit">'+html+'</div></body></html>');
+  d.close();
+  try{[].slice.call(d.querySelectorAll('img.qrimg[data-qr]')).forEach(im=>{try{const Q=window.qrcode;if(!Q)return;const q=Q(0,'M');q.addData(im.getAttribute('data-qr')||'');q.make();im.src=q.createDataURL(5,1);}catch(e){}});}catch(e){}
+  const win=fr.contentWindow;
+  const finish=()=>{try{const wrap=d.getElementById('rcfit');const pageH=1069;const h=wrap.scrollHeight;if(h>pageH)wrap.style.transform='scale('+(pageH/h).toFixed(4)+')';win.focus();win.print();}catch(e){try{win.print();}catch(_){}}};
+  const imgs=[].slice.call(d.images);let n=imgs.length,done=0;
+  if(!n){setTimeout(finish,250);}else{const chk=()=>{if(++done>=n)setTimeout(finish,250);};imgs.forEach(im=>{if(im.complete)chk();else{im.onload=chk;im.onerror=chk;}});}
+}
 function printCert(sid){printDoc(certHTMLInner(sid),'A4 landscape');}
 function printAllCerts(classId){const studs=studentsIn(classId);if(!studs.length){toast('No pupils in this class',true);return;}
   toast('Preparing '+studs.length+' certificate(s)…');
@@ -1206,13 +1245,13 @@ function editRatings(sid){const s=DB.students.find(x=>x.id===sid);const r=affGet
   const grp=(title,list)=>`<h4 style="color:var(--green-dark);margin:8px 0 4px;font-size:13px">${title}</h4>${list.map(tr=>`<div class="flex" style="justify-content:space-between;padding:3px 0"><span style="font-size:13px">${esc(tr)}</span>
     <div class="flex gap">${[5,4,3,2,1].map(n=>`<button class="btn sm ${r[tr]===n?'':'sec'}" style="padding:3px 8px" onclick="setRating('${sid}','${jq(tr)}',${n})">${n}</button>`).join('')}</div></div>`).join('')}`;
   modal('Affective & Psychomotor — '+s.name,`<p class="muted mb">Rate 5 = Excellent · 4 = Very Good · 3 = Good · 2 = Fair · 1 = Poor</p>
-    ${grp('Affective Domain (behaviour)',AFFECTIVE)}${grp('Psychomotor Domain (skills)',PSYCHO)}`,
+    ${grp('Affective Domain (behaviour)',affectiveList())}${grp('Psychomotor Domain (skills)',psychoList())}`,
     `<button class="btn" onclick="closeModal()">Done</button>`,true);}
 function setRating(sid,tr,n){const k=rkey(sid);DB.affective[k]=DB.affective[k]||{};if(DB.affective[k][tr]===n)delete DB.affective[k][tr];else DB.affective[k][tr]=n;save();editRatings(sid);}
 function affectiveBlock(sid){if(!hasModule('affective'))return '';const r=affGet(sid);if(!Object.keys(r).length&&true){}
   const tbl=(title,list)=>`<div style="flex:1"><div style="background:var(--rg);color:#fff;font-size:9px;font-weight:800;padding:4px 7px;text-transform:uppercase">${title}</div>
     ${list.map(tr=>`<div style="display:flex;justify-content:space-between;font-size:11px;border:1px solid #e7dec0;border-top:none;padding:3px 7px"><span>${esc(tr)}</span><b>${r[tr]?r[tr]+' '+RATEWORD[r[tr]]:'–'}</b></div>`).join('')}</div>`;
-  return `<div style="display:flex;gap:12px;padding:6px 16px">${tbl('Affective Domain',AFFECTIVE)}${tbl('Psychomotor Domain',PSYCHO)}</div>`;}
+  return `<div class="rc-aff" style="display:flex;gap:12px;padding:6px 16px">${tbl('Affective Domain',affectiveList())}${tbl('Psychomotor Domain',psychoList())}</div>`;}
 
 /* ===================== BROADSHEET ===================== */
 let bsClass='';
@@ -2060,22 +2099,22 @@ function enterApp(){
 function buildNav(){
   let items;
   if(USER.role!=='owner'&&DB&&DB.kind==='pharmacy'){
-    items=[['phdash','📊','Dashboard'],['pos','🛒','Sell (POS)'],['saleshist','🧾','Sales'],['inventory','💊','Inventory'],['customers','👥','Customers'],['quotes','📋','Quotes'],['suppliers','🚚','Suppliers'],['phreports','📈','Reports'],['phsettings','⚙️','Settings']];
+    items=[['phdash','📊','Dashboard'],['pos','🛒','Sell (POS)'],['saleshist','🧾','Sales'],['inventory','💊','Inventory'],['customers','👥','Customers'],['quotes','📋','Quotes'],['suppliers','🚚','Suppliers'],['phreports','📈','Reports'],['phsettings','⚙️','Settings']];if(hasBackup())items.push(['backup','🛟','Backup']);
     $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
     return;
   }
   if(USER.role!=='owner'&&DB&&DB.kind==='autoparts'){
-    items=[['audash','📊','Dashboard'],['aupos','🛒','Sell (POS)'],['ausales','🧾','Sales'],['auinventory','🔧','Inventory'],['cars','🚗','Cars'],['customers','👥','Customers'],['quotes','📋','Quotes'],['ausuppliers','🚚','Suppliers'],['aureports','📈','Reports'],['ausettings','⚙️','Settings']];
+    items=[['audash','📊','Dashboard'],['aupos','🛒','Sell (POS)'],['ausales','🧾','Sales'],['auinventory','🔧','Inventory'],['cars','🚗','Cars'],['customers','👥','Customers'],['quotes','📋','Quotes'],['ausuppliers','🚚','Suppliers'],['aureports','📈','Reports'],['ausettings','⚙️','Settings']];if(hasBackup())items.push(['backup','🛟','Backup']);
     $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
     return;
   }
   if(USER.role!=='owner'&&DB&&DB.kind==='family'){
-    items=[['famdash','📊','Dashboard'],['famsections','👪','Sections'],['famdues','💳','Monthly Dues'],['famlevies','📋','Levies'],['famassist','🤝','Assistance'],['famreports','📈','Reports'],['famsettings','⚙️','Settings']];
+    items=[['famdash','📊','Dashboard'],['famsections','👪','Sections'],['famdues','💳','Monthly Dues'],['famlevies','📋','Levies'],['famassist','🤝','Assistance'],['famreports','📈','Reports'],['famsettings','⚙️','Settings']];if(hasBackup())items.push(['backup','🛟','Backup']);
     $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
     return;
   }
   if(USER.role!=='owner'&&DB&&DB.kind==='posagent'){
-    items=[['padash','📊','Dashboard'],['palist','🧾','Transactions'],['padebt','🤝','Debtors'],['pareport','📈','Report'],['pasettings','⚙️','Settings']];
+    items=[['padash','📊','Dashboard'],['palist','🧾','Transactions'],['padebt','🤝','Debtors'],['pareport','📈','Report'],['pasettings','⚙️','Settings']];if(hasBackup())items.push(['backup','🛟','Backup']);
     $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
     return;
   }
@@ -2089,7 +2128,7 @@ function buildNav(){
     if(hasModule('lessonPlans'))items.push(['lessons','📚','Lesson Plans']);
     if(hasModule('broadsheet'))items.splice(10,0,['broadsheet','📊','Broadsheet']);
     if(hasModule('parentPortal'))items.push(['announce','📢','Announcements']);
-    items.push(['website','🌐','Website']);}
+    items.push(['website','🌐','Website']);if(hasBackup())items.push(['backup','🛟','Backup']);}
   else {items=[['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
     if(hasModule('lessonPlans'))items.splice(4,0,['lessons','📚','Lesson Plans']);}
   const ow=USER.role==='owner'?' owner':'';
@@ -2098,7 +2137,7 @@ function buildNav(){
 function toggleNav(open){const sb=document.querySelector('.sidebar'),sc=$('#navScrim');const show=open===undefined?!sb.classList.contains('show'):open;
   sb.classList.toggle('show',show);if(sc)sc.classList.toggle('show',show);}
 function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(false);
-  const map={odash:vODash,schools:vSchools,stores:vPharmacies,autostores:vAutos,families:vFamilies,posagents:vPosAgents,pins:vPins,revenue:vRevenue,osettings:vOSettings,
+  const map={odash:vODash,schools:vSchools,stores:vPharmacies,autostores:vAutos,families:vFamilies,posagents:vPosAgents,pins:vPins,revenue:vRevenue,osettings:vOSettings,backup:vBackup,
     famdash:vFamDash,famsections:vFamSections,famdues:vFamDues,famlevies:vFamLevies,famassist:vFamAssist,famreports:vFamReports,famsettings:vFamSettings,
     padash:vPaDash,palist:vPaList,padebt:vPaDebt,pareport:vPaReport,pasettings:vPaSettings,
     phdash:vPhDash,pos:vPhPOS,saleshist:vPhSales,inventory:vPhInventory,suppliers:vPhSuppliers,phreports:vPhReports,phsettings:vPhSettings,
@@ -2262,6 +2301,7 @@ function manageSchool(code){
      <button class="btn sec" onclick="go('pins');closeModal()">Generate PINs</button>
      <button class="btn ${reg.status==='suspended'?'':'sec'}" onclick="toggleSchool('${code}')">${reg.status==='suspended'?'Re-activate':'Suspend'}</button>
      <button class="btn sec" onclick="editSchool('${code}')">Edit details</button>
+     ${backupToggleBtn(code)}
      <button class="btn sec" onclick="downloadBackup('${code}')">⬇ Backup</button>
      <button class="btn gold" onclick="restoreBackupModal('${code}')">🛟 Restore</button>
      <button class="btn danger" onclick="delSchool('${code}')">Delete</button>`,true);
@@ -2968,7 +3008,7 @@ function renderCheckResult(){
     <div style="max-width:840px;margin:0 auto">
       <div class="flex no-print" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
         <div><b>${esc(s.name)}</b> · ${esc(className(s.classId))} <span class="pill blue" style="margin-left:6px">${remaining} check(s) left</span></div>
-        <div class="flex gap"><button class="btn gold" onclick="${_ckTab==='cert'?`printCert('${s.id}')`:'window.print()'}">🖨 Print / Save PDF</button><button class="btn sec" onclick="renderChecker()">Check another</button></div></div>
+        <div class="flex gap"><button class="btn gold" onclick="${_ckTab==='cert'?`printCert('${s.id}')`:_ckTab==='annual'?`printRC(annualReportHTML('${s.id}'))`:`printRC(reportHTML('${s.id}','${jq(pin.session)}','${jq(pin.term)}'))`}">🖨 Print / Save PDF</button><button class="btn sec" onclick="renderChecker()">Check another</button></div></div>
       <div class="subtabs no-print"><button class="subtab${_ckTab==='term'?' active':''}" onclick="setCkTab('term')">Termly Result</button>
         <button class="subtab${_ckTab==='annual'?' active':''}" onclick="setCkTab('annual')">Annual / Promotion</button>
         ${fin?`<button class="subtab${_ckTab==='cert'?' active':''}" onclick="setCkTab('cert')">Leaving Certificate</button>`:''}</div>
@@ -3668,6 +3708,9 @@ function managePharmacy(code){const reg=MASTER.schools.find(s=>s.code===code);co
     `<button class="btn sec" onclick="closeModal()">Close</button>
      <button class="btn ${reg.status==='suspended'?'':'sec'}" onclick="togglePharmacy('${code}')">${reg.status==='suspended'?'Re-activate':'Suspend'}</button>
      <button class="btn sec" onclick="editPharmacy('${code}')">Edit details</button>
+     ${backupToggleBtn(code)}
+     <button class="btn sec" onclick="downloadBackup('${code}')">⬇ Backup</button>
+     <button class="btn sec" onclick="restoreBackupModal('${code}')">🛟 Restore</button>
      <button class="btn danger" onclick="delPharmacy('${code}')">Delete</button>`,true);}
 function phSaveSub(code){const reg=MASTER.schools.find(s=>s.code===code);reg.sub=reg.sub||{};reg.sub.fee=Math.max(0,Number($('#mp_fee').value)||0);reg.sub.due=$('#mp_due').value;saveMaster();toast('Subscription saved');managePharmacy(code);}
 function phMarkPaid(code){const reg=MASTER.schools.find(s=>s.code===code);const sub=reg.sub=reg.sub||{fee:0,history:[]};
@@ -4304,6 +4347,9 @@ function manageAuto(code){const reg=MASTER.schools.find(s=>s.code===code);const 
     `<button class="btn sec" onclick="closeModal()">Close</button>
      <button class="btn ${reg.status==='suspended'?'':'sec'}" onclick="toggleAuto('${code}')">${reg.status==='suspended'?'Re-activate':'Suspend'}</button>
      <button class="btn sec" onclick="editAuto('${code}')">Edit details</button>
+     ${backupToggleBtn(code)}
+     <button class="btn sec" onclick="downloadBackup('${code}')">⬇ Backup</button>
+     <button class="btn sec" onclick="restoreBackupModal('${code}')">🛟 Restore</button>
      <button class="btn danger" onclick="delAuto('${code}')">Delete</button>`,true);}
 function auSaveSub(code){const reg=MASTER.schools.find(s=>s.code===code);reg.sub=reg.sub||{};reg.sub.fee=Math.max(0,Number($('#aump_fee').value)||0);reg.sub.due=$('#aump_due').value;saveMaster();toast('Subscription saved');manageAuto(code);}
 function auMarkPaid(code){const reg=MASTER.schools.find(s=>s.code===code);const sub=reg.sub=reg.sub||{fee:0,history:[]};
@@ -5036,6 +5082,9 @@ function manageFamily(code){const reg=MASTER.schools.find(s=>s.code===code);cons
     `<button class="btn sec" onclick="closeModal()">Close</button>
      <button class="btn ${reg.status==='suspended'?'':'sec'}" onclick="toggleFamily('${code}')">${reg.status==='suspended'?'Re-activate':'Suspend'}</button>
      <button class="btn sec" onclick="editFamily('${code}')">Edit details</button>
+     ${backupToggleBtn(code)}
+     <button class="btn sec" onclick="downloadBackup('${code}')">⬇ Backup</button>
+     <button class="btn sec" onclick="restoreBackupModal('${code}')">🛟 Restore</button>
      <button class="btn danger" onclick="delFamily('${code}')">Delete</button>`,true);}
 function famOwnerSaveSub(code){const reg=MASTER.schools.find(s=>s.code===code);reg.sub=reg.sub||{};reg.sub.fee=Math.max(0,Number($('#mf_fee').value)||0);reg.sub.due=$('#mf_due').value;saveMaster();toast('Subscription saved');manageFamily(code);}
 function famOwnerMarkPaid(code){const reg=MASTER.schools.find(s=>s.code===code);const sub=reg.sub=reg.sub||{fee:0,history:[]};
@@ -5337,6 +5386,9 @@ function managePos(code){const reg=MASTER.schools.find(s=>s.code===code);const d
     `<button class="btn sec" onclick="closeModal()">Close</button>
      <button class="btn ${reg.status==='suspended'?'':'sec'}" onclick="togglePos('${code}')">${reg.status==='suspended'?'Re-activate':'Suspend'}</button>
      <button class="btn sec" onclick="editPos('${code}')">Edit details</button>
+     ${backupToggleBtn(code)}
+     <button class="btn sec" onclick="downloadBackup('${code}')">⬇ Backup</button>
+     <button class="btn sec" onclick="restoreBackupModal('${code}')">🛟 Restore</button>
      <button class="btn danger" onclick="delPos('${code}')">Delete</button>`,true);}
 function posOwnerSaveSub(code){const reg=MASTER.schools.find(s=>s.code===code);reg.sub=reg.sub||{};reg.sub.fee=Math.max(0,Number($('#mp_fee').value)||0);reg.sub.due=$('#mp_due').value;saveMaster();toast('Subscription saved');managePos(code);}
 function posOwnerMarkPaid(code){const reg=MASTER.schools.find(s=>s.code===code);const sub=reg.sub=reg.sub||{fee:0,history:[]};
