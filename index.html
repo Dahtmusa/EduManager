@@ -2292,6 +2292,9 @@ function manageSchool(code){
     <div class="card pad" style="background:#f7faf8;margin-top:6px"><div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div style="font-size:12.5px">Current: <b>${esc(d.settings.term)}, ${esc(d.settings.session)}</b><br><span class="muted">Completed terms: ${(d.settings.termsDone||[]).length?(d.settings.termsDone||[]).map(esc).join(', '):'none'}</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm sec" onclick="relabelTermData('${code}')">↪ Move term data</button><button class="btn sm gold" onclick="fixTerm('${code}')">↺ Reset / fix term</button></div></div></div>
+    <div class="card pad" style="background:#f7faf8;margin-top:6px"><div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">
+      <div style="font-size:12.5px"><b>🖨 Report cards</b><br><span class="muted">Print every pupil's <b>${esc(d.settings.term)}</b> report card in one batch (each on its own A4 page).</span></div>
+      <button class="btn sm" onclick="ownerPrintAllReports('${code}')">🖨 Print all report cards</button></div></div>
     <hr><label>Modules — tick to push features to this school</label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
       ${MODULES.map(([k,l])=>`<label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" class="ms_mod" value="${k}" style="width:auto" ${d.settings.modules&&d.settings.modules[k]?'checked':''}> ${l}</label>`).join('')}
@@ -2343,6 +2346,29 @@ function doRelabelTerm(code){const d=STORE[code];const sess=($('#rl_sess').value
   STORE[code]=d;BASE[code]=_clone(d);saveStoreLocal();saveBase();if(code===SCHOOL_CODE)DB=STORE[code];
   if(supa){try{setSync('saving','Saving…');supa.from('school_data').upsert({id:code,data:d,updated_at:new Date().toISOString()}).then(()=>setSync('on','Synced')).catch(()=>setSync('err','Sync error'));}catch(e){}}
   toast(moved+' record(s) moved from '+from+' to '+to);manageSchool(code);}
+function ownerPrintAllReports(code){const d=STORE[code];if(!d){toast('No data for this school',true);return;}
+  const prevDB=(typeof DB!=='undefined')?DB:null;let cards=[];
+  try{DB=d;const sess=d.settings.session,term=d.settings.term;
+    (d.classes||[]).forEach(c=>{studentsIn(c.id).forEach(s=>{if(s.graduated)return;const rr=DB.results[rkey(s.id,sess,term)];if(rr&&Object.keys(rr).length)cards.push(reportHTML(s.id,sess,term));});});
+  }catch(e){cards=[];}finally{DB=prevDB;}
+  if(!cards.length){toast('No report cards with scores found for '+d.settings.term,true);return;}
+  toast('Preparing '+cards.length+' report card(s)…');printReportsBulk(cards);}
+function printReportsBulk(cards){const old=document.getElementById('printFrame');if(old)old.remove();
+  const fr=document.createElement('iframe');fr.id='printFrame';fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0';document.body.appendChild(fr);
+  const styles=[].slice.call(document.querySelectorAll('style')).map(s=>s.textContent).join('\n');
+  const body=cards.map(h=>'<div class="rcpage"><div class="rcfit">'+h+'</div></div>').join('');
+  const dd=fr.contentWindow.document;dd.open();
+  dd.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>'+styles+'</style>'+
+    '<style>@page{size:A4 portrait;margin:7mm}html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.no-print{display:none!important}.rcpage{page-break-after:always}.rcpage:last-child{page-break-after:auto}'+
+    '.rcfit{transform-origin:top center;width:733px;margin:0 auto}.rcfit .rc{max-width:100%!important;margin:0!important;box-shadow:none!important;border:none!important}</style>'+
+    '</head><body>'+body+'</body></html>');
+  dd.close();
+  try{[].slice.call(dd.querySelectorAll('img.qrimg[data-qr]')).forEach(im=>{try{const Q=window.qrcode;if(!Q)return;const q=Q(0,'M');q.addData(im.getAttribute('data-qr')||'');q.make();im.src=q.createDataURL(5,1);}catch(e){}});}catch(e){}
+  const win=fr.contentWindow;
+  const finish=()=>{try{const pageH=1069;[].slice.call(dd.querySelectorAll('.rcfit')).forEach(w=>{const h=w.scrollHeight;if(h>pageH)w.style.transform='scale('+(pageH/h).toFixed(4)+')';});win.focus();win.print();}catch(e){try{win.print();}catch(_){}}};
+  const imgs=[].slice.call(dd.images);let n=imgs.length,done=0;
+  if(!n){setTimeout(finish,320);}else{const chk=()=>{if(++done>=n)setTimeout(finish,320);};imgs.forEach(im=>{if(im.complete)chk();else{im.onload=chk;im.onerror=chk;}});}}
 function saveSchoolModules(code){const d=STORE[code];const mods={};document.querySelectorAll('.ms_mod:checked').forEach(c=>mods[c.value]=true);
   d.settings.modules=mods;if($('#ms_theme'))d.settings.theme=$('#ms_theme').value;
   STORE[code]=d;saveStoreLocal();saveSchoolRow(code);
