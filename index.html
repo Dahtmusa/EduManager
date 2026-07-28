@@ -2294,7 +2294,7 @@ function manageSchool(code){
       <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm sec" onclick="relabelTermData('${code}')">↪ Move term data</button><button class="btn sm gold" onclick="fixTerm('${code}')">↺ Reset / fix term</button></div></div></div>
     <div class="card pad" style="background:#f7faf8;margin-top:6px"><div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">
       <div style="font-size:12.5px"><b>🖨 Report cards</b><br><span class="muted">Print every pupil's <b>${esc(d.settings.term)}</b> report card in one batch (each on its own A4 page).</span></div>
-      <button class="btn sm" onclick="ownerPrintAllReports('${code}')">🖨 Print all report cards</button></div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm sec" onclick="importScoresModal('${code}')">⬆ Import scores</button><button class="btn sm" onclick="ownerPrintAllReports('${code}')">🖨 Print all report cards</button></div></div></div>
     <hr><label>Modules — tick to push features to this school</label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
       ${MODULES.map(([k,l])=>`<label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" class="ms_mod" value="${k}" style="width:auto" ${d.settings.modules&&d.settings.modules[k]?'checked':''}> ${l}</label>`).join('')}
@@ -2369,6 +2369,36 @@ function printReportsBulk(cards){const old=document.getElementById('printFrame')
   const finish=()=>{try{const pageH=1069;[].slice.call(dd.querySelectorAll('.rcfit')).forEach(w=>{const h=w.scrollHeight;if(h>pageH)w.style.transform='scale('+(pageH/h).toFixed(4)+')';});win.focus();win.print();}catch(e){try{win.print();}catch(_){}}};
   const imgs=[].slice.call(dd.images);let n=imgs.length,done=0;
   if(!n){setTimeout(finish,320);}else{const chk=()=>{if(++done>=n)setTimeout(finish,320);};imgs.forEach(im=>{if(im.complete)chk();else{im.onload=chk;im.onerror=chk;}});}}
+function importScoresModal(code){const d=STORE[code];const nm=(MASTER.schools.find(s=>s.code===code)||{}).name||code;
+  modal('Import scores — '+nm,`
+    <p class="muted mb">Paste score rows to fill results in bulk. <b>One row per subject</b>, pipe-separated. Match is by admission number. Leave a score blank to skip it.</p>
+    <pre style="background:#f3f6f2;padding:8px;border-radius:6px;font-size:11.5px;white-space:pre-wrap;margin-bottom:8px">ADMISSION NO | SUBJECT | CA1 | CA2 | EXAM
+ADM/2025/001 | MATHEMATICS | 15 | 18 | 55</pre>
+    <div class="grid2">
+      <div class="fld"><label>Session</label><input id="im_sess" value="${esc(d.settings.session)}"></div>
+      <div class="fld"><label>Term</label><select id="im_term">${TERMS.map(t=>`<option ${d.settings.term===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    </div>
+    <div class="fld"><label>Score rows</label><textarea id="im_data" rows="12" style="width:100%;font-family:monospace;font-size:12.5px" placeholder="ADM/2025/001 | MATHEMATICS | 15 | 18 | 55"></textarea></div>`,
+    `<button class="btn sec" onclick="manageSchool('${code}')">Cancel</button><button class="btn gold" onclick="doImportScores('${code}')">Import scores</button>`);}
+function doImportScores(code){const d=STORE[code];d.results=d.results||{};
+  const sess=($('#im_sess').value||'').trim()||d.settings.session,term=$('#im_term').value;
+  const lines=($('#im_data').value||'').split('\n').map(l=>l.trim()).filter(Boolean);
+  const byAdm={};(d.students||[]).forEach(s=>{if(s.admissionNo)byAdm[String(s.admissionNo).toUpperCase().replace(/\s+/g,'')]=s;});
+  let ok=0;const bad=[];
+  lines.forEach((ln,i)=>{if(/^admission/i.test(ln))return;
+    const p=ln.split('|').map(x=>x.trim());
+    if(p.length<5){bad.push('Row '+(i+1)+': needs 5 fields');return;}
+    const s=byAdm[p[0].toUpperCase().replace(/\s+/g,'')];
+    if(!s){bad.push('Row '+(i+1)+': no pupil "'+p[0]+'"');return;}
+    const num=v=>v===''?null:Number(v);const ca1=num(p[2]),ca2=num(p[3]),exam=num(p[4]);
+    if([ca1,ca2,exam].some(v=>v!==null&&isNaN(v))){bad.push('Row '+(i+1)+': non-numeric score');return;}
+    const k=sess+'|'+term+'|'+s.id;d.results[k]=d.results[k]||{};d.results[k][p[1]]=d.results[k][p[1]]||{};
+    if(ca1!=null)d.results[k][p[1]].ca1=ca1;if(ca2!=null)d.results[k][p[1]].ca2=ca2;if(exam!=null)d.results[k][p[1]].exam=exam;ok++;});
+  STORE[code]=d;BASE[code]=_clone(d);saveStoreLocal();saveBase();if(code===SCHOOL_CODE)DB=STORE[code];
+  if(supa){try{setSync('saving','Saving…');supa.from('school_data').upsert({id:code,data:d,updated_at:new Date().toISOString()}).then(()=>setSync('on','Synced')).catch(()=>setSync('err','Sync error'));}catch(e){}}
+  toast(ok+' score row(s) imported'+(bad.length?' · '+bad.length+' skipped':''));
+  if(bad.length)alert('Imported '+ok+' row(s).\n\nSkipped '+bad.length+':\n'+bad.slice(0,25).join('\n')+(bad.length>25?'\n…':''));
+  manageSchool(code);}
 function saveSchoolModules(code){const d=STORE[code];const mods={};document.querySelectorAll('.ms_mod:checked').forEach(c=>mods[c.value]=true);
   d.settings.modules=mods;if($('#ms_theme'))d.settings.theme=$('#ms_theme').value;
   STORE[code]=d;saveStoreLocal();saveSchoolRow(code);
