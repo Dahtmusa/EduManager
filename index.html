@@ -2291,7 +2291,7 @@ function manageSchool(code){
     </tbody></table></div>
     <div class="card pad" style="background:#f7faf8;margin-top:6px"><div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px">
       <div style="font-size:12.5px">Current: <b>${esc(d.settings.term)}, ${esc(d.settings.session)}</b><br><span class="muted">Completed terms: ${(d.settings.termsDone||[]).length?(d.settings.termsDone||[]).map(esc).join(', '):'none'}</span></div>
-      <button class="btn sm gold" onclick="fixTerm('${code}')">↺ Reset / fix term</button></div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm sec" onclick="relabelTermData('${code}')">↪ Move term data</button><button class="btn sm gold" onclick="fixTerm('${code}')">↺ Reset / fix term</button></div></div></div>
     <hr><label>Modules — tick to push features to this school</label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
       ${MODULES.map(([k,l])=>`<label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" class="ms_mod" value="${k}" style="width:auto" ${d.settings.modules&&d.settings.modules[k]?'checked':''}> ${l}</label>`).join('')}
@@ -2320,6 +2320,29 @@ function fixTerm(code){const d=STORE[code];const done=d.settings.termsDone||[];
 function saveFixTerm(code){const d=STORE[code];d.settings.term=$('#ft_term').value;d.settings.session=$('#ft_sess').value.trim()||d.settings.session;
   d.settings.termsDone=[...document.querySelectorAll('.ft_done:checked')].map(c=>c.value);
   STORE[code]=d;saveStoreLocal();saveSchoolRow(code);toast('Term progress updated');manageSchool(code);}
+function relabelTermData(code){const d=STORE[code];const nm=(MASTER.schools.find(s=>s.code===code)||{}).name||code;
+  modal('Move term data — '+nm,`
+    <p class="muted mb">Moves all saved data (scores, remarks, ratings, Qur'an scores, fees &amp; payments) from one term to another <b>within the same session</b>. Use this if data was entered under the wrong term. <b>Nothing is deleted</b> — it is relabelled, and a fresh copy is saved to the cloud.</p>
+    <div class="fld"><label>Session</label><input id="rl_sess" value="${esc(d.settings.session)}"></div>
+    <div class="grid2">
+      <div class="fld"><label>Move FROM term</label><select id="rl_from">${TERMS.map(t=>`<option ${d.settings.term===t?'selected':''}>${t}</option>`).join('')}</select></div>
+      <div class="fld"><label>Move TO term</label><select id="rl_to">${TERMS.map((t,i)=>`<option ${i===2?'selected':''}>${t}</option>`).join('')}</select></div>
+    </div>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" id="rl_setcur" checked style="width:auto"> Also set the school's current term to the destination</label>
+    <p class="muted mt" style="font-size:12px">Example: scores saved as “Second Term” that should be “Third Term” → FROM = Second Term, TO = Third Term.</p>`,
+    `<button class="btn sec" onclick="manageSchool('${code}')">Cancel</button><button class="btn gold" onclick="doRelabelTerm('${code}')">Move data</button>`);}
+function doRelabelTerm(code){const d=STORE[code];const sess=($('#rl_sess').value||'').trim()||d.settings.session;
+  const from=$('#rl_from').value,to=$('#rl_to').value;
+  if(from===to){toast('Choose two different terms',true);return;}
+  const fromPre=sess+'|'+from+'|',toPre=sess+'|'+to+'|';let moved=0;
+  ['results','fees','remarks','affective','quranScores'].forEach(store=>{const m=d[store];if(!m||typeof m!=='object')return;
+    Object.keys(m).forEach(k=>{if(k.indexOf(fromPre)===0){const nk=toPre+k.slice(fromPre.length);if(m[nk]===undefined){m[nk]=m[k];delete m[k];moved++;}}});});
+  ['payments','ledger','lessonPlans'].forEach(arrName=>{const a=d[arrName];if(!Array.isArray(a))return;
+    a.forEach(it=>{if(it&&it.session===sess&&it.term===from){it.term=to;moved++;}});});
+  if($('#rl_setcur')&&$('#rl_setcur').checked){d.settings.term=to;const idx=TERMS.indexOf(to);if(idx>=0)d.settings.termsDone=TERMS.slice(0,idx);}
+  STORE[code]=d;BASE[code]=_clone(d);saveStoreLocal();saveBase();if(code===SCHOOL_CODE)DB=STORE[code];
+  if(supa){try{setSync('saving','Saving…');supa.from('school_data').upsert({id:code,data:d,updated_at:new Date().toISOString()}).then(()=>setSync('on','Synced')).catch(()=>setSync('err','Sync error'));}catch(e){}}
+  toast(moved+' record(s) moved from '+from+' to '+to);manageSchool(code);}
 function saveSchoolModules(code){const d=STORE[code];const mods={};document.querySelectorAll('.ms_mod:checked').forEach(c=>mods[c.value]=true);
   d.settings.modules=mods;if($('#ms_theme'))d.settings.theme=$('#ms_theme').value;
   STORE[code]=d;saveStoreLocal();saveSchoolRow(code);
