@@ -28,7 +28,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // App version — bump this on EVERY deploy. The cloud remembers the highest version any
 // device has loaded; a device on a lower version is locked out until it updates. This
 // stops out-of-date devices from silently overwriting everyone's data.
-const APP_VERSION = 20260730;
+const APP_VERSION = 20260802;
 </script>
 <style>
 :root{--green:#0a7d33;--green-dark:#075c25;--green-light:#e7f5ec;--gold:#f6b40a;--ink:#1f2a24;--muted:#6b7a72;--line:#e2e8e4;
@@ -2301,8 +2301,8 @@ function manageSchool(code){
       <div style="font-size:12.5px">Current: <b>${esc(d.settings.term)}, ${esc(d.settings.session)}</b><br><span class="muted">Completed terms: ${(d.settings.termsDone||[]).length?(d.settings.termsDone||[]).map(esc).join(', '):'none'}</span></div>
       <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm sec" onclick="relabelTermData('${code}')">↪ Move term data</button><button class="btn sm gold" onclick="fixTerm('${code}')">↺ Reset / fix term</button></div></div></div>
     <div class="card pad" style="background:#f7faf8;margin-top:6px"><div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px;align-items:center">
-      <div style="font-size:12.5px"><b>🖨 Report cards</b><br><span class="muted">Print every pupil's <b>${esc(d.settings.term)}</b> report card in one batch (each on its own A4 page).</span></div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm sec" onclick="importScoresModal('${code}')">⬆ Import scores</button><button class="btn sm" onclick="ownerPrintAllReports('${code}')">🖨 Print all report cards</button></div></div></div>
+      <div style="font-size:12.5px"><b>🖨 Report cards</b><br><span class="muted">Print <b>${esc(d.settings.term)}</b> report cards — by class or all at once (each on its own A4 page).</span></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm sec" onclick="importScoresModal('${code}')">⬆ Import scores</button><button class="btn sm" onclick="ownerReportsModal('${code}')">🖨 Print report cards</button></div></div></div>
     <hr><label>Modules — tick to push features to this school</label>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
       ${MODULES.map(([k,l])=>`<label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" class="ms_mod" value="${k}" style="width:auto" ${d.settings.modules&&d.settings.modules[k]?'checked':''}> ${l}</label>`).join('')}
@@ -2354,13 +2354,37 @@ function doRelabelTerm(code){const d=STORE[code];const sess=($('#rl_sess').value
   STORE[code]=d;BASE[code]=_clone(d);saveStoreLocal();saveBase();if(code===SCHOOL_CODE)DB=STORE[code];
   if(supa){try{setSync('saving','Saving…');supa.from('school_data').upsert({id:code,data:d,updated_at:new Date().toISOString()}).then(()=>setSync('on','Synced')).catch(()=>setSync('err','Sync error'));}catch(e){}}
   toast(moved+' record(s) moved from '+from+' to '+to);manageSchool(code);}
-function ownerPrintAllReports(code){const d=STORE[code];if(!d){toast('No data for this school',true);return;}
-  const prevDB=(typeof DB!=='undefined')?DB:null;let cards=[];
+function classReadiness(cid){const subs=DB.subjects[cid]||[],list=studentsIn(cid).filter(s=>!s.graduated);
+  const useRatings=hasModule('affective');const traits=useRatings?[...affectiveList(),...psychoList()]:[];
+  const perStudent=subs.length+traits.length,expected=list.length*perStudent;
+  let done=0;list.forEach(s=>{const res=DB.results[rkey(s.id)]||{};
+    subs.forEach(sub=>{const r=res[sub]||{};if(r.ca1!=null&&r.ca2!=null&&r.exam!=null)done++;});
+    if(useRatings){const rt=(DB.affective||{})[rkey(s.id)]||{};traits.forEach(tr=>{if(rt[tr]!=null)done++;});}
+  });
+  return{pct:expected?Math.round(done/expected*100):0,done,expected,students:list.length,ratings:useRatings};}
+function ownerBuildCards(code,classId){const d=STORE[code];if(!d)return[];const prevDB=(typeof DB!=='undefined')?DB:null;let cards=[];
   try{DB=d;const sess=d.settings.session,term=d.settings.term;
-    (d.classes||[]).forEach(c=>{studentsIn(c.id).forEach(s=>{if(s.graduated)return;const rr=DB.results[rkey(s.id,sess,term)];if(rr&&Object.keys(rr).length)cards.push(reportHTML(s.id,sess,term));});});
+    const classes=classId?(d.classes||[]).filter(c=>c.id===classId):(d.classes||[]);
+    classes.forEach(c=>{studentsIn(c.id).forEach(s=>{if(s.graduated)return;const rr=DB.results[rkey(s.id,sess,term)];if(rr&&Object.keys(rr).length)cards.push(reportHTML(s.id,sess,term));});});
   }catch(e){cards=[];}finally{DB=prevDB;}
-  if(!cards.length){toast('No report cards with scores found for '+d.settings.term,true);return;}
-  toast('Preparing '+cards.length+' report card(s)…');printReportsBulk(cards);}
+  return cards;}
+function ownerPrintAllReports(code){const cards=ownerBuildCards(code);if(!cards.length){toast('No report cards with scores found',true);return;}toast('Preparing '+cards.length+' report card(s)…');printReportsBulk(cards);}
+function ownerPrintClass(code,classId){const cards=ownerBuildCards(code,classId);if(!cards.length){toast('No report cards with scores in this class',true);return;}toast('Preparing '+cards.length+' report card(s)…');printReportsBulk(cards);}
+function ownerReportsModal(code){const d=STORE[code];if(!d){toast('No data',true);return;}const nm=(MASTER.schools.find(s=>s.code===code)||{}).name||code;const sess=d.settings.session,term=d.settings.term;
+  const prevDB=(typeof DB!=='undefined')?DB:null;let rowsHtml='',tot=0,exp=0;
+  try{DB=d;rowsHtml=(d.classes||[]).map(c=>{const rd=classReadiness(c.id);tot+=rd.done;exp+=rd.expected;
+    const col=rd.pct>=100?'#12924a':rd.pct>0?'#e0a100':'#9aa5a0';
+    return `<tr><td><b>${esc(c.name)}</b><div class="muted" style="font-size:11px">${rd.students} pupil(s)</div></td>
+      <td><div style="display:flex;align-items:center;gap:8px"><div style="flex:1;min-width:70px;background:#eef2ef;border-radius:6px;height:8px;overflow:hidden"><div style="width:${rd.pct}%;height:8px;background:${col}"></div></div><b style="color:${col};font-size:13px;white-space:nowrap">${rd.pct}%${rd.pct>=100?' ✓':''}</b></div><div class="muted" style="font-size:11px">${rd.done}/${rd.expected} subject entries</div></td>
+      <td class="right"><button class="btn sm ${rd.done?'gold':'sec'}" ${rd.done?'':'disabled'} onclick="ownerPrintClass('${code}','${c.id}')">🖨 Print</button></td></tr>`;}).join('');
+  }catch(e){rowsHtml='';}finally{DB=prevDB;}
+  const overall=exp?Math.round(tot/exp*100):0,ocol=overall>=100?'#12924a':overall>0?'#e0a100':'#9aa5a0';
+  modal('Report cards — '+nm,`<div class="card" style="background:#f7faf8;padding:12px 15px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div><b>${esc(term)}, ${esc(sess)}</b><div class="muted" style="font-size:12px">Overall readiness across all classes</div></div>
+      <div style="font-family:'Plus Jakarta Sans',sans-serif;font-size:24px;font-weight:800;color:${ocol}">${overall}%</div></div>
+    <p class="muted mb" style="font-size:12.5px">Readiness = subjects fully scored (CA1 + CA2 + Exam)${(function(){const p=(typeof DB!=='undefined'&&d.settings.modules&&d.settings.modules.affective);return p?' <b>plus</b> affective &amp; psychomotor ratings':'';})()} completed for every pupil. <b>100% ✓</b> means the class is fully done and ready to print. Only pupils with scores are printed; each card on its own A4 page.</p>
+    <div class="t-wrap"><table><thead><tr><th>Class</th><th>Readiness</th><th></th></tr></thead><tbody>${rowsHtml||'<tr><td colspan=3 class="muted center">No classes yet</td></tr>'}</tbody></table></div>`,
+    `<button class="btn sec" onclick="manageSchool('${code}')">Back</button><button class="btn" onclick="ownerPrintAllReports('${code}')">🖨 Print all classes</button>`);}
 function printReportsBulk(cards){const old=document.getElementById('printFrame');if(old)old.remove();
   const fr=document.createElement('iframe');fr.id='printFrame';fr.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;opacity:0';document.body.appendChild(fr);
   const styles=[].slice.call(document.querySelectorAll('style')).map(s=>s.textContent).join('\n');
