@@ -28,7 +28,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // App version — bump this on EVERY deploy. The cloud remembers the highest version any
 // device has loaded; a device on a lower version is locked out until it updates. This
 // stops out-of-date devices from silently overwriting everyone's data.
-const APP_VERSION = 20260802;
+const APP_VERSION = 20260803;
 </script>
 <style>
 :root{--green:#0a7d33;--green-dark:#075c25;--green-light:#e7f5ec;--gold:#f6b40a;--ink:#1f2a24;--muted:#6b7a72;--line:#e2e8e4;
@@ -1017,7 +1017,7 @@ function printRC(html){
   d.close();
   try{[].slice.call(d.querySelectorAll('img.qrimg[data-qr]')).forEach(im=>{try{const Q=window.qrcode;if(!Q)return;const q=Q(0,'M');q.addData(im.getAttribute('data-qr')||'');q.make();im.src=q.createDataURL(5,1);}catch(e){}});}catch(e){}
   const win=fr.contentWindow;
-  const finish=()=>{try{const wrap=d.getElementById('rcfit');const pageH=1069;const h=wrap.scrollHeight;if(h>pageH)wrap.style.transform='scale('+(pageH/h).toFixed(4)+')';win.focus();win.print();}catch(e){try{win.print();}catch(_){}}};
+  const finish=()=>{try{const wrap=d.getElementById('rcfit');const pageH=1040;wrap.style.zoom='';const h=wrap.scrollHeight;if(h>pageH)wrap.style.zoom=(pageH/h).toFixed(4);win.focus();win.print();}catch(e){try{win.print();}catch(_){}}};
   const imgs=[].slice.call(d.images);let n=imgs.length,done=0;
   if(!n){setTimeout(finish,250);}else{const chk=()=>{if(++done>=n)setTimeout(finish,250);};imgs.forEach(im=>{if(im.complete)chk();else{im.onload=chk;im.onerror=chk;}});}
 }
@@ -2392,13 +2392,13 @@ function printReportsBulk(cards){const old=document.getElementById('printFrame')
   const dd=fr.contentWindow.document;dd.open();
   dd.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>'+styles+'</style>'+
     '<style>@page{size:A4 portrait;margin:7mm}html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-    '.no-print{display:none!important}.rcpage{page-break-after:always}.rcpage:last-child{page-break-after:auto}'+
-    '.rcfit{transform-origin:top center;width:733px;margin:0 auto}.rcfit .rc{max-width:100%!important;margin:0!important;box-shadow:none!important;border:none!important}</style>'+
+    '.no-print{display:none!important}.rcpage{page-break-after:always;overflow:hidden}.rcpage:last-child{page-break-after:auto}'+
+    '.rcfit{width:733px;margin:0 auto}.rcfit .rc{max-width:100%!important;margin:0!important;box-shadow:none!important;border:none!important}</style>'+
     '</head><body>'+body+'</body></html>');
   dd.close();
   try{[].slice.call(dd.querySelectorAll('img.qrimg[data-qr]')).forEach(im=>{try{const Q=window.qrcode;if(!Q)return;const q=Q(0,'M');q.addData(im.getAttribute('data-qr')||'');q.make();im.src=q.createDataURL(5,1);}catch(e){}});}catch(e){}
   const win=fr.contentWindow;
-  const finish=()=>{try{const pageH=1069;[].slice.call(dd.querySelectorAll('.rcfit')).forEach(w=>{const h=w.scrollHeight;if(h>pageH)w.style.transform='scale('+(pageH/h).toFixed(4)+')';});win.focus();win.print();}catch(e){try{win.print();}catch(_){}}};
+  const finish=()=>{try{const pageH=1040;[].slice.call(dd.querySelectorAll('.rcfit')).forEach(w=>{w.style.zoom='';const h=w.scrollHeight;if(h>pageH)w.style.zoom=(pageH/h).toFixed(4);});win.focus();win.print();}catch(e){try{win.print();}catch(_){}}};
   const imgs=[].slice.call(dd.images);let n=imgs.length,done=0;
   if(!n){setTimeout(finish,320);}else{const chk=()=>{if(++done>=n)setTimeout(finish,320);};imgs.forEach(im=>{if(im.complete)chk();else{im.onload=chk;im.onerror=chk;}});}}
 function importScoresModal(code){const d=STORE[code];const nm=(MASTER.schools.find(s=>s.code===code)||{}).name||code;
