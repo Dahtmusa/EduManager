@@ -25,6 +25,10 @@
    ╚══════════════════════════════════════════════════════════════╝ */
 const SUPABASE_URL = "https://wuasxzkqojxadblaohzb.supabase.co";   // e.g. "https://abcd.supabase.co"
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind1YXN4emtxb2p4YWRibGFvaHpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3MjExNjMsImV4cCI6MjA5NjI5NzE2M30.yow8MrWFwWVzE30ifWgH8aYvxG-YNe9L5XKKVdbawio";   // anon public key  e.g. "eyJhbGciOi..."
+// App version — bump this on EVERY deploy. The cloud remembers the highest version any
+// device has loaded; a device on a lower version is locked out until it updates. This
+// stops out-of-date devices from silently overwriting everyone's data.
+const APP_VERSION = 20260730;
 </script>
 <style>
 :root{--green:#0a7d33;--green-dark:#075c25;--green-light:#e7f5ec;--gold:#f6b40a;--ink:#1f2a24;--muted:#6b7a72;--line:#e2e8e4;
@@ -759,7 +763,7 @@ function gradeOf(t){if(t>=75)return{g:'A',r:'Distinction'};if(t>=65)return{g:'B'
 const THEMES={green:{n:'Green & Gold',rg:'#0b5e3a',rgd:'#08482c',gold:'#caa64e'},blue:{n:'Royal Blue & Gold',rg:'#15366e',rgd:'#0f2750',gold:'#d4af37'},maroon:{n:'Maroon & Gold',rg:'#6e1f2a',rgd:'#54141d',gold:'#d4af37'},teal:{n:'Teal & Gold',rg:'#0c5b56',rgd:'#084540',gold:'#c9a24b'},purple:{n:'Purple & Gold',rg:'#4a2a6e',rgd:'#371f52',gold:'#d4af37'}};
 function theme(){return THEMES[(DB&&DB.settings&&DB.settings.theme)||'green']||THEMES.green;}
 function themeVars(){const t=theme();return `--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}`;}
-const MODULES=[['gradPry5','Graduate at Primary 5'],['staffAttendance','Staff attendance & charges'],['weeks','School weeks (inspection basis)'],['lessonPlans','Lesson plans (manual + AI draft)'],['houses','Houses & activities'],['quran','Qur’an competition'],['finance','School accounts & finance'],['gallery','Events gallery (photos/videos)'],['affective','Affective & Psychomotor on report cards'],['broadsheet','Class broadsheet (master-sheet)'],['parentPortal','Parent portal + announcements']];
+const MODULES=[['gradPry5','Graduate at Primary 5'],['staffAttendance','Staff attendance & charges'],['weeks','School weeks (inspection basis)'],['lessonPlans','Lesson plans (manual + AI draft)'],['houses','Houses & activities'],['quran','Qur’an competition'],['finance','School accounts & finance'],['gallery','Events gallery (photos/videos)'],['affective','Affective & Psychomotor on report cards'],['broadsheet','Class broadsheet (master-sheet)'],['parentPortal','Parent portal + announcements'],['reportPrint','Report card printing (school can print)']];
 const AFFECTIVE=['Punctuality','Neatness','Politeness','Honesty','Attentiveness','Cooperation'];
 const PSYCHO=['Handwriting','Sports & Games','Verbal Fluency','Physical Fitness'];
 function affectiveList(){return AFFECTIVE;}
@@ -1116,7 +1120,7 @@ function vSession(){
   <div class="card pad mb" style="max-width:680px"><h3 class="mb">Current term: ${esc(cur)}</h3>
     <p class="muted mb">Completing a term locks it for the records and moves the school to the next term. A records archive (pupils, results, payments, admissions) downloads automatically for safe-keeping. Your data also stays in the cloud.</p>
     <div class="fld" style="max-width:340px"><label>Records email (for your reference)</label><input id="se_email" value="${esc(DB.settings.recordEmail||'')}" placeholder="admin@school.com"></div>
-    ${done.includes(cur)?`<p class="pill green">${esc(cur)} already completed.</p>`:`<button class="btn" onclick="completeTerm()">✓ Complete ${esc(cur)} & download records</button>`}
+    ${done.includes(cur)?`<p class="pill green">${esc(cur)} already completed.</p>`:`<button class="btn" onclick="confirmCompleteTerm()">✓ Complete ${esc(cur)} & download records</button>`}
   </div>
   <div class="card pad mb" style="max-width:680px;border-left:4px solid var(--green)"><h3 class="mb">🛟 Backup & restore</h3>
     <p class="muted mb">Your data lives in the cloud and is merged safely so nothing gets overwritten. Tap <b>Download backup</b> anytime to save a dated file to your device (keep it in Google Drive or email it to yourself for extra safety). To recover, tap <b>Restore</b> and choose a snapshot or a downloaded file. This device keeps <b>${listBackups(SCHOOL_CODE).length} automatic snapshot(s)</b>.</p>
@@ -1136,8 +1140,12 @@ function vSession(){
       : `<p class="muted">🔒 You can start a new session only after <b>all three terms</b> are completed. Completed: ${done.length}/3.</p>`}
   </div>`;
 }
+function confirmCompleteTerm(){const cur=DB.settings.term;
+  modal('Complete '+cur+'?',`<p>This locks <b>${esc(cur)}</b> for the records and moves the school on to the next term. Only do this when <b>${esc(cur)} is truly finished and every score is entered.</b></p>
+    <p class="muted" style="font-size:12.5px">A records archive will download automatically. If you complete a term by mistake, you can undo it any time with <b>Reset / fix term</b>.</p>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn gold" onclick="closeModal();completeTerm()">Yes, complete ${esc(cur)}</button>`);}
 function completeTerm(){
-  const cur=DB.settings.term;DB.settings.recordEmail=$('#se_email').value.trim();
+  const cur=DB.settings.term;DB.settings.recordEmail=($('#se_email')&&$('#se_email').value.trim())||DB.settings.recordEmail||'';
   if(!termsDone().includes(cur))DB.settings.termsDone.push(cur);
   // advance to next not-done term (keep order)
   const nextT=TERMS.find(t=>!DB.settings.termsDone.includes(t));
@@ -2738,33 +2746,68 @@ function setAtt(sid,st){const key=attDate+'|'+attClass;if(!DB.attendance[key])DB
 function markAll(st){const key=attDate+'|'+attClass;DB.attendance[key]=DB.attendance[key]||{};studentsIn(attClass).forEach(s=>DB.attendance[key][s.id]=st);save();renderAtt();toast('All marked present');}
 
 /* ===================== SCHOOL: RESULTS (CA1/CA2/Exam) ===================== */
-let resClass='';
+let resClass='', resDirty={};
+function resLockKey(cid){return DB.settings.session+'|'+DB.settings.term+'|'+cid;}
+function resLocked(cid){return !!(DB.locked&&DB.locked[resLockKey(cid)]);}
 function vResults(){const cls=teacherClasses();if(!resClass||!cls.find(c=>c.id===resClass))resClass=cls[0]?cls[0].id:'';const g=G();
   $('#view').innerHTML=`<div class="page-head"><div><h2>Results Entry</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)} — CA1 (${g.ca1}) + CA2 (${g.ca2}) + Exam (${g.exam}) = 100</p></div></div>
-  <div class="toolbar"><div><label>Class</label><select onchange="resClass=this.value;renderRes()">${cls.map(c=>`<option value="${c.id}" ${resClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
-    <div><button class="btn sec sm" onclick="go('reports')">View report cards →</button></div></div><div id="resArea"></div>`;renderRes();}
-function renderRes(){if(!resClass){$('#resArea').innerHTML=`<div class="card"><div class="empty">No class assigned.</div></div>`;return;}
+  <div class="card no-print" style="background:#fff8e6;border:1px solid #f0d089;border-left:4px solid var(--gold);padding:11px 15px;margin-bottom:12px;font-size:14px">📌 <b>You are entering scores for: ${esc(DB.settings.term)}, ${esc(DB.settings.session)}.</b><br><span class="muted" style="font-size:12.5px">If this is not the right term, fix it on the <a onclick="go('session')" style="color:var(--green);cursor:pointer;font-weight:600">Session &amp; Terms</a> page <b>before</b> entering any scores — scores are saved under whichever term shows here.</span></div>
+  <div class="toolbar"><div><label>Class</label><select onchange="switchResClass(this.value)">${cls.map(c=>`<option value="${c.id}" ${resClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div><button class="btn sec sm" onclick="go('reports')">View report cards →</button></div></div>
+  <div id="resSaveBar"></div><div id="resArea"></div>`;renderRes();}
+function switchResClass(cid){if(resDirty[resClass]&&!confirm('You have unsaved scores in this class. Switch class anyway? Your typing stays on this device but is NOT in the cloud until you tap Save.')){vResults();return;}resClass=cid;renderRes();}
+function renderSaveBar(){const bar=$('#resSaveBar');if(!bar)return;const cid=resClass;
+  if(resLocked(cid)){const t=DB.locked[resLockKey(cid)];const when=t?new Date(t).toLocaleDateString('en-GB'):'';
+    bar.innerHTML=`<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:#e9f7ee;border:1px solid #b6e3c7;padding:12px 15px;margin-bottom:12px">
+      <span style="font-size:14px">🔒 <b>Saved to the cloud${when?' on '+esc(when):''}.</b> These scores are locked.</span>
+      <button class="btn sm gold" onclick="unlockResClass()">✏️ Edit</button></div>`;
+  }else{const dirty=!!resDirty[cid];
+    bar.innerHTML=`<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px;margin-bottom:12px;border-left:4px solid ${dirty?'#e0a100':'var(--line)'}">
+      <span style="font-size:14px">${dirty?'● <b>Unsaved changes.</b> Enter every subject, then Save.':'Enter scores for each subject tab, then Save this class.'}</span>
+      <button class="btn" id="saveClassBtn" onclick="saveClassToCloud()">💾 Save this class to the cloud</button></div>`;}}
+function renderRes(){renderSaveBar();if(!resClass){$('#resArea').innerHTML=`<div class="card"><div class="empty">No class assigned.</div></div>`;return;}
   const subs=DB.subjects[resClass]||[],list=studentsIn(resClass);
   if(!list.length){$('#resArea').innerHTML=`<div class="card"><div class="empty"><div class="big">📝</div>No pupils in this class.</div></div>`;return;}
   if(!subs.length){$('#resArea').innerHTML=`<div class="card"><div class="empty">No subjects set. <button class="btn sm" onclick="go('classes')">Add subjects</button></div></div>`;return;}
   $('#resArea').innerHTML=`<div class="subtabs">${subs.map((s,i)=>`<button class="subtab${i===0?' active':''}" onclick="showSubj(this,${i})">${esc(s)}</button>`).join('')}</div><div id="subjPane"></div>`;
   showSubj(document.querySelector('.subtab'),0);}
 function showSubj(btn,i){document.querySelectorAll('.subtab').forEach(b=>b.classList.remove('active'));btn.classList.add('active');
-  const g=G(),subj=(DB.subjects[resClass]||[])[i],list=studentsIn(resClass);
+  const g=G(),subj=(DB.subjects[resClass]||[])[i],list=studentsIn(resClass),lk=resLocked(resClass);
   $('#subjPane').innerHTML=`<div class="t-wrap"><table><thead><tr><th>Name</th><th class="center">CA1 (${g.ca1})</th><th class="center">CA2 (${g.ca2})</th><th class="center">Exam (${g.exam})</th><th class="center">Total</th><th class="center">Grade</th></tr></thead><tbody>
   ${list.map(s=>{const r=(DB.results[rkey(s.id)]||{})[subj]||{};const has=r.ca1!=null||r.ca2!=null||r.exam!=null;const tot=(+r.ca1||0)+(+r.ca2||0)+(+r.exam||0);const gr=gradeOf(tot);
     return `<tr><td><b>${esc(s.name)}</b></td>
-    <td class="center"><input class="score-in" type="number" min="0" max="${g.ca1}" value="${r.ca1??''}" onchange="setScore('${s.id}','${jq(subj)}','ca1',this,${g.ca1})"></td>
-    <td class="center"><input class="score-in" type="number" min="0" max="${g.ca2}" value="${r.ca2??''}" onchange="setScore('${s.id}','${jq(subj)}','ca2',this,${g.ca2})"></td>
-    <td class="center"><input class="score-in" type="number" min="0" max="${g.exam}" value="${r.exam??''}" onchange="setScore('${s.id}','${jq(subj)}','exam',this,${g.exam})"></td>
+    <td class="center"><input class="score-in" type="number" min="0" max="${g.ca1}" value="${r.ca1??''}" ${lk?'disabled':''} onchange="setScore('${s.id}','${jq(subj)}','ca1',this,${g.ca1})"></td>
+    <td class="center"><input class="score-in" type="number" min="0" max="${g.ca2}" value="${r.ca2??''}" ${lk?'disabled':''} onchange="setScore('${s.id}','${jq(subj)}','ca2',this,${g.ca2})"></td>
+    <td class="center"><input class="score-in" type="number" min="0" max="${g.exam}" value="${r.exam??''}" ${lk?'disabled':''} onchange="setScore('${s.id}','${jq(subj)}','exam',this,${g.exam})"></td>
     <td class="center" id="tot_${s.id}"><b>${has?tot:'—'}</b></td><td class="center" id="gr_${s.id}">${has?`<span class="pill ${gr.g==='F'?'red':'green'}">${gr.g}</span>`:'—'}</td></tr>`;}).join('')}
-  </tbody></table></div><p class="muted mt" style="font-size:12.5px">Scores save automatically.</p>`;}
-function setScore(sid,subj,field,inp,max){let v=inp.value===''?null:Math.max(0,Math.min(max,Number(inp.value)));if(v!==null)inp.value=v;
+  </tbody></table></div><p class="muted mt" style="font-size:12.5px">${lk?'🔒 Locked. Tap <b>Edit</b> above to make changes.':'Type scores for <b>every subject tab</b>, then tap <b>Save this class to the cloud</b> above. Scores are only stored when you Save.'}</p>`;}
+function setScore(sid,subj,field,inp,max){if(resLocked(resClass))return;let v=inp.value===''?null:Math.max(0,Math.min(max,Number(inp.value)));if(v!==null)inp.value=v;
   const k=rkey(sid);DB.results[k]=DB.results[k]||{};DB.results[k][subj]=DB.results[k][subj]||{};
   if(v===null)delete DB.results[k][subj][field];else DB.results[k][subj][field]=v;
-  const cur=DB.results[k][subj];if(cur.ca1==null&&cur.ca2==null&&cur.exam==null)delete DB.results[k][subj];save();
+  const cur=DB.results[k][subj];if(cur.ca1==null&&cur.ca2==null&&cur.exam==null)delete DB.results[k][subj];saveStoreLocal();resDirty[resClass]=true;renderSaveBar();
   const r=(DB.results[k]||{})[subj]||{};const has=r.ca1!=null||r.ca2!=null||r.exam!=null;const tot=(+r.ca1||0)+(+r.ca2||0)+(+r.exam||0);const gr=gradeOf(tot);
   $('#tot_'+sid).innerHTML=`<b>${has?tot:'—'}</b>`;$('#gr_'+sid).innerHTML=has?`<span class="pill ${gr.g==='F'?'red':'green'}">${gr.g}</span>`:'—';}
+async function saveClassToCloud(){const cid=resClass;
+  if(!navigator.onLine){toast('⚠ No internet — NOT saved. Connect and try again.',true);return;}
+  if(!supa){toast('⚠ Cloud not connected — NOT saved.',true);return;}
+  const btn=$('#saveClassBtn');if(btn){btn.disabled=true;btn.textContent='Saving…';}setSync('saving','Saving…');
+  try{
+    const{data,error}=await supa.from('school_data').select('data').eq('id',SCHOOL_CODE).maybeSingle();if(error)throw error;
+    const server=(data&&data.data&&typeof data.data==='object')?data.data:_clone(DB);
+    server.results=server.results||{};server.locked=server.locked||{};
+    const sess=DB.settings.session,term=DB.settings.term;
+    studentsIn(cid).forEach(s=>{const k=sess+'|'+term+'|'+s.id;if(DB.results[k]!==undefined)server.results[k]=DB.results[k];});
+    server.locked[sess+'|'+term+'|'+cid]=Date.now();
+    const{error:e2}=await supa.from('school_data').upsert({id:SCHOOL_CODE,data:server,updated_at:new Date().toISOString()});if(e2)throw e2;
+    // keep any local results for OTHER classes not yet saved, then adopt server as the truth
+    Object.keys(DB.results||{}).forEach(k=>{if(server.results[k]===undefined)server.results[k]=DB.results[k];});
+    DB=server;STORE[SCHOOL_CODE]=server;BASE[SCHOOL_CODE]=_clone(server);saveStoreLocal();saveBase();
+    delete resDirty[cid];setSync('on','Synced');toast('✓ Saved to the cloud');renderRes();
+  }catch(e){console.warn('saveClassToCloud',e);setSync('err','Sync error');
+    toast('⚠ NOT saved — check your internet and try again',true);if(btn){btn.disabled=false;btn.textContent='💾 Save this class to the cloud';}}}
+function unlockResClass(){const cid=resClass;if(!confirm('Unlock this class to edit its scores? Remember to tap Save again after your changes.'))return;
+  if(DB.locked)delete DB.locked[resLockKey(cid)];saveStoreLocal();resDirty[cid]=true;renderRes();}
+window.addEventListener('beforeunload',e=>{if(Object.keys(resDirty).some(k=>resDirty[k])){e.preventDefault();e.returnValue='';}});
 
 function computeClassResults(cid,sess,term){const subs=DB.subjects[cid]||[],list=studentsIn(cid);
   const rows=list.map(s=>{const res=DB.results[rkey(s.id,sess,term)]||{};let total=0,count=0;
@@ -2775,9 +2818,9 @@ function ord(n){const s=['th','st','nd','rd'],v=n%100;return n+(s[(v-20)%10]||s[
 
 /* ===================== SCHOOL: REPORT CARDS (view-only) ===================== */
 let repClass='';
-function vReports(){const cls=teacherClasses();if(!repClass||!cls.find(c=>c.id===repClass))repClass=cls[0]?cls[0].id:'';
-  $('#view').innerHTML=`<div class="page-head"><div><h2>Report Cards</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)} — view only</p></div></div>
-  <div class="viewonly no-print">👁️ Staff can view computed results here, but printing is reserved for pupils via their result-checker PIN.</div>
+function vReports(){const cls=teacherClasses();if(!repClass||!cls.find(c=>c.id===repClass))repClass=cls[0]?cls[0].id:'';const canPrint=hasModule('reportPrint');
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Report Cards</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)}${canPrint?'':' — view only'}</p></div>${canPrint?`<button class="btn" onclick="printAllReportsSchool()">🖨 Print all (class)</button>`:''}</div>
+  ${canPrint?'':`<div class="viewonly no-print">👁️ Staff can view computed results here, but printing is reserved for pupils via their result-checker PIN.</div>`}
   <div class="toolbar mt"><div><label>Class</label><select onchange="repClass=this.value;renderRepList()">${cls.map(c=>`<option value="${c.id}" ${repClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div></div>
   <div id="repList"></div>`;renderRepList();}
 function renderRepList(){const list=studentsIn(repClass);
@@ -2786,7 +2829,7 @@ function renderRepList(){const list=studentsIn(repClass);
   $('#repList').innerHTML=`<div class="t-wrap"><table><thead><tr><th>Name</th><th class="center">Subjects</th><th class="center">Total</th><th class="center">Average</th><th class="center">Position</th><th></th></tr></thead><tbody>
   ${rows.map(r=>`<tr><td><b>${esc(r.s.name)}</b></td><td class="center">${r.count}/${r.marks.length}</td><td class="center">${r.count?r.total:'—'}</td>
     <td class="center">${r.count?r.avg.toFixed(1)+'%':'—'}</td><td class="center">${r.pos?'<span class="pill green">'+ord(r.pos)+'</span>':'—'}</td>
-    <td class="right" style="white-space:nowrap">${hasModule('affective')?`<button class="btn sm sec" onclick="editRatings('${r.s.id}')">⭐ Ratings</button>`:''}<button class="btn sm" onclick="openReport('${r.s.id}')">View</button></td></tr>`).join('')}
+    <td class="right" style="white-space:nowrap">${hasModule('affective')?`<button class="btn sm sec" onclick="editRatings('${r.s.id}')">⭐ Ratings</button>`:''}<button class="btn sm" onclick="openReport('${r.s.id}')">View</button>${hasModule('reportPrint')?`<button class="btn sm gold" onclick="printOneReport('${r.s.id}')">🖨</button>`:''}</td></tr>`).join('')}
   </tbody></table></div>`;}
 function reportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid);const {rows,size}=computeClassResults(s.classId,sess,term);const row=rows.find(r=>r.s.id===sid);
   const g=G();const subsList=DB.subjects[s.classId]||[];const rem=DB.remarks[rkey(sid,sess,term)]||{};const isl=isIslamic();
@@ -2833,7 +2876,11 @@ function reportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid);const
   </div>`;}
 function openReport(sid){modal('Report Card — '+DB.students.find(x=>x.id===sid).name,reportHTML(sid),
   `<button class="btn sec no-print" onclick="editRemarks('${sid}')">✎ Edit remarks</button><button class="btn sec no-print" onclick="closeModal()">Close</button>
-   <span class="viewonly no-print" style="margin:0">🔒 Printing available to pupils via PIN</span>`,true);renderVisuals();}
+   ${hasModule('reportPrint')?`<button class="btn gold no-print" onclick="printOneReport('${sid}')">🖨 Print</button>`:`<span class="viewonly no-print" style="margin:0">🔒 Printing available to pupils via PIN</span>`}`,true);renderVisuals();}
+function printOneReport(sid){printRC(reportHTML(sid));}
+function printAllReportsSchool(){const list=studentsIn(repClass).filter(s=>{const rr=DB.results[rkey(s.id)];return rr&&Object.keys(rr).length;});
+  if(!list.length){toast('No report cards with scores in this class',true);return;}
+  toast('Preparing '+list.length+' report card(s)…');printReportsBulk(list.map(s=>reportHTML(s.id)));}
 function autoRemark(avg,subs){if(!subs||!subs.some(m=>m.has))return'No results entered yet.';
   const scored=subs.filter(m=>m.has);const best=scored.slice().sort((a,b)=>b.total-a.total)[0];const worst=scored.slice().sort((a,b)=>a.total-b.total)[0];
   let base=avg>=70?'An excellent result.':avg>=60?'A very good performance.':avg>=50?'A good effort.':avg>=40?'A fair result; more effort needed.':'Needs serious improvement.';
@@ -3114,6 +3161,14 @@ function renderOffline(msg){window._offline=1;const app=$('#app');if(app)app.sty
     <button class="btn" style="width:100%;justify-content:center;margin-top:16px" onclick="location.reload()">🔄 Retry</button></div></div>`;}
 window.addEventListener('online',()=>{if(window._offline)location.reload();else if(USER)toast('Back online');});
 window.addEventListener('offline',()=>{if(USER){toast('You are offline — changes will sync when you reconnect.',true);setSync('err','Offline');}});
+function renderUpdateRequired(v){window._offline=1;const app=$('#app');if(app)app.style.display='none';const sc=$('#screen');if(!sc){setTimeout(()=>location.reload(),1500);return;}sc.style.display='';
+  sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest" style="background:#b45309">⬆️</div><h1>Update required</h1>
+    <div class="sub">A newer version of the app is available. To keep every device in sync and protect your records, this device must update before you can continue. <b>Your data is safe in the cloud.</b></div>
+    <button class="btn" style="width:100%;justify-content:center;margin-top:16px" onclick="forceUpdate()">⬆️ Update now</button>
+    <p class="muted" style="font-size:12px;margin-top:10px">If it doesn't refresh, fully close the app and reopen it while connected to the internet.</p></div></div>`;}
+async function forceUpdate(){try{if('serviceWorker'in navigator){const rs=await navigator.serviceWorker.getRegistrations();await Promise.all(rs.map(r=>r.unregister()));}}catch(e){}
+  try{if(window.caches){const ks=await caches.keys();await Promise.all(ks.map(k=>caches.delete(k)));}}catch(e){}
+  try{location.reload(true);}catch(e){location.reload();}}
 async function boot(){
   loadStore();loadBase();
   const params=new URLSearchParams(location.search);
@@ -3132,6 +3187,10 @@ async function boot(){
   if(!MASTER){ // first run only
     MASTER=seedMaster();STORE['__master__']=MASTER;if(!STORE['DEMO'])STORE['DEMO']=seedSchool('DEMO','Demo Nursery & Primary');
     saveStoreLocal();saveMaster();saveSchoolRow('DEMO');MASTER=STORE['__master__'];}
+  // ---- Version gate: an out-of-date device is locked out until it updates ----
+  const _floor=Number((MASTER&&MASTER.minVersion)||0);
+  if(APP_VERSION<_floor){renderUpdateRequired(_floor);return;}
+  if(APP_VERSION>_floor&&MASTER){MASTER.minVersion=APP_VERSION;try{saveMaster();}catch(e){}}
   // custom domain → school detection
   if(!code&&MASTER&&MASTER.schools){const host=location.hostname.replace(/^www\./i,'').toLowerCase();
     const m=MASTER.schools.find(s=>s.domain&&s.domain.replace(/^https?:\/\//,'').replace(/\/.*$/,'').replace(/^www\./i,'').toLowerCase()===host);
