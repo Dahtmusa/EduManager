@@ -28,24 +28,24 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // App version — bump this on EVERY deploy. The cloud remembers the highest version any
 // device has loaded; a device on a lower version is locked out until it updates. This
 // stops out-of-date devices from silently overwriting everyone's data.
-const APP_VERSION = 20260805;
+const APP_VERSION = 20260806;
 // Compact overrides used ONLY inside the print iframe so a report card fills the A4 width
 // (tighter vertical spacing = shorter card = little/no shrink needed).
 const RC_COMPACT='.rc{border-radius:0!important;font-size:12px!important;color:#1c2a24!important}'
-+'.rc-top{padding:8px 18px 9px!important}.rc-crest{width:52px!important;height:52px!important}.rc-sch h2{font-size:20px!important}.rc-sch .addr{font-size:11px!important}.rc-bism{font-size:15px!important;margin-bottom:3px!important}'
-+'.rc-title{padding:5px!important;font-size:11.5px!important;letter-spacing:.18em!important}'
-+'.rc-info{padding:9px 18px!important}.rc-photo{width:80px!important}.rc-photo .p{width:64px!important;height:74px!important}.rc-photo .qr img{width:48px!important;height:48px!important}.rc-photo .cap{font-size:8px!important}'
-+'.rc-fields{font-size:12px!important;gap:9px 16px!important}.rc-fields .f span{font-size:8.5px!important}.rc-fields .f b{font-size:13px!important}'
-+'.rc-pos{padding:11px 15px!important}.rc-pos .n{font-size:23px!important}'
-+'.rc-att{padding:5px 18px!important;font-size:11px!important}'
-+'.rc-tbl th{padding:4px 6px!important;font-size:9px!important}.rc-tbl td{padding:3px 8px!important;font-size:11.5px!important}.rc-tbl td.sub{font-size:11.5px!important;font-weight:600!important}'
-+'.rc-sum{padding:6px 18px!important;font-size:11px!important}'
-+'.rc-scale,.rc-perf{padding:7px 18px!important}.rc-scale{font-size:10.5px!important}.rc-scale h4,.rc-perf h4{font-size:9.5px!important;margin-bottom:5px!important}.rc-perf .row{padding:2.5px 0!important;font-size:11px!important}'
-+'.rc-aff{padding:6px 18px!important;gap:14px!important}.rc-aff div>div{font-size:11px!important;padding:3px 8px!important}.rc-aff div>div:first-child{font-size:9px!important;padding:4px 8px!important}'
-+'.rc-comments{padding:8px 18px!important;font-size:11px!important;gap:16px!important}.rc-comments .c b{font-size:9px!important;margin-bottom:3px!important}.rc-comments .c .box{min-height:30px!important;padding:7px!important;font-size:11px!important}'
-+'.rc-meta2{padding:6px 18px!important;font-size:10.5px!important}'
-+'.rc-sign{padding:12px 18px 8px!important}.rc-sign div{font-size:10px!important}.rc-sign .ln{margin-top:18px!important}'
-+'.rc-foot{padding:6px!important;font-size:11px!important}';
++'.rc-top{padding:8px 18px 9px!important}.rc-crest{width:50px!important;height:50px!important}.rc-sch h2{font-size:19px!important}.rc-sch .addr{font-size:10.5px!important}.rc-bism{font-size:14px!important;margin-bottom:2px!important}'
++'.rc-title{padding:5px!important;font-size:11px!important;letter-spacing:.18em!important}'
++'.rc-info{padding:9px 18px!important}.rc-photo{width:76px!important}.rc-photo .p{width:60px!important;height:70px!important}.rc-photo .qr img{width:46px!important;height:46px!important}.rc-photo .cap{font-size:8px!important}'
++'.rc-fields{font-size:11.5px!important;gap:8px 16px!important}.rc-fields .f span{font-size:8.5px!important}.rc-fields .f b{font-size:12.5px!important}'
++'.rc-pos{padding:10px 14px!important}.rc-pos .n{font-size:22px!important}'
++'.rc-att{padding:5px 18px!important;font-size:10.5px!important}'
++'.rc-tbl th{padding:4px 6px!important;font-size:9px!important}.rc-tbl td{padding:3px 8px!important;font-size:11px!important}.rc-tbl td.sub{font-size:11px!important;font-weight:600!important}'
++'.rc-sum{padding:6px 18px!important;font-size:10.5px!important}'
++'.rc-two{align-items:stretch!important}.rc-scale,.rc-perf{padding:7px 18px!important}.rc-scale{font-size:10px!important}.rc-scale .g{width:auto!important;display:inline-block!important;margin:0 14px 2px 0!important}.rc-scale h4,.rc-perf h4{font-size:9px!important;margin-bottom:4px!important}.rc-perf .row{padding:2.5px 0!important;font-size:10.5px!important}'
++'.rc-aff{padding:6px 18px!important;gap:14px!important}.rc-aff div>div{font-size:10.5px!important;padding:3px 8px!important}.rc-aff div>div:first-child{font-size:9px!important;padding:4px 8px!important}'
++'.rc-comments{padding:8px 18px!important;font-size:10.5px!important;gap:16px!important}.rc-comments .c b{font-size:9px!important;margin-bottom:3px!important}.rc-comments .c .box{min-height:34px!important;padding:7px!important;font-size:10.5px!important}'
++'.rc-meta2{padding:6px 18px!important;font-size:10px!important}'
++'.rc-sign{padding:14px 18px 8px!important}.rc-sign div{font-size:10px!important}.rc-sign .ln{margin-top:20px!important}'
++'.rc-foot{padding:7px!important;font-size:10.5px!important;margin-top:auto!important}';
 </script>
 <style>
 :root{--green:#0a7d33;--green-dark:#075c25;--green-light:#e7f5ec;--gold:#f6b40a;--ink:#1f2a24;--muted:#6b7a72;--line:#e2e8e4;
@@ -1028,13 +1028,14 @@ function printRC(html){
   const styles=[].slice.call(document.querySelectorAll('style')).map(s=>s.textContent).join('\n');
   const d=fr.contentWindow.document;d.open();
   d.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>'+styles+'</style>'+
-    '<style>@page{size:A4 portrait;margin:5mm}html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-    '.no-print{display:none!important}#rcfit{width:752px;margin:0 auto}#rcfit .rc{max-width:100%!important;width:100%!important;margin:0!important;box-shadow:none!important;border:none!important}'+RC_COMPACT+'</style>'+
-    '</head><body><div id="rcfit">'+html+'</div></body></html>');
+    '<style>@page{size:A4 portrait;margin:0}html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.no-print{display:none!important}.rcpage{box-sizing:border-box;width:210mm;height:297mm;padding:6mm;overflow:hidden}'+
+    '.rcfit{width:100%;height:100%}.rcfit .rc{max-width:100%!important;width:100%!important;min-height:100%!important;margin:0!important;box-shadow:none!important;border:none!important;display:flex!important;flex-direction:column!important}'+RC_COMPACT+'</style>'+
+    '</head><body><div class="rcpage"><div class="rcfit">'+html+'</div></div></body></html>');
   d.close();
   try{[].slice.call(d.querySelectorAll('img.qrimg[data-qr]')).forEach(im=>{try{const Q=window.qrcode;if(!Q)return;const q=Q(0,'M');q.addData(im.getAttribute('data-qr')||'');q.make();im.src=q.createDataURL(5,1);}catch(e){}});}catch(e){}
   const win=fr.contentWindow;
-  const finish=()=>{try{const wrap=d.getElementById('rcfit');const pageH=1080;wrap.style.zoom='';const h=wrap.scrollHeight;if(h>pageH)wrap.style.zoom=(pageH/h).toFixed(4);win.focus();win.print();}catch(e){try{win.print();}catch(_){}}};
+  const finish=()=>{try{win.focus();win.print();}catch(e){try{win.print();}catch(_){}}};
   const imgs=[].slice.call(d.images);let n=imgs.length,done=0;
   if(!n){setTimeout(finish,250);}else{const chk=()=>{if(++done>=n)setTimeout(finish,250);};imgs.forEach(im=>{if(im.complete)chk();else{im.onload=chk;im.onerror=chk;}});}
 }
@@ -2408,14 +2409,14 @@ function printReportsBulk(cards){const old=document.getElementById('printFrame')
   const body=cards.map(h=>'<div class="rcpage"><div class="rcfit">'+h+'</div></div>').join('');
   const dd=fr.contentWindow.document;dd.open();
   dd.write('<!DOCTYPE html><html><head><meta charset="utf-8"><style>'+styles+'</style>'+
-    '<style>@page{size:A4 portrait;margin:5mm}html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
-    '.no-print{display:none!important}.rcpage{page-break-after:always;overflow:hidden}.rcpage:last-child{page-break-after:auto}'+
-    '.rcfit{width:752px;margin:0 auto}.rcfit .rc{max-width:100%!important;width:100%!important;margin:0!important;box-shadow:none!important;border:none!important}'+RC_COMPACT+'</style>'+
+    '<style>@page{size:A4 portrait;margin:0}html,body{margin:0;padding:0;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}'+
+    '.no-print{display:none!important}.rcpage{box-sizing:border-box;width:210mm;height:297mm;padding:6mm;overflow:hidden;page-break-after:always}.rcpage:last-child{page-break-after:auto}'+
+    '.rcfit{width:100%;height:100%}.rcfit .rc{max-width:100%!important;width:100%!important;min-height:100%!important;margin:0!important;box-shadow:none!important;border:none!important;display:flex!important;flex-direction:column!important}'+RC_COMPACT+'</style>'+
     '</head><body>'+body+'</body></html>');
   dd.close();
   try{[].slice.call(dd.querySelectorAll('img.qrimg[data-qr]')).forEach(im=>{try{const Q=window.qrcode;if(!Q)return;const q=Q(0,'M');q.addData(im.getAttribute('data-qr')||'');q.make();im.src=q.createDataURL(5,1);}catch(e){}});}catch(e){}
   const win=fr.contentWindow;
-  const finish=()=>{try{const pageH=1080;[].slice.call(dd.querySelectorAll('.rcfit')).forEach(w=>{w.style.zoom='';const h=w.scrollHeight;if(h>pageH)w.style.zoom=(pageH/h).toFixed(4);});win.focus();win.print();}catch(e){try{win.print();}catch(_){}}};
+  const finish=()=>{try{win.focus();win.print();}catch(e){try{win.print();}catch(_){}}};
   const imgs=[].slice.call(dd.images);let n=imgs.length,done=0;
   if(!n){setTimeout(finish,320);}else{const chk=()=>{if(++done>=n)setTimeout(finish,320);};imgs.forEach(im=>{if(im.complete)chk();else{im.onload=chk;im.onerror=chk;}});}}
 function importScoresModal(code){const d=STORE[code];const nm=(MASTER.schools.find(s=>s.code===code)||{}).name||code;
