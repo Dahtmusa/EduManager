@@ -28,7 +28,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // App version — bump this on EVERY deploy. The cloud remembers the highest version any
 // device has loaded; a device on a lower version is locked out until it updates. This
 // stops out-of-date devices from silently overwriting everyone's data.
-const APP_VERSION = 20260812;
+const APP_VERSION = 20260815;
 // Compact overrides used ONLY inside the print iframe so a report card fills the A4 width
 // (tighter vertical spacing = shorter card = little/no shrink needed).
 const RC_COMPACT='.rc{border-radius:0!important;font-size:12px!important;color:#1c2a24!important}'
@@ -89,9 +89,10 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
 #app{display:none;min-height:100vh}
 .topbar{color:#fff;padding:0 18px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:30;background:var(--green)}
 .topbar.owner{background:var(--purple)}
-.topbar .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px}
+.topbar .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:16px;min-width:0;flex:1 1 auto;overflow:hidden}
+.topbar .brand #brandName{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
 .topbar .brand .logo{width:32px;height:32px;background:rgba(255,255,255,.18);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:18px}
-.topbar .right{display:flex;align-items:center;gap:12px;font-size:13px}
+.topbar .right{display:flex;align-items:center;gap:12px;font-size:13px;flex:0 0 auto}
 .term-badge{background:rgba(255,255,255,.16);padding:5px 11px;border-radius:20px;font-weight:600}
 .sync-chip{display:flex;align-items:center;gap:6px;background:rgba(255,255,255,.14);padding:5px 10px;border-radius:20px;font-size:12px;cursor:pointer}
 .sync-chip .d{width:8px;height:8px;border-radius:50%;background:#9ad6ad}
@@ -2124,7 +2125,7 @@ function enterApp(){
   if(!owner&&DB&&DB.kind==='family'){return enterFamily();}
   if(!owner&&DB&&DB.kind==='posagent'){return enterPos();}
   $('#topbar').className='topbar'+(owner?' owner':'');
-  $('#brandName').textContent=owner?((MASTER.platform.name)||'EduManager Cloud'):DB.settings.schoolName;
+  $('#brandName').textContent=owner?((MASTER.platform.name)||'EduManager Cloud'):(DB.settings.shortName||DB.settings.schoolName);
   $('#topLogo').textContent=owner?'🛰️':'🎓';
   $('#whoName').textContent=USER.name;$('#whoRole').textContent=owner?'Owner':(USER.role==='admin'?'Administrator':'Teacher');
   $('#termBadge').textContent=owner?'Platform':(DB.settings.term+' • '+DB.settings.session);
@@ -2374,7 +2375,7 @@ function doRelabelTerm(code){const d=STORE[code];const sess=($('#rl_sess').value
   const from=$('#rl_from').value,to=$('#rl_to').value;
   if(from===to){toast('Choose two different terms',true);return;}
   const fromPre=sess+'|'+from+'|',toPre=sess+'|'+to+'|';let moved=0;
-  ['results','fees','remarks','affective','quranScores'].forEach(store=>{const m=d[store];if(!m||typeof m!=='object')return;
+  ['results','fees','remarks','affective','quranScores','tahfiz'].forEach(store=>{const m=d[store];if(!m||typeof m!=='object')return;
     Object.keys(m).forEach(k=>{if(k.indexOf(fromPre)===0){const nk=toPre+k.slice(fromPre.length);if(m[nk]===undefined){m[nk]=m[k];delete m[k];moved++;}}});});
   ['payments','ledger','lessonPlans'].forEach(arrName=>{const a=d[arrName];if(!Array.isArray(a))return;
     a.forEach(it=>{if(it&&it.session===sess&&it.term===from){it.term=to;moved++;}});});
@@ -2861,7 +2862,7 @@ async function saveClassToCloud(){const cid=resClass;
     toast('⚠ NOT saved — check your internet and try again',true);if(btn){btn.disabled=false;btn.textContent='💾 Save this class to the cloud';}}}
 function unlockResClass(){const cid=resClass;if(!confirm('Unlock this class to edit its scores? Remember to tap Save again after your changes.'))return;
   if(DB.locked)delete DB.locked[resLockKey(cid)];saveStoreLocal();resDirty[cid]=true;renderRes();}
-window.addEventListener('beforeunload',e=>{if(Object.keys(resDirty).some(k=>resDirty[k])){e.preventDefault();e.returnValue='';}});
+window.addEventListener('beforeunload',e=>{if(Object.keys(resDirty).some(k=>resDirty[k])||Object.keys(tahDirty||{}).some(k=>tahDirty[k])){e.preventDefault();e.returnValue='';}});
 
 function computeClassResults(cid,sess,term){const subs=DB.subjects[cid]||[],list=studentsIn(cid);
   const rows=list.map(s=>{const res=DB.results[rkey(s.id,sess,term)]||{};let total=0,count=0;
@@ -2898,59 +2899,70 @@ function tahfizReportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid)
   const overallG=overall!=null?(ev!=null?tahfizGrade(overall):gradeOf(overall)):null;
   const feesNote=(DB.settings.nextTermFeesNote||'').trim()||naira(Number((DB.fees[rkey(sid,sess,term)]||{}).due)||0);
   const hasSubjects=subsList.length>0&&row.marks.some(m=>m.has);
-  const secTitle='margin:13px 0 5px;font-weight:800;font-size:12.5px;letter-spacing:.4px;color:var(--rg);border-left:5px solid var(--rgold);padding-left:9px;text-transform:uppercase';
   const tbl='width:100%;border-collapse:collapse;font-size:12px';
-  const cellL='border:1px solid #444;padding:5px 9px;background:#f2f6f3;font-weight:700;width:26%';
-  const cell='border:1px solid #444;padding:5px 9px';
-  const thc='border:1px solid #444;padding:5px 8px;background:var(--rg);color:#fff;font-size:11px;text-align:center';
-  const info=(l,v)=>`<td style="${cellL}">${l}</td><td style="${cell}">${v}</td>`;
-  const logoImg=DB.settings.logo?`<img src="${DB.settings.logo}" style="height:62px;width:auto;display:block;margin:0 auto 5px">`:'';
-  return `<div class="rc" style="${themeVars()};font-family:Arial,Helvetica,sans-serif;color:#151515;background:#fff;padding:16px 18px">
-    ${logoImg}
-    <div style="text-align:center">
-      <div style="font-size:18px;font-weight:800;color:var(--rg);letter-spacing:.3px;text-transform:uppercase;line-height:1.15">${esc(DB.settings.schoolName)}</div>
-      <div style="font-size:11px;color:#555;margin-top:1px">${esc(DB.settings.address||'')}${DB.settings.phone?' &nbsp;·&nbsp; ☎ '+esc(DB.settings.phone):''}${DB.settings.email?' &nbsp;·&nbsp; '+esc(DB.settings.email):''}</div>
-      <div style="font-size:11.5px;font-style:italic;font-weight:700;color:var(--rgold);margin-top:2px">${esc(DB.settings.motto||'Knowledge is Light')}</div>
+  const thc='background:var(--rg);color:#fff;padding:5px 8px;border:1px solid var(--rgd);font-size:10.5px;text-align:center';
+  const cell='border:1px solid #d9cba5;padding:5px 9px';
+  const cellL='border:1px solid #d9cba5;padding:5px 9px;background:#f0ede0;font-weight:700;color:var(--rg)';
+  const sec=(txt)=>`<div style="background:var(--rg);color:#fff;font-weight:800;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:5px 16px;border-left:6px solid var(--rgold);margin-top:2px">${txt}</div>`;
+  const finfo=(l,v)=>`<div><div style="font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:#9a8a55">${l}</div><div style="font-weight:700;color:#23302a;font-size:11.5px">${v}</div></div>`;
+  const logoImg=DB.settings.logo?`<img src="${DB.settings.logo}" style="height:54px;width:auto;background:#fff;border-radius:8px;padding:3px;flex:0 0 auto">`:'';
+  return `<div class="rc" style="${themeVars()};--cream:#fbf6ea;font-family:Arial,Helvetica,sans-serif;color:#1c1c1c;background:#fff;padding:0;overflow:hidden">
+    <div style="background:linear-gradient(135deg,var(--rg),var(--rgd));color:#fff;padding:11px 16px">
+      ${isIslamic()?`<div style="text-align:center;color:var(--rgold);font-size:13px;margin-bottom:3px">۞ ${BISMILLAH.a} ۞</div>`:''}
+      <div style="display:flex;align-items:center;gap:12px;justify-content:center;text-align:center">${logoImg}
+        <div><div style="font-size:18px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;line-height:1.1">${esc(DB.settings.schoolName)}</div>
+          <div style="font-size:10px;color:#e9dfc7;margin-top:2px">${esc(DB.settings.address||'')}${DB.settings.phone?' · ☎ '+esc(DB.settings.phone):''}</div>
+          <div style="font-size:11px;font-style:italic;color:var(--rgold);font-weight:700;margin-top:2px">${esc(DB.settings.motto||'Knowledge is Light')}</div></div></div>
     </div>
-    <div style="background:var(--rg);color:#fff;text-align:center;font-weight:700;letter-spacing:2px;font-size:12px;padding:6px;margin-top:9px">END OF TERM REPORT &nbsp;·&nbsp; ${esc(term)} &nbsp;·&nbsp; ${esc(sess)} SESSION</div>
-    <table style="${tbl};margin-top:9px"><tbody>
-      <tr>${info('Student Name',esc(s.name))}${info('Days School Opened',daysOpen+' Days')}</tr>
-      <tr>${info('Class',esc(className(s.classId)))}${info('Next Term Begins',esc(DB.settings.nextResumption||'—'))}</tr>
-      <tr>${info('Admission No',esc(s.admissionNo||'—'))}${info('Next Term Fees',esc(feesNote))}</tr>
-      <tr>${info('Academic Session',esc(sess))}${info('Result Status',overallG?esc(overallG.r):'—')}</tr>
-      <tr>${info('Term',esc(term))}${info('Overall Score',overall!=null?'<b>'+overall+'%</b>':'—')}</tr>
-    </tbody></table>
+    <div style="background:var(--rgold);color:#3a2c06;text-align:center;font-weight:800;letter-spacing:2px;font-size:11.5px;padding:5px">END OF TERM REPORT &nbsp;·&nbsp; ${esc(term)} &nbsp;·&nbsp; ${esc(sess)}</div>
 
-    <div style="${secTitle}">Qur'an Memorization Performance</div>
+    <div style="display:flex;gap:12px;padding:11px 16px;background:var(--cream);align-items:center">
+      <div style="text-align:center;flex:0 0 auto">
+        <div style="width:78px;height:92px;border:3px solid var(--rg);border-radius:8px;background:#fff;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:32px">${s.photo?`<img src="${s.photo}" style="width:100%;height:100%;object-fit:cover">`:'👤'}</div>
+        <div style="font-size:8px;letter-spacing:.1em;color:#8a7a45;margin-top:2px">PASSPORT</div></div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;align-content:center">
+        ${finfo('Student Name',esc(s.name))}${finfo('Admission No',esc(s.admissionNo||'—'))}
+        ${finfo('Class',esc(className(s.classId)))}${finfo('Section',esc(s.section||'Day'))}
+        ${finfo('Session',esc(sess))}${finfo('Term',esc(term))}
+        ${finfo('Days Open',daysOpen+' Days')}${finfo('Next Term Begins',esc(DB.settings.nextResumption||'—'))}</div>
+      <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:6px">
+        <div style="width:66px;height:66px;border-radius:50%;background:var(--rg);border:3px solid var(--rgold);display:flex;flex-direction:column;align-items:center;justify-content:center">
+          <div style="font-size:22px;font-weight:800;color:var(--rgold);line-height:1">${overallG?esc(overallG.g):'—'}</div>
+          <div style="font-size:8px;color:#fff">${overall!=null?overall+'%':''}</div></div>
+        <img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}" style="width:56px;height:56px;background:#fff"></div>
+    </div>
+    <div style="background:var(--rg);color:#fff;font-size:10.5px;padding:4px 16px;text-align:center">Result Status: <b style="color:var(--rgold)">${overallG?esc(overallG.r):'—'}</b> &nbsp;·&nbsp; Next Term Fees: <b style="color:var(--rgold)">${esc(feesNote)}</b></div>
+
+    ${sec('Qur’an Memorization Performance')}
     <table style="${tbl}"><tbody>
       <tr><td style="${cellL};width:42%">Surah / Ayah at Commencement</td><td style="${cell}">${esc(t.ss||'—')}${t.as?' — Ayah '+esc(t.as):''}</td></tr>
-      <tr><td style="${cellL}">Current Surah / Ayah</td><td style="${cell}">${esc(t.sc||'—')}${t.ac?' — Ayah '+esc(t.ac):''}</td></tr>
+      <tr><td style="${cellL}">Current Surah / Ayah</td><td style="${cell};background:#fdfaf0">${esc(t.sc||'—')}${t.ac?' — Ayah '+esc(t.ac):''}</td></tr>
       <tr><td style="${cellL}">Pages Memorized</td><td style="${cell}">${(t.pg!=null&&t.pg!=='')?esc(t.pg)+' pages':'—'}</td></tr>
-      <tr><td style="${cellL}">Hizb Memorized</td><td style="${cell}">${(t.hz!=null&&t.hz!=='')?esc(t.hz)+' Hizb':'—'}</td></tr>
-      <tr><td style="${cellL}">Evaluation Score</td><td style="${cell}">${ev!=null?'<b>'+ev+'%</b> — '+evG.r:'—'}</td></tr>
+      <tr><td style="${cellL}">Hizb Memorized</td><td style="${cell};background:#fdfaf0">${(t.hz!=null&&t.hz!=='')?esc(t.hz)+' Hizb':'—'}</td></tr>
+      <tr><td style="${cellL}">Evaluation Score</td><td style="${cell}">${ev!=null?'<b style="color:var(--rg)">'+ev+'%</b> — '+evG.r:'—'}</td></tr>
     </tbody></table>
 
-    ${hasSubjects?`<div style="${secTitle}">Other Subjects</div>
+    ${hasSubjects?`${sec('Other Subjects')}
     <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Subject</th><th style="${thc}">1st CA (${g.ca1})</th><th style="${thc}">2nd CA (${g.ca2})</th><th style="${thc}">Exam (${g.exam})</th><th style="${thc}">Total</th><th style="${thc}">Grade</th><th style="${thc};text-align:left">Remark</th></tr></thead><tbody>
-      ${row.marks.map(m=>{const gr=gradeOf(m.total||0);return `<tr><td style="${cell}">${esc(m.sub)}</td><td style="${cell};text-align:center">${m.ca1??'–'}</td><td style="${cell};text-align:center">${m.ca2??'–'}</td><td style="${cell};text-align:center">${m.exam??'–'}</td><td style="${cell};text-align:center;font-weight:700">${m.has?m.total:'–'}</td><td style="${cell};text-align:center">${m.has?gr.g:'–'}</td><td style="${cell}">${m.has?gr.r:'–'}</td></tr>`;}).join('')}
+      ${row.marks.map((m,ix)=>{const gr=gradeOf(m.total||0);const bg=ix%2?'#fbf6ea':'#fff';return `<tr><td style="${cell};background:${bg}">${esc(m.sub)}</td><td style="${cell};text-align:center;background:${bg}">${m.ca1??'–'}</td><td style="${cell};text-align:center;background:${bg}">${m.ca2??'–'}</td><td style="${cell};text-align:center;background:${bg}">${m.exam??'–'}</td><td style="${cell};text-align:center;font-weight:800;color:var(--rg);background:${bg}">${m.has?m.total:'–'}</td><td style="${cell};text-align:center;background:${bg}">${m.has?gr.g:'–'}</td><td style="${cell};background:${bg}">${m.has?gr.r:'–'}</td></tr>`;}).join('')}
     </tbody></table>`:''}
 
-    <div style="${secTitle}">Performance Grading</div>
+    ${sec('Performance Grading')}
     <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Component</th><th style="${thc}">Score</th><th style="${thc}">Grade</th><th style="${thc};text-align:left">Remark</th></tr></thead><tbody>
-      <tr><td style="${cell}">Qur'anic Memorization</td><td style="${cell};text-align:center">${ev!=null?ev+'%':'—'}</td><td style="${cell};text-align:center;font-weight:800">${evG?evG.g:'—'}</td><td style="${cell}">${evG?evG.r:'—'}</td></tr>
-      ${hasSubjects?`<tr><td style="${cell}">Subjects Average</td><td style="${cell};text-align:center">${row.count?row.avg.toFixed(1)+'%':'—'}</td><td style="${cell};text-align:center;font-weight:800">${row.count?gradeOf(row.avg).g:'—'}</td><td style="${cell}">${row.count?gradeOf(row.avg).r:'—'}</td></tr>`:''}
+      <tr><td style="${cell}">Qur'anic Memorization</td><td style="${cell};text-align:center">${ev!=null?ev+'%':'—'}</td><td style="${cell};text-align:center;font-weight:800;color:var(--rg)">${evG?evG.g:'—'}</td><td style="${cell}">${evG?evG.r:'—'}</td></tr>
+      ${hasSubjects?`<tr style="background:#fbf6ea"><td style="${cell}">Subjects Average</td><td style="${cell};text-align:center">${row.count?row.avg.toFixed(1)+'%':'—'}</td><td style="${cell};text-align:center;font-weight:800;color:var(--rg)">${row.count?gradeOf(row.avg).g:'—'}</td><td style="${cell}">${row.count?gradeOf(row.avg).r:'—'}</td></tr>`:''}
     </tbody></table>
-    <div style="font-size:11px;margin-top:5px"><b style="color:var(--rg)">Grade guide:</b> 80–100 = A (Excellent) &nbsp;|&nbsp; 70–79 = B (Very Good) &nbsp;|&nbsp; 60–69 = C (Good) &nbsp;|&nbsp; 50–59 = D (Pass)</div>
+    <div style="font-size:10.5px;margin:6px 16px 0;text-align:center"><b style="color:var(--rg)">Grade guide:</b> <span style="background:var(--cream);border:1px solid var(--rgold);border-radius:10px;padding:1px 7px;margin:0 2px">80–100 A</span><span style="background:var(--cream);border:1px solid var(--rgold);border-radius:10px;padding:1px 7px;margin:0 2px">70–79 B</span><span style="background:var(--cream);border:1px solid var(--rgold);border-radius:10px;padding:1px 7px;margin:0 2px">60–69 C</span><span style="background:var(--cream);border:1px solid var(--rgold);border-radius:10px;padding:1px 7px;margin:0 2px">50–59 D</span></div>
 
-    <div style="${secTitle}">Teacher's Comment</div>
-    <div style="border:1px solid #444;padding:9px;min-height:40px;font-size:12px">${esc(rem.teacher||(ev!=null?('Grade '+evG.g+'. '+evG.r+' performance in Qur’an memorization this term.'):''))}</div>
+    ${sec('Teacher’s Comment')}
+    <div style="border:1px solid #d9cba5;background:var(--cream);margin:0 16px;padding:9px;min-height:38px;font-size:12px">${esc(rem.teacher||(ev!=null?('Grade '+evG.g+'. '+evG.r+' performance in Qur’an memorization this term.'):''))}</div>
 
-    <div style="display:flex;justify-content:space-between;gap:18px;margin-top:auto;padding-top:30px">
-      <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:#222"><div style="border-top:1.5px solid #444;padding-top:3px">Class Teacher</div></div>
-      <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:#222"><div style="border-top:1.5px solid #444;padding-top:3px">School Supervisor</div></div>
-      <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:#222"><div style="border-top:1.5px solid #444;padding-top:3px">Proprietor / Director</div></div>
+    <div style="display:flex;justify-content:space-between;gap:18px;margin-top:auto;padding:26px 16px 10px">
+      <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="border-top:1.5px solid var(--rg);padding-top:3px">Class Teacher</div></div>
+      <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="border-top:1.5px solid var(--rg);padding-top:3px">School Supervisor</div></div>
+      <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="border-top:1.5px solid var(--rg);padding-top:3px">Proprietor / Director</div></div>
     </div>
-    <div style="text-align:center;font-size:10.5px;color:#666;margin-top:11px;border-top:2px solid var(--rgold);padding-top:6px">${esc(DB.settings.schoolName)} &nbsp;·&nbsp; ${esc(DB.settings.motto||'Knowledge is Light')}</div>
+    <div style="background:linear-gradient(135deg,var(--rg),var(--rgd));color:var(--rgold);text-align:center;font-size:11px;font-weight:700;font-style:italic;padding:7px">${esc(DB.settings.motto||'Knowledge is Light')}</div>
   </div>`;}
 function reportHTML(sid,sess,term){if(hasModule('tahfiz'))return tahfizReportHTML(sid,sess,term);
   const s=DB.students.find(x=>x.id===sid);const {rows,size}=computeClassResults(s.classId,sess,term);const row=rows.find(r=>r.s.id===sid);
@@ -3005,29 +3017,62 @@ function printAllReportsSchool(){const list=studentsIn(repClass).filter(s=>{cons
   toast('Preparing '+list.length+' report card(s)…');printReportsBulk(list.map(s=>reportHTML(s.id)));}
 
 /* ===================== TAHFIZ (Qur'an memorization) ENTRY ===================== */
-let tahClass='';
+let tahClass='', tahDirty={};
+function tahLockKey(cid){return 'TAH|'+DB.settings.session+'|'+DB.settings.term+'|'+cid;}
+function tahLocked(cid){return !!(DB.locked&&DB.locked[tahLockKey(cid)]);}
 function vTahfiz(){const cls=teacherClasses();if(!tahClass||!cls.find(c=>c.id===tahClass))tahClass=cls[0]?cls[0].id:'';
   $('#view').innerHTML=`<div class="page-head"><div><h2>📖 Qur’an Memorization</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)} — record each pupil's memorization for this term</p></div></div>
-  <div class="card no-print" style="background:#fff8e6;border:1px solid #f0d089;border-left:4px solid #caa64e;padding:11px 15px;margin-bottom:12px;font-size:14px">📌 <b>Recording for: ${esc(DB.settings.term)}, ${esc(DB.settings.session)}.</b><br><span class="muted" style="font-size:12.5px">Entries save to the cloud as you type (watch the sync status at the top). Fix the term on the <a onclick="go('session')" style="color:var(--green);cursor:pointer;font-weight:600">Session</a> page first if it is wrong.</span></div>
-  <div class="toolbar"><div><label>Class</label><select onchange="tahClass=this.value;renderTah()">${cls.map(c=>`<option value="${c.id}" ${tahClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div></div>
-  <div id="tahArea"></div>`;renderTah();}
-function renderTah(){const list=studentsIn(tahClass);
+  <div class="card no-print" style="background:#fff8e6;border:1px solid #f0d089;border-left:4px solid #caa64e;padding:11px 15px;margin-bottom:12px;font-size:14px">📌 <b>Recording for: ${esc(DB.settings.term)}, ${esc(DB.settings.session)}.</b><br><span class="muted" style="font-size:12.5px">Type each pupil's memorization, then tap <b>Save this class</b>. Records are only stored once you Save. Fix the term on the <a onclick="go('session')" style="color:var(--green);cursor:pointer;font-weight:600">Session</a> page first if it is wrong.</span></div>
+  <div class="toolbar"><div><label>Class</label><select onchange="switchTahClass(this.value)">${cls.map(c=>`<option value="${c.id}" ${tahClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div></div>
+  <div id="tahSaveBar"></div><div id="tahArea"></div>`;renderTah();}
+function switchTahClass(cid){if(tahDirty[tahClass]&&!confirm('You have unsaved memorization in this class. Switch class anyway? Your typing stays on this device but is NOT in the cloud until you tap Save.')){vTahfiz();return;}tahClass=cid;renderTah();}
+function renderTahSaveBar(){const bar=$('#tahSaveBar');if(!bar)return;const cid=tahClass;
+  if(tahLocked(cid)){const ts=DB.locked[tahLockKey(cid)];const when=ts?new Date(ts).toLocaleDateString('en-GB'):'';
+    bar.innerHTML=`<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:#e9f7ee;border:1px solid #b6e3c7;padding:12px 15px;margin-bottom:12px">
+      <span style="font-size:14px">🔒 <b>Saved to the cloud${when?' on '+esc(when):''}.</b> This class is locked.</span>
+      <button class="btn sm gold" onclick="unlockTahClass()">✏️ Edit</button></div>`;
+  }else{const dirty=!!tahDirty[cid];
+    bar.innerHTML=`<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px;margin-bottom:12px;border-left:4px solid ${dirty?'#e0a100':'var(--line)'}">
+      <span style="font-size:14px">${dirty?'● <b>Unsaved changes.</b> Complete the class, then Save.':'Enter each pupil, then Save this class.'}</span>
+      <button class="btn" id="saveTahBtn" onclick="saveTahToCloud()">💾 Save this class to the cloud</button></div>`;}}
+function renderTah(){renderTahSaveBar();const list=studentsIn(tahClass);
   if(!list.length){$('#tahArea').innerHTML=`<div class="card"><div class="empty"><div class="big">📖</div>No pupils in this class.</div></div>`;return;}
+  const lk=tahLocked(tahClass),d=lk?'disabled':'';
   $('#tahArea').innerHTML=list.map(s=>{const t=tGet(s.id);const ev=(t.ev!=null&&t.ev!=='')?Number(t.ev):null;const gr=ev!=null?tahfizGrade(ev):null;
-    return `<div class="card pad mb"><div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b>${esc(s.name)}</b><span class="pill ${gr&&gr.g==='E'?'red':'green'}">${gr?gr.g+' · '+gr.r:'—'}</span></div>
+    return `<div class="card pad mb"><div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b>${esc(s.name)}</b><span class="pill ${gr&&gr.g==='E'?'red':'green'}" id="tgr_${s.id}">${gr?gr.g+' · '+gr.r:'—'}</span></div>
       <div class="grid2 mt" style="gap:8px">
-        <div class="fld"><label>Surah at commencement</label><input value="${esc(t.ss||'')}" onchange="setTah('${s.id}','ss',this.value)"></div>
-        <div class="fld"><label>Ayah at commencement</label><input value="${esc(t.as||'')}" onchange="setTah('${s.id}','as',this.value)"></div>
-        <div class="fld"><label>Current Surah</label><input value="${esc(t.sc||'')}" onchange="setTah('${s.id}','sc',this.value)"></div>
-        <div class="fld"><label>Current Ayah</label><input value="${esc(t.ac||'')}" onchange="setTah('${s.id}','ac',this.value)"></div>
-        <div class="fld"><label>Pages memorized</label><input type="number" value="${esc(t.pg??'')}" onchange="setTah('${s.id}','pg',this.value)"></div>
-        <div class="fld"><label>Hizb memorized</label><input type="number" step="0.1" value="${esc(t.hz??'')}" onchange="setTah('${s.id}','hz',this.value)"></div>
-        <div class="fld"><label>Evaluation score (%)</label><input type="number" min="0" max="100" value="${esc(t.ev??'')}" onchange="setTah('${s.id}','ev',this.value)"></div>
-      </div></div>`;}).join('');}
-function setTah(sid,field,val){const k=rkey(sid);DB.tahfiz[k]=DB.tahfiz[k]||{};val=(val==null?'':(''+val).trim());
+        <div class="fld"><label>Surah at commencement</label><input ${d} value="${esc(t.ss||'')}" onchange="setTah('${s.id}','ss',this.value)"></div>
+        <div class="fld"><label>Ayah at commencement</label><input ${d} value="${esc(t.as||'')}" onchange="setTah('${s.id}','as',this.value)"></div>
+        <div class="fld"><label>Current Surah</label><input ${d} value="${esc(t.sc||'')}" onchange="setTah('${s.id}','sc',this.value)"></div>
+        <div class="fld"><label>Current Ayah</label><input ${d} value="${esc(t.ac||'')}" onchange="setTah('${s.id}','ac',this.value)"></div>
+        <div class="fld"><label>Pages memorized</label><input ${d} type="number" value="${esc(t.pg??'')}" onchange="setTah('${s.id}','pg',this.value)"></div>
+        <div class="fld"><label>Hizb memorized</label><input ${d} type="number" step="0.1" value="${esc(t.hz??'')}" onchange="setTah('${s.id}','hz',this.value)"></div>
+        <div class="fld"><label>Evaluation score (%)</label><input ${d} type="number" min="0" max="100" value="${esc(t.ev??'')}" onchange="setTah('${s.id}','ev',this.value)"></div>
+      </div>${lk?'<p class="muted" style="font-size:12px;margin:6px 0 0">🔒 Locked. Tap Edit above to change.</p>':''}</div>`;}).join('');}
+function setTah(sid,field,val){if(tahLocked(tahClass))return;const k=rkey(sid);DB.tahfiz[k]=DB.tahfiz[k]||{};val=(val==null?'':(''+val).trim());
   if(val==='')delete DB.tahfiz[k][field];else DB.tahfiz[k][field]=val;
-  if(!Object.keys(DB.tahfiz[k]).length)delete DB.tahfiz[k];save();
-  if(field==='ev')renderTah();}
+  if(!Object.keys(DB.tahfiz[k]).length)delete DB.tahfiz[k];
+  saveStoreLocal();tahDirty[tahClass]=true;renderTahSaveBar();
+  if(field==='ev'){const t=tGet(sid);const ev=(t.ev!=null&&t.ev!=='')?Number(t.ev):null;const gr=ev!=null?tahfizGrade(ev):null;const el=$('#tgr_'+sid);if(el){el.className='pill '+(gr&&gr.g==='E'?'red':'green');el.textContent=gr?gr.g+' · '+gr.r:'—';}}}
+async function saveTahToCloud(){const cid=tahClass;
+  if(!navigator.onLine){toast('⚠ No internet — NOT saved. Connect and try again.',true);return;}
+  if(!supa){toast('⚠ Cloud not connected — NOT saved.',true);return;}
+  const btn=$('#saveTahBtn');if(btn){btn.disabled=true;btn.textContent='Saving…';}setSync('saving','Saving…');
+  try{
+    const{data,error}=await supa.from('school_data').select('data').eq('id',SCHOOL_CODE).maybeSingle();if(error)throw error;
+    const server=(data&&data.data&&typeof data.data==='object')?data.data:_clone(DB);
+    server.tahfiz=server.tahfiz||{};server.locked=server.locked||{};
+    const sess=DB.settings.session,term=DB.settings.term;
+    studentsIn(cid).forEach(s=>{const k=sess+'|'+term+'|'+s.id;if(DB.tahfiz[k]!==undefined)server.tahfiz[k]=DB.tahfiz[k];else delete server.tahfiz[k];});
+    server.locked['TAH|'+sess+'|'+term+'|'+cid]=Date.now();
+    const{error:e2}=await supa.from('school_data').upsert({id:SCHOOL_CODE,data:server,updated_at:new Date().toISOString()});if(e2)throw e2;
+    Object.keys(DB.tahfiz||{}).forEach(k=>{if(server.tahfiz[k]===undefined)server.tahfiz[k]=DB.tahfiz[k];});
+    DB=server;STORE[SCHOOL_CODE]=server;BASE[SCHOOL_CODE]=_clone(server);saveStoreLocal();saveBase();
+    delete tahDirty[cid];setSync('on','Synced');toast('✓ Saved to the cloud');renderTah();
+  }catch(e){console.warn('saveTahToCloud',e);setSync('err','Sync error');
+    toast('⚠ NOT saved — check your internet and try again',true);if(btn){btn.disabled=false;btn.textContent='💾 Save this class to the cloud';}}}
+function unlockTahClass(){const cid=tahClass;if(!confirm('Unlock this class to edit its memorization? Remember to tap Save again after your changes.'))return;
+  if(DB.locked)delete DB.locked[tahLockKey(cid)];saveStoreLocal();tahDirty[cid]=true;renderTah();}
 function autoRemark(avg,subs){if(!subs||!subs.some(m=>m.has))return'No results entered yet.';
   const scored=subs.filter(m=>m.has);const best=scored.slice().sort((a,b)=>b.total-a.total)[0];const worst=scored.slice().sort((a,b)=>a.total-b.total)[0];
   let base=avg>=70?'An excellent result.':avg>=60?'A very good performance.':avg>=50?'A good effort.':avg>=40?'A fair result; more effort needed.':'Needs serious improvement.';
