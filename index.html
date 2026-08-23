@@ -28,7 +28,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // App version — bump this on EVERY deploy. The cloud remembers the highest version any
 // device has loaded; a device on a lower version is locked out until it updates. This
 // stops out-of-date devices from silently overwriting everyone's data.
-const APP_VERSION = 20260810;
+const APP_VERSION = 20260812;
 // Compact overrides used ONLY inside the print iframe so a report card fills the A4 width
 // (tighter vertical spacing = shorter card = little/no shrink needed).
 const RC_COMPACT='.rc{border-radius:0!important;font-size:12px!important;color:#1c2a24!important}'
@@ -711,6 +711,7 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(!Array.isArray(d.gallery))d.gallery=[];
   if(!d.affective||typeof d.affective!=='object')d.affective={};
   if(!d.tahfiz||typeof d.tahfiz!=='object')d.tahfiz={};
+  if(!Array.isArray(d.settings.feeItems))d.settings.feeItems=[];
   if(d.settings.nextTermFeesNote==null)d.settings.nextTermFeesNote='';
   if(!Array.isArray(d.announcements))d.announcements=[];
   if(!Array.isArray(d.settings.heroImages))d.settings.heroImages=[];
@@ -1980,6 +1981,7 @@ function vInvoices(){ // opened from Fees tab
   </tbody></table></div>`;
 }
 function invoiceHTML(sid){const s=DB.students.find(x=>x.id===sid);const due=Number((DB.fees[rkey(sid)]||{}).due)||0,paid=approvedPaid(sid),bal=due-paid;
+  const lines=studentFeeLines(s).filter(l=>l.amt>0);const lineTotal=lines.reduce((a,l)=>a+l.amt,0);const itemized=lines.length&&Math.abs(lineTotal-due)<1;
   const bk=DB.settings.bank||{};const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';const dueDate=(DB.settings.dates&&DB.settings.dates.resumption)||'';
   const invNo='INV/'+DB.settings.session.slice(0,4)+'/'+(s.admissionNo||s.id).replace(/[^0-9]/g,'').slice(-4);
   return `<div class="invoice">
@@ -1987,14 +1989,14 @@ function invoiceHTML(sid){const s=DB.students.find(x=>x.id===sid);const due=Numb
       <div class="big-ttl"><div class="t">INVOICE</div><div class="muted" style="font-size:11.5px">${esc(invNo)}<br>${today()}</div></div></div>
     ${isIslamic()?bismillahHTML():''}
     <div class="meta"><div><span>Bill to:</span> <b>${esc(s.guardianName||s.name)}</b></div><div><span>Pupil:</span> <b>${esc(s.name)}</b></div>
-      <div><span>Class:</span> ${esc(className(s.classId))}</div><div><span>Adm No:</span> ${esc(s.admissionNo||'—')}</div>
+      <div><span>Class:</span> ${esc(className(s.classId))} · ${esc(s.section||'Day')}</div><div><span>Adm No:</span> ${esc(s.admissionNo||'—')}</div>
       <div><span>Term:</span> ${esc(DB.settings.term)}, ${esc(DB.settings.session)}</div><div><span>Due by:</span> ${esc(dueDate||'—')}</div></div>
     <table><thead><tr><th>Description</th><th class="amt">Amount</th></tr></thead><tbody>
-      <tr><td>School fees — ${esc(DB.settings.term)} (${esc(DB.settings.session)})</td><td class="amt">${naira(due)}</td></tr>
+      ${itemized?lines.map(l=>`<tr><td>${esc(l.name)}</td><td class="amt">${naira(l.amt)}</td></tr>`).join('')+`<tr class="total-row"><td>Total fees — ${esc(DB.settings.term)}</td><td class="amt">${naira(due)}</td></tr>`:`<tr><td>School fees — ${esc(DB.settings.term)} (${esc(DB.settings.session)})</td><td class="amt">${naira(due)}</td></tr>`}
       <tr><td>Less: amount paid</td><td class="amt">- ${naira(paid)}</td></tr>
       <tr class="total-row"><td>Balance due</td><td class="amt">${naira(bal)}</td></tr></tbody></table>
     <div class="bank"><b>Payment details</b><br>Account Name: <b>${esc(bk.name||'—')}</b> · Bank: <b>${esc(bk.bank||'—')}</b><div class="acct">${esc(bk.number||'—')}</div>
-      Kindly use the pupil's name/admission number as payment reference.</div>
+      <div style="margin-top:6px;padding:6px 9px;background:#fff6d9;border:1px solid #e8cf83;border-radius:6px;font-size:11.5px;color:#5a4600">⚠ <b>IMPORTANT:</b> When paying by bank transfer, enter your child's <b>Admission Number (${esc(s.admissionNo||'—')})</b> as the transfer reference / narration, so the payment is matched to your child.</div></div>
     ${docQuote(3)}
     <div style="text-align:center;font-size:10.5px;color:var(--muted);margin-top:10px">${enquiryLine()}</div></div>`;
 }
@@ -2640,7 +2642,7 @@ function renderStuTable(){
   if(!list.length){el.innerHTML=`<div class="card"><div class="empty"><div class="big">👧</div>No pupils found.<br><button class="btn sm mt" onclick="editStudent()">Add the first pupil</button></div></div>`;return;}
   el.innerHTML=`<div class="t-wrap"><table><thead><tr><th></th><th>Adm. No</th><th>Name</th><th>Class</th><th>Gender</th><th>Guardian</th><th>Phone</th><th></th></tr></thead><tbody>
   ${list.map(s=>`<tr><td>${avatar(s.photo,'👧')}</td><td class="muted">${esc(s.admissionNo||'—')}</td><td><b>${esc(s.name)}</b></td>
-    <td><span class="pill grey">${esc(className(s.classId))}</span></td><td>${esc(s.gender||'—')}</td><td>${esc(s.guardianName||'—')}</td><td>${esc(s.guardianPhone||'—')}</td>
+    <td><span class="pill grey">${esc(className(s.classId))}</span>${s.section==='Boarding'?' <span class="pill amber" style="font-size:10px">Boarding</span>':''}</td><td>${esc(s.gender||'—')}</td><td>${esc(s.guardianName||'—')}</td><td>${esc(s.guardianPhone||'—')}</td>
     <td class="right" style="white-space:nowrap"><button class="btn icon" title="Admission letter" onclick="admissionLetter('${s.id}')">📜</button><button class="btn icon" title="ID card" onclick="showStudentId('${s.id}')">🪪</button>
       <button class="btn icon" onclick="editStudent('${s.id}')">✏️</button><button class="btn icon" onclick="delStudent('${s.id}')">🗑️</button></td></tr>`).join('')}
   </tbody></table></div>`;
@@ -2651,6 +2653,7 @@ function editStudent(id){const s=id?DB.students.find(x=>x.id===id):{};
     <div class="fld full"><label>Full name *</label><input id="f_name" value="${esc(s.name||'')}" placeholder="Surname First Middle"></div>
     <div class="fld"><label>Admission No</label><input id="f_adm" value="${esc(adm)}"></div>
     <div class="fld"><label>Class *</label><select id="f_class">${DB.classes.map(c=>`<option value="${c.id}" ${s.classId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div class="fld"><label>Section</label><select id="f_section"><option ${(s.section||'Day')==='Day'?'selected':''}>Day</option><option ${s.section==='Boarding'?'selected':''}>Boarding</option></select></div>
     <div class="fld"><label>Gender</label><select id="f_gender"><option ${s.gender==='Male'?'selected':''}>Male</option><option ${s.gender==='Female'?'selected':''}>Female</option></select></div>
     <div class="fld"><label>Date of birth</label><input id="f_dob" type="date" value="${esc(s.dob||'')}"></div>
     <div class="fld"><label>Guardian name</label><input id="f_gname" value="${esc(s.guardianName||'')}"></div>
@@ -2658,7 +2661,7 @@ function editStudent(id){const s=id?DB.students.find(x=>x.id===id):{};
     <div class="fld full"><label>Address</label><input id="f_addr" value="${esc(s.address||'')}"></div></div>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveStudent('${id||''}')">Save</button>`);}
 function saveStudent(id){const name=$('#f_name').value.trim();if(!name){toast('Name required',true);return;}
-  const obj={name,photo:_photo,admissionNo:$('#f_adm').value.trim(),classId:$('#f_class').value,gender:$('#f_gender').value,dob:$('#f_dob').value,
+  const obj={name,photo:_photo,admissionNo:$('#f_adm').value.trim(),classId:$('#f_class').value,section:($('#f_section')&&$('#f_section').value)||'Day',gender:$('#f_gender').value,dob:$('#f_dob').value,
     guardianName:$('#f_gname').value.trim(),guardianPhone:$('#f_gphone').value.trim(),address:$('#f_addr').value.trim()};
   if(id)Object.assign(DB.students.find(x=>x.id===id),obj);else{obj.id=uid('s');DB.students.push(obj);}
   save();closeModal();renderStuTable();toast('Pupil saved');}
@@ -2692,6 +2695,7 @@ function editApplicant(id){const a=id?DB.applicants.find(x=>x.id===id):{};
   modal(id?'Edit Application':'New Application',`${photoField(a.photo)}<div class="grid2">
     <div class="fld full"><label>Applicant full name *</label><input id="a_name" value="${esc(a.name||'')}"></div>
     <div class="fld"><label>Class applying for *</label><select id="a_class">${DB.classes.map(c=>`<option value="${c.id}" ${a.classId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div class="fld"><label>Section</label><select id="a_section"><option ${(a.section||'Day')==='Day'?'selected':''}>Day</option><option ${a.section==='Boarding'?'selected':''}>Boarding</option></select></div>
     <div class="fld"><label>Gender</label><select id="a_gender"><option ${a.gender==='Male'?'selected':''}>Male</option><option ${a.gender==='Female'?'selected':''}>Female</option></select></div>
     <div class="fld"><label>Date of birth</label><input id="a_dob" type="date" value="${esc(a.dob||'')}"></div>
     <div class="fld"><label>Date applied</label><input id="a_date" type="date" value="${esc(a.dateApplied||today())}"></div>
@@ -2701,7 +2705,7 @@ function editApplicant(id){const a=id?DB.applicants.find(x=>x.id===id):{};
     <div class="fld full"><label>Notes</label><textarea id="a_notes" rows="2">${esc(a.notes||'')}</textarea></div></div>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveApplicant('${id||''}')">Save</button>`);}
 function saveApplicant(id){const name=$('#a_name').value.trim();if(!name){toast('Name required',true);return;}
-  const obj={name,photo:_photo,classId:$('#a_class').value,gender:$('#a_gender').value,dob:$('#a_dob').value,dateApplied:$('#a_date').value,
+  const obj={name,photo:_photo,classId:$('#a_class').value,section:($('#a_section')&&$('#a_section').value)||'Day',gender:$('#a_gender').value,dob:$('#a_dob').value,dateApplied:$('#a_date').value,
     guardianName:$('#a_gname').value.trim(),guardianPhone:$('#a_gphone').value.trim(),address:$('#a_addr').value.trim(),notes:$('#a_notes').value.trim()};
   if(id)Object.assign(DB.applicants.find(x=>x.id===id),obj);else{obj.id=uid('a');obj.status='applied';DB.applicants.push(obj);}
   save();closeModal();vAdmissions();toast('Application saved');}
@@ -2716,7 +2720,7 @@ function reviewApplicant(id){const a=DB.applicants.find(x=>x.id===id);
       <button class="btn" onclick="enrollApplicant('${id}')">✓ Approve & Enroll</button>`);}
 function setAppStatus(id,st){DB.applicants.find(x=>x.id===id).status=st;save();closeModal();vAdmissions();toast('Marked '+st);}
 function enrollApplicant(id){const a=DB.applicants.find(x=>x.id===id);const adm='ADM/'+DB.settings.session.slice(0,4)+'/'+String(DB.students.length+1).padStart(3,'0');
-  const stu={id:uid('s'),name:a.name,photo:a.photo||'',admissionNo:adm,classId:a.classId,gender:a.gender,dob:a.dob,guardianName:a.guardianName,guardianPhone:a.guardianPhone,address:a.address};
+  const stu={id:uid('s'),name:a.name,photo:a.photo||'',admissionNo:adm,classId:a.classId,section:a.section||'Day',gender:a.gender,dob:a.dob,guardianName:a.guardianName,guardianPhone:a.guardianPhone,address:a.address};
   DB.students.push(stu);a.status='enrolled';a.studentId=stu.id;save();closeModal();vAdmissions();toast('Enrolled — '+adm);}
 
 /* ===================== SCHOOL: CLASSES ===================== */
@@ -2894,50 +2898,59 @@ function tahfizReportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid)
   const overallG=overall!=null?(ev!=null?tahfizGrade(overall):gradeOf(overall)):null;
   const feesNote=(DB.settings.nextTermFeesNote||'').trim()||naira(Number((DB.fees[rkey(sid,sess,term)]||{}).due)||0);
   const hasSubjects=subsList.length>0&&row.marks.some(m=>m.has);
-  const hd='background:var(--rg);color:#fff;font-weight:800;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:5px 16px';
-  return `<div class="rc" style="${themeVars()}">
-    <div class="rc-top">${isIslamic()?`<div class="rc-bism">۞ ${BISMILLAH.a} ۞</div>`:''}
-      <div class="rc-head"><div class="rc-crest">${logo}</div>
-        <div class="rc-sch"><h2>${esc(DB.settings.schoolName)}</h2>${(DB.settings.shortName||DB.settings.code)?`<div class="nick">(${esc(DB.settings.shortName||DB.settings.code)})</div>`:''}<div class="addr">${addrTel()}</div></div></div></div>
-    <div class="rc-title">✦ END OF TERM REPORT · ${esc(term)}, ${esc(sess)} ✦</div>
-    <div class="rc-info">
-      <div class="rc-photo"><div class="p">${s.photo?`<img src="${s.photo}">`:'👤'}</div><div class="cap">PASSPORT</div>
-        <div class="qr"><img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}"><div class="cap">Scan to verify</div></div></div>
-      <div class="rc-fields">
-        <div class="f"><span>Student Name</span><b>${esc(s.name)}</b></div><div class="f"><span>Admission No</span><b>${esc(s.admissionNo||'—')}</b></div><div class="f"><span>Class</span><b>${esc(className(s.classId))}</b></div>
-        <div class="f"><span>Academic Session</span><b>${esc(sess)}</b></div><div class="f"><span>Term</span><b>${esc(term)}</b></div><div class="f"><span>Days School Opened</span><b>${daysOpen}</b></div>
-        <div class="f"><span>Result Status</span><b>${overallG?esc(overallG.r):'—'}</b></div><div class="f"><span>Overall Score</span><b>${overall!=null?overall+'%':'—'}</b></div><div class="f"><span>Next Term Begins</span><b>${esc(DB.settings.nextResumption||'—')}</b></div></div>
-      <div class="rc-pos"><div class="l">GRADE</div><div class="n">${overallG?esc(overallG.g):'—'}</div><div class="l">overall</div></div></div>
-    <div class="rc-sum"><span>Next Term Fees: <b>${esc(feesNote)}</b></span></div>
-
-    <div style="${hd}">Qur'an Memorization Performance</div>
-    <table class="rc-tbl"><tbody>
-      <tr><td class="sub" style="width:42%">Surah / Ayah at Commencement</td><td style="text-align:left">${esc(t.ss||'—')}${t.as?' — Ayah '+esc(t.as):''}</td></tr>
-      <tr><td class="sub">Current Surah / Ayah</td><td style="text-align:left">${esc(t.sc||'—')}${t.ac?' — Ayah '+esc(t.ac):''}</td></tr>
-      <tr><td class="sub">Pages Memorized</td><td style="text-align:left">${(t.pg!=null&&t.pg!=='')?esc(t.pg)+' pages':'—'}</td></tr>
-      <tr><td class="sub">Hizb Memorized</td><td style="text-align:left">${(t.hz!=null&&t.hz!=='')?esc(t.hz)+' Hizb':'—'}</td></tr>
-      <tr><td class="sub">Evaluation Score</td><td style="text-align:left">${ev!=null?ev+'% — '+evG.r:'—'}</td></tr>
+  const secTitle='margin:13px 0 5px;font-weight:800;font-size:12.5px;letter-spacing:.4px;color:var(--rg);border-left:5px solid var(--rgold);padding-left:9px;text-transform:uppercase';
+  const tbl='width:100%;border-collapse:collapse;font-size:12px';
+  const cellL='border:1px solid #444;padding:5px 9px;background:#f2f6f3;font-weight:700;width:26%';
+  const cell='border:1px solid #444;padding:5px 9px';
+  const thc='border:1px solid #444;padding:5px 8px;background:var(--rg);color:#fff;font-size:11px;text-align:center';
+  const info=(l,v)=>`<td style="${cellL}">${l}</td><td style="${cell}">${v}</td>`;
+  const logoImg=DB.settings.logo?`<img src="${DB.settings.logo}" style="height:62px;width:auto;display:block;margin:0 auto 5px">`:'';
+  return `<div class="rc" style="${themeVars()};font-family:Arial,Helvetica,sans-serif;color:#151515;background:#fff;padding:16px 18px">
+    ${logoImg}
+    <div style="text-align:center">
+      <div style="font-size:18px;font-weight:800;color:var(--rg);letter-spacing:.3px;text-transform:uppercase;line-height:1.15">${esc(DB.settings.schoolName)}</div>
+      <div style="font-size:11px;color:#555;margin-top:1px">${esc(DB.settings.address||'')}${DB.settings.phone?' &nbsp;·&nbsp; ☎ '+esc(DB.settings.phone):''}${DB.settings.email?' &nbsp;·&nbsp; '+esc(DB.settings.email):''}</div>
+      <div style="font-size:11.5px;font-style:italic;font-weight:700;color:var(--rgold);margin-top:2px">${esc(DB.settings.motto||'Knowledge is Light')}</div>
+    </div>
+    <div style="background:var(--rg);color:#fff;text-align:center;font-weight:700;letter-spacing:2px;font-size:12px;padding:6px;margin-top:9px">END OF TERM REPORT &nbsp;·&nbsp; ${esc(term)} &nbsp;·&nbsp; ${esc(sess)} SESSION</div>
+    <table style="${tbl};margin-top:9px"><tbody>
+      <tr>${info('Student Name',esc(s.name))}${info('Days School Opened',daysOpen+' Days')}</tr>
+      <tr>${info('Class',esc(className(s.classId)))}${info('Next Term Begins',esc(DB.settings.nextResumption||'—'))}</tr>
+      <tr>${info('Admission No',esc(s.admissionNo||'—'))}${info('Next Term Fees',esc(feesNote))}</tr>
+      <tr>${info('Academic Session',esc(sess))}${info('Result Status',overallG?esc(overallG.r):'—')}</tr>
+      <tr>${info('Term',esc(term))}${info('Overall Score',overall!=null?'<b>'+overall+'%</b>':'—')}</tr>
     </tbody></table>
 
-    ${hasSubjects?`<div style="${hd}">Other Subjects</div>
-    <table class="rc-tbl"><thead>
-      <tr><th rowspan="2">Subject</th><th colspan="2">Continuous Assessment</th><th rowspan="2">Exam<br>(${g.exam})</th><th rowspan="2">Total<br>(100)</th><th rowspan="2">Grade</th><th rowspan="2">Position</th><th rowspan="2">Remark</th></tr>
-      <tr><th>1st CA (${g.ca1})</th><th>2nd CA (${g.ca2})</th></tr></thead><tbody>
-      ${row.marks.map(m=>{const gr=gradeOf(m.total||0);const pos=(subPos[m.sub]||{})[sid];return `<tr><td class="sub">${esc(m.sub)}</td><td>${m.ca1??'–'}</td><td>${m.ca2??'–'}</td><td>${m.exam??'–'}</td>
-        <td class="tot">${m.has?m.total:'–'}</td><td>${m.has?gr.g:'–'}</td><td>${m.has&&pos?ord(pos):'–'}</td><td class="${m.has&&gr.g==='F'?'rem-fail':''}">${m.has?gr.r:'–'}</td></tr>`;}).join('')}
+    <div style="${secTitle}">Qur'an Memorization Performance</div>
+    <table style="${tbl}"><tbody>
+      <tr><td style="${cellL};width:42%">Surah / Ayah at Commencement</td><td style="${cell}">${esc(t.ss||'—')}${t.as?' — Ayah '+esc(t.as):''}</td></tr>
+      <tr><td style="${cellL}">Current Surah / Ayah</td><td style="${cell}">${esc(t.sc||'—')}${t.ac?' — Ayah '+esc(t.ac):''}</td></tr>
+      <tr><td style="${cellL}">Pages Memorized</td><td style="${cell}">${(t.pg!=null&&t.pg!=='')?esc(t.pg)+' pages':'—'}</td></tr>
+      <tr><td style="${cellL}">Hizb Memorized</td><td style="${cell}">${(t.hz!=null&&t.hz!=='')?esc(t.hz)+' Hizb':'—'}</td></tr>
+      <tr><td style="${cellL}">Evaluation Score</td><td style="${cell}">${ev!=null?'<b>'+ev+'%</b> — '+evG.r:'—'}</td></tr>
+    </tbody></table>
+
+    ${hasSubjects?`<div style="${secTitle}">Other Subjects</div>
+    <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Subject</th><th style="${thc}">1st CA (${g.ca1})</th><th style="${thc}">2nd CA (${g.ca2})</th><th style="${thc}">Exam (${g.exam})</th><th style="${thc}">Total</th><th style="${thc}">Grade</th><th style="${thc};text-align:left">Remark</th></tr></thead><tbody>
+      ${row.marks.map(m=>{const gr=gradeOf(m.total||0);return `<tr><td style="${cell}">${esc(m.sub)}</td><td style="${cell};text-align:center">${m.ca1??'–'}</td><td style="${cell};text-align:center">${m.ca2??'–'}</td><td style="${cell};text-align:center">${m.exam??'–'}</td><td style="${cell};text-align:center;font-weight:700">${m.has?m.total:'–'}</td><td style="${cell};text-align:center">${m.has?gr.g:'–'}</td><td style="${cell}">${m.has?gr.r:'–'}</td></tr>`;}).join('')}
     </tbody></table>`:''}
 
-    <div style="${hd}">Performance Grading</div>
-    <table class="rc-tbl"><thead><tr><th style="text-align:left">Component</th><th>Score</th><th>Grade</th><th>Remark</th></tr></thead><tbody>
-      <tr><td class="sub">Qur'anic Memorization</td><td>${ev!=null?ev+'%':'—'}</td><td>${evG?evG.g:'—'}</td><td>${evG?evG.r:'—'}</td></tr>
-      ${hasSubjects?`<tr><td class="sub">Subjects Average</td><td>${row.count?row.avg.toFixed(1)+'%':'—'}</td><td>${row.count?gradeOf(row.avg).g:'—'}</td><td>${row.count?gradeOf(row.avg).r:'—'}</td></tr>`:''}
+    <div style="${secTitle}">Performance Grading</div>
+    <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Component</th><th style="${thc}">Score</th><th style="${thc}">Grade</th><th style="${thc};text-align:left">Remark</th></tr></thead><tbody>
+      <tr><td style="${cell}">Qur'anic Memorization</td><td style="${cell};text-align:center">${ev!=null?ev+'%':'—'}</td><td style="${cell};text-align:center;font-weight:800">${evG?evG.g:'—'}</td><td style="${cell}">${evG?evG.r:'—'}</td></tr>
+      ${hasSubjects?`<tr><td style="${cell}">Subjects Average</td><td style="${cell};text-align:center">${row.count?row.avg.toFixed(1)+'%':'—'}</td><td style="${cell};text-align:center;font-weight:800">${row.count?gradeOf(row.avg).g:'—'}</td><td style="${cell}">${row.count?gradeOf(row.avg).r:'—'}</td></tr>`:''}
     </tbody></table>
+    <div style="font-size:11px;margin-top:5px"><b style="color:var(--rg)">Grade guide:</b> 80–100 = A (Excellent) &nbsp;|&nbsp; 70–79 = B (Very Good) &nbsp;|&nbsp; 60–69 = C (Good) &nbsp;|&nbsp; 50–59 = D (Pass)</div>
 
-    <div class="rc-scale"><b>Grade guide:</b> 80–100 = A (Excellent) &nbsp;|&nbsp; 70–79 = B (Very Good) &nbsp;|&nbsp; 60–69 = C (Good) &nbsp;|&nbsp; 50–59 = D (Pass)</div>
-    <div class="rc-comments" style="grid-template-columns:1fr">
-      <div class="c"><b>Teacher's Comment</b><div class="box">${esc(rem.teacher||(ev!=null?('Grade '+evG.g+'. '+evG.r+' performance in Qur’an memorization this term.'):'—'))}</div></div></div>
-    <div class="rc-sign">${signCell((classTeacher(s.classId)||{}).name,"Class Teacher")}${signCell('',"School Supervisor")}${signCell('',"Proprietor / Director")}</div>
-    <div class="rc-foot">${esc(DB.settings.motto||'Knowledge is Light')}</div>
+    <div style="${secTitle}">Teacher's Comment</div>
+    <div style="border:1px solid #444;padding:9px;min-height:40px;font-size:12px">${esc(rem.teacher||(ev!=null?('Grade '+evG.g+'. '+evG.r+' performance in Qur’an memorization this term.'):''))}</div>
+
+    <div style="display:flex;justify-content:space-between;gap:18px;margin-top:auto;padding-top:30px">
+      <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:#222"><div style="border-top:1.5px solid #444;padding-top:3px">Class Teacher</div></div>
+      <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:#222"><div style="border-top:1.5px solid #444;padding-top:3px">School Supervisor</div></div>
+      <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:#222"><div style="border-top:1.5px solid #444;padding-top:3px">Proprietor / Director</div></div>
+    </div>
+    <div style="text-align:center;font-size:10.5px;color:#666;margin-top:11px;border-top:2px solid var(--rgold);padding-top:6px">${esc(DB.settings.schoolName)} &nbsp;·&nbsp; ${esc(DB.settings.motto||'Knowledge is Light')}</div>
   </div>`;}
 function reportHTML(sid,sess,term){if(hasModule('tahfiz'))return tahfizReportHTML(sid,sess,term);
   const s=DB.students.find(x=>x.id===sid);const {rows,size}=computeClassResults(s.classId,sess,term);const row=rows.find(r=>r.s.id===sid);
@@ -3035,10 +3048,11 @@ let feeClass='',feeTab='fees';
 function vFees(){if(!feeClass)feeClass=DB.classes[0]?DB.classes[0].id:'';
   $('#view').innerHTML=`<div class="page-head"><div><h2>Fees & Payments</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)}</p></div></div>
   <div class="subtabs"><button class="subtab${feeTab==='fees'?' active':''}" onclick="feeTab='fees';vFees()">Fees by class</button>
+    <button class="subtab${feeTab==='setup'?' active':''}" onclick="feeTab='setup';vFees()">🏷️ Fee setup</button>
     <button class="subtab${feeTab==='approve'?' active':''}" onclick="feeTab='approve';vFees()">Approvals ${pendingPayCount()?`<span class="pill amber" style="margin-left:4px">${pendingPayCount()}</span>`:''}</button>
     <button class="subtab${feeTab==='history'?' active':''}" onclick="feeTab='history';vFees()">History</button>
     <button class="subtab${feeTab==='invoices'?' active':''}" onclick="feeTab='invoices';vFees()">🧾 Invoices</button></div><div id="feeArea"></div>`;
-  if(feeTab==='fees')renderFees();else if(feeTab==='approve')renderApprovals();else if(feeTab==='invoices')vInvoices();else renderPayHistory();}
+  if(feeTab==='fees')renderFees();else if(feeTab==='setup')renderFeeSetup();else if(feeTab==='approve')renderApprovals();else if(feeTab==='invoices')vInvoices();else renderPayHistory();}
 function renderFees(){$('#feeArea').innerHTML=`<div class="toolbar"><div><label>Class</label><select onchange="feeClass=this.value;renderFees()">${DB.classes.map(c=>`<option value="${c.id}" ${feeClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
     <div><button class="btn sec" onclick="setClassFee()">Set fee for whole class</button></div></div><div id="feeTbl"></div>`;
   const list=studentsIn(feeClass);if(!list.length){$('#feeTbl').innerHTML=`<div class="card"><div class="empty"><div class="big">💰</div>No pupils in this class.</div></div>`;return;}
@@ -3055,6 +3069,37 @@ function setFeeDue(sid,val){const k=rkey(sid);DB.fees[k]=DB.fees[k]||{};DB.fees[
 function setClassFee(){modal('Set fee for '+className(feeClass),`<div class="fld"><label>Fee (₦) for every pupil in ${esc(className(feeClass))}</label><input id="cf_amt" type="number" placeholder="e.g. 45000"></div>`,
   `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="applyClassFee()">Apply</button>`);}
 function applyClassFee(){const amt=Number($('#cf_amt').value)||0;studentsIn(feeClass).forEach(s=>{const k=rkey(s.id);DB.fees[k]=DB.fees[k]||{};DB.fees[k].due=amt;});save();closeModal();renderFees();toast('Class fee applied');}
+/* ---- Term fee items (levy) with Day / Boarding amounts ---- */
+function studentFeeLines(s){const sec=((s&&s.section)||'Day')==='Boarding'?'boarding':'day';return (DB.settings.feeItems||[]).map(it=>({name:it.name,amt:Number(it[sec])||0}));}
+function studentFeeTotal(s){return studentFeeLines(s).reduce((a,l)=>a+l.amt,0);}
+function renderFeeSetup(){const items=DB.settings.feeItems||[];const dayT=items.reduce((a,it)=>a+(Number(it.day)||0),0),boardT=items.reduce((a,it)=>a+(Number(it.boarding)||0),0);const bk=DB.settings.bank||{};
+  $('#feeArea').innerHTML=`<div class="card pad mb" style="background:#f7faf8;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <div style="font-size:13px">🏦 <b>School account (shown on invoices):</b> ${bk.number?esc(bk.name||'—')+' · '+esc(bk.number)+' · '+esc(bk.bank||''):'<span style="color:var(--red)">not set yet</span>'}</div>
+      <button class="btn sm sec" onclick="go('calendar')">${bk.number?'Edit account':'Set account'}</button></div>
+  <div class="card pad mb"><div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><h3>Fee items — ${esc(DB.settings.term)}, ${esc(DB.settings.session)}</h3><button class="btn sm" onclick="editFeeItem(-1)">＋ Add fee item</button></div>
+    <p class="muted" style="font-size:12.5px;margin:6px 0 10px">Set each charge for the term. Day and Boarding amounts can differ (for example tuition). Leave an amount at 0 if it does not apply to that section.</p>
+    <div class="t-wrap"><table><thead><tr><th>Item</th><th class="right">Day (₦)</th><th class="right">Boarding (₦)</th><th></th></tr></thead><tbody>
+    ${items.length?items.map((it,i)=>`<tr><td><b>${esc(it.name)}</b></td><td class="right">${naira(it.day||0)}</td><td class="right">${naira(it.boarding||0)}</td><td class="right" style="white-space:nowrap"><button class="btn icon" onclick="editFeeItem(${i})">✏️</button><button class="btn icon" onclick="delFeeItem(${i})">🗑️</button></td></tr>`).join(''):'<tr><td colspan="4" class="muted center">No fee items yet. Add tuition and any other charges.</td></tr>'}
+    </tbody><tfoot><tr style="font-weight:800;background:#faf5ee"><td>Total per pupil</td><td class="right">${naira(dayT)}</td><td class="right">${naira(boardT)}</td><td></td></tr></tfoot></table></div></div>
+  <div class="card pad" style="border-left:4px solid #caa64e"><h3 class="mb">Generate term levy</h3>
+    <p class="muted mb">Apply these fee items to <b>every pupil</b> for ${esc(DB.settings.term)}, using each pupil's section (Day or Boarding). Each pupil then has an invoice to take home. Payments already recorded are not affected.</p>
+    <div class="flex gap" style="flex-wrap:wrap"><button class="btn gold" onclick="generateLevy()">💳 Generate levy for all pupils</button><button class="btn sec" onclick="feeTab='invoices';vFees()">🧾 Go to invoices</button></div></div>`;}
+function editFeeItem(i){const it=i>=0?(DB.settings.feeItems||[])[i]:{name:'',day:'',boarding:''};
+  modal(i>=0?'Edit fee item':'Add fee item',`<div class="fld"><label>Item name *</label><input id="fi_name" value="${esc(it.name||'')}" placeholder="e.g. Tuition, PTA Levy, Exam Fee, Uniform"></div>
+    <div class="grid2"><div class="fld"><label>Day amount (₦)</label><input id="fi_day" type="number" value="${esc(it.day??'')}" placeholder="0"></div>
+      <div class="fld"><label>Boarding amount (₦)</label><input id="fi_board" type="number" value="${esc(it.boarding??'')}" placeholder="0"></div></div>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveFeeItem(${i})">Save</button>`);}
+function saveFeeItem(i){const name=$('#fi_name').value.trim();if(!name){toast('Item name required',true);return;}
+  const obj={name,day:Number($('#fi_day').value)||0,boarding:Number($('#fi_board').value)||0};
+  DB.settings.feeItems=DB.settings.feeItems||[];if(i>=0)DB.settings.feeItems[i]=obj;else DB.settings.feeItems.push(obj);
+  save();closeModal();renderFeeSetup();}
+function delFeeItem(i){if(!confirm('Remove this fee item?'))return;DB.settings.feeItems.splice(i,1);save();renderFeeSetup();}
+function generateLevy(){const items=DB.settings.feeItems||[];if(!items.length){toast('Add at least one fee item first',true);return;}
+  const n=DB.students.filter(s=>!s.graduated).length;
+  modal('Generate term levy?',`<p>This sets each pupil's <b>${esc(DB.settings.term)}</b> fee to the total of your fee items, using their section (Day or Boarding). It affects <b>${n}</b> pupil(s). Recorded payments are kept.</p>
+    <p class="muted" style="font-size:12.5px">Any pupil without a section is treated as Day. You can still adjust an individual pupil's fee afterwards.</p>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn gold" onclick="doGenerateLevy()">Generate for all pupils</button>`);}
+function doGenerateLevy(){let n=0;DB.students.filter(s=>!s.graduated).forEach(s=>{const k=rkey(s.id);DB.fees[k]=DB.fees[k]||{};DB.fees[k].due=studentFeeTotal(s);n++;});save();closeModal();toast('Levy generated for '+n+' pupil(s)');feeTab='invoices';if(CURRENT==='fees')vFees();}
 function recordPayment(sid){const s=DB.students.find(x=>x.id===sid);const due=Number((DB.fees[rkey(sid)]||{}).due)||0;const bal=due-approvedPaid(sid);
   modal('Record Payment — '+s.name,`<p class="muted mb">Outstanding (school fees): <b style="color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</b>. A receipt is generated once the payment is approved.</p>
     <div class="grid2"><div class="fld"><label>Payment for *</label><select id="p_purpose" onchange="document.getElementById('p_descWrap').style.display=this.value==='Other'?'block':'none'"><option>School Fees</option><option>Examination Fee</option><option>Uniform</option><option>Books / Stationery</option><option>PTA Levy</option><option>Development Levy</option><option>Excursion</option><option>Other</option></select></div>
