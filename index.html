@@ -28,7 +28,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // App version — bump this on EVERY deploy. The cloud remembers the highest version any
 // device has loaded; a device on a lower version is locked out until it updates. This
 // stops out-of-date devices from silently overwriting everyone's data.
-const APP_VERSION = 20260809;
+const APP_VERSION = 20260810;
 // Compact overrides used ONLY inside the print iframe so a report card fills the A4 width
 // (tighter vertical spacing = shorter card = little/no shrink needed).
 const RC_COMPACT='.rc{border-radius:0!important;font-size:12px!important;color:#1c2a24!important}'
@@ -710,6 +710,8 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(!Array.isArray(d.ledger))d.ledger=[];
   if(!Array.isArray(d.gallery))d.gallery=[];
   if(!d.affective||typeof d.affective!=='object')d.affective={};
+  if(!d.tahfiz||typeof d.tahfiz!=='object')d.tahfiz={};
+  if(d.settings.nextTermFeesNote==null)d.settings.nextTermFeesNote='';
   if(!Array.isArray(d.announcements))d.announcements=[];
   if(!Array.isArray(d.settings.heroImages))d.settings.heroImages=[];
   if(d.settings.about==null)d.settings.about='';
@@ -757,7 +759,7 @@ const ISLAMIC_QUOTES=[
   {t:'Be mindful of Allah and He will protect you.',s:'Hadith — Tirmidhi'},
   {t:'The most beloved deeds to Allah are those done consistently, even if small.',s:'Hadith — Bukhari'}
 ];
-function isIslamic(){return !!(DB&&DB.settings&&DB.settings.islamic);}
+function isIslamic(){return !!(DB&&DB.settings&&(DB.settings.islamic||(DB.settings.modules&&DB.settings.modules.tahfiz)));}
 function islamicQuote(seed){const i=Math.abs(seed!=null?seed:new Date().getDate())%ISLAMIC_QUOTES.length;return ISLAMIC_QUOTES[i];}
 function bismillahHTML(){return `<div class="bismillah">${BISMILLAH.a}</div>`;}
 function docQuote(seed){if(!isIslamic())return '';const q=islamicQuote(seed);return `<div class="quote-line">${q.a?'﴿ '+esc(q.a)+' ﴾ — ':''}“${esc(q.t)}” (${esc(q.s)})</div>`;}
@@ -777,10 +779,13 @@ function dayNum(d){const dt=new Date(d);return isNaN(dt)?'–':dt.getDate();}
 function upcomingEvents(n){const t=today();return (DB.events||[]).filter(e=>e.date&&e.date>=t).sort((a,b)=>a.date.localeCompare(b.date)).slice(0,n||5);}
 function G(){return DB.settings.grade||{ca1:20,ca2:20,exam:60};}
 function gradeOf(t){if(t>=75)return{g:'A',r:'Distinction'};if(t>=65)return{g:'B',r:'Very Good'};if(t>=55)return{g:'C',r:'Credit'};if(t>=45)return{g:'D',r:'Pass'};if(t>=40)return{g:'E',r:'Fair'};return{g:'F',r:'Fail'};}
+/* Tahfiz (Qur'an memorization) grade bands, per Aliyu & Maimuna Centre */
+function tahfizGrade(t){t=+t||0;if(t>=80)return{g:'A',r:'Excellent'};if(t>=70)return{g:'B',r:'Very Good'};if(t>=60)return{g:'C',r:'Good'};if(t>=50)return{g:'D',r:'Pass'};return{g:'E',r:'Weak'};}
+function tGet(sid,sess,term){return (DB.tahfiz&&DB.tahfiz[rkey(sid,sess,term)])||{};}
 const THEMES={green:{n:'Green & Gold',rg:'#0b5e3a',rgd:'#08482c',gold:'#caa64e'},blue:{n:'Royal Blue & Gold',rg:'#15366e',rgd:'#0f2750',gold:'#d4af37'},maroon:{n:'Maroon & Gold',rg:'#6e1f2a',rgd:'#54141d',gold:'#d4af37'},teal:{n:'Teal & Gold',rg:'#0c5b56',rgd:'#084540',gold:'#c9a24b'},purple:{n:'Purple & Gold',rg:'#4a2a6e',rgd:'#371f52',gold:'#d4af37'}};
 function theme(){return THEMES[(DB&&DB.settings&&DB.settings.theme)||'green']||THEMES.green;}
 function themeVars(){const t=theme();return `--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}`;}
-const MODULES=[['gradPry5','Graduate at Primary 5'],['staffAttendance','Staff attendance & charges'],['weeks','School weeks (inspection basis)'],['lessonPlans','Lesson plans (manual + AI draft)'],['houses','Houses & activities'],['quran','Qur’an competition'],['finance','School accounts & finance'],['gallery','Events gallery (photos/videos)'],['affective','Affective & Psychomotor on report cards'],['broadsheet','Class broadsheet (master-sheet)'],['parentPortal','Parent portal + announcements'],['reportPrint','Report card printing (school can print)']];
+const MODULES=[['gradPry5','Graduate at Primary 5'],['staffAttendance','Staff attendance & charges'],['weeks','School weeks (inspection basis)'],['lessonPlans','Lesson plans (manual + AI draft)'],['houses','Houses & activities'],['quran','Qur’an competition'],['finance','School accounts & finance'],['gallery','Events gallery (photos/videos)'],['affective','Affective & Psychomotor on report cards'],['broadsheet','Class broadsheet (master-sheet)'],['parentPortal','Parent portal + announcements'],['reportPrint','Report card printing (school can print)'],['tahfiz','Qur’an memorization report (Tahfiz)']];
 const AFFECTIVE=['Punctuality','Neatness','Politeness','Honesty','Attentiveness','Cooperation'];
 const PSYCHO=['Handwriting','Sports & Games','Verbal Fluency','Physical Fitness'];
 function affectiveList(){return AFFECTIVE;}
@@ -789,7 +794,7 @@ function psychoList(){return isIslamic()
   :['Handwriting','Drawing & Craft','Sports & Games','Verbal Fluency','Physical Fitness','Practical Skills'];}
 const RATEWORD={5:'Excellent',4:'Very Good',3:'Good',2:'Fair',1:'Poor'};
 function hasModule(m){return !!(DB&&DB.settings&&DB.settings.modules&&DB.settings.modules[m]);}
-function gradClassName(){return (DB.settings.modules&&DB.settings.modules.gradPry5)?'Primary 5':'Primary 6';}
+function gradClassName(){if(DB.settings.modules&&DB.settings.modules.tahfiz){const c=DB.classes[DB.classes.length-1];return c?c.name:'Final Level';}return (DB.settings.modules&&DB.settings.modules.gradPry5)?'Primary 5':'Primary 6';}
 function termWeeks(){return Number(DB.settings.termWeeks)||13;}
 function currentWeek(){const tb=DB.settings.dates&&DB.settings.dates.termBegin;
   if(tb){const w=Math.floor((Date.now()-new Date(tb).getTime())/(7*86400000))+1;return Math.max(1,Math.min(termWeeks(),w));}
@@ -886,10 +891,10 @@ function termAvg(stu,term){const subs=DB.subjects[stu.classId]||[];const res=DB.
 function annual(stu){const t1=termAvg(stu,'First Term'),t2=termAvg(stu,'Second Term'),t3=termAvg(stu,'Third Term');
   const vals=[t1,t2,t3].filter(v=>v!=null);const avg=vals.length?vals.reduce((a,b)=>a+b,0)/vals.length:null;return{t1,t2,t3,avg,terms:vals.length};}
 function promoteMark(){return (DB.settings.grade&&DB.settings.grade.promote)||40;}
-function isFinalClass(classId){const c=DB.classes.find(x=>x.id===classId);if(!c)return false;if(DB.settings.modules&&DB.settings.modules.gradPry5)return /primary\s*5/i.test(c.name);return /primary\s*6|grad/i.test(c.name);}
+function isFinalClass(classId){const c=DB.classes.find(x=>x.id===classId);if(!c)return false;if(hasModule('tahfiz')){const i=DB.classes.findIndex(x=>x.id===classId);return i>=0&&i===DB.classes.length-1;}if(DB.settings.modules&&DB.settings.modules.gradPry5)return /primary\s*5/i.test(c.name);return /primary\s*6|grad/i.test(c.name);}
 function nextClassName(classId){if(isFinalClass(classId))return 'Graduated';const i=DB.classes.findIndex(c=>c.id===classId);return (i>=0&&i+1<DB.classes.length)?DB.classes[i+1].name:'Graduated';}
 function promotionFor(stu){const a=annual(stu);if(a.avg==null)return{...a,decision:'pending',label:'No results',cls:'muted'};
-  if(isFinalClass(stu.classId))return{...a,decision:'graduate',label:'Graduated (Primary Certificate)',cls:'promo-grad'};
+  if(isFinalClass(stu.classId))return{...a,decision:'graduate',label:(DB.settings.modules&&DB.settings.modules.tahfiz)?'Graduated (Completion Certificate)':'Graduated (Primary Certificate)',cls:'promo-grad'};
   if(a.avg>=promoteMark())return{...a,decision:'promote',label:'Promoted to '+nextClassName(stu.classId),cls:'promo-yes'};
   return{...a,decision:'repeat',label:'To repeat '+className(stu.classId),cls:'promo-no'};}
 
@@ -1208,6 +1213,7 @@ function vCalendar(){
       <div class="fld"><label>Term begins</label><input type="date" id="dt_begin" value="${esc(dt.termBegin||'')}"></div>
       <div class="fld"><label>Term ends</label><input type="date" id="dt_end" value="${esc(dt.termEnd||'')}"></div>
       <div class="fld"><label>Next term resumption</label><input type="date" id="dt_res" value="${esc(dt.resumption||'')}"></div>
+      <div class="fld"><label>Next term fees note (shown on report cards)</label><input id="dt_fees" value="${esc(DB.settings.nextTermFeesNote||'')}" placeholder="e.g. Boarding = ₦150,000, Day = ₦60,000"></div>
       <button class="btn" onclick="saveDates()">Save dates</button></div>
     <div class="card pad"><h3 class="mb">Payment account (for invoices)</h3>
       <div class="fld"><label>Account name</label><input id="bk_name" value="${esc(bk.name||'')}" placeholder="School account name"></div>
@@ -1223,6 +1229,7 @@ function vCalendar(){
 }
 function saveDates(){DB.settings.dates={termBegin:$('#dt_begin').value,termEnd:$('#dt_end').value,resumption:$('#dt_res').value};
   if($('#dt_res').value)DB.settings.nextResumption=new Date($('#dt_res').value).toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
+  if($('#dt_fees'))DB.settings.nextTermFeesNote=$('#dt_fees').value.trim();
   save();toast('Dates saved');}
 function saveBank(){DB.settings.bank={name:$('#bk_name').value.trim(),number:$('#bk_num').value.trim(),bank:$('#bk_bank').value.trim()};save();toast('Account saved');}
 function reseedEvents(){const yr=parseInt((DB.settings.session||'2025').slice(0,4))||2025;DB.events=defaultEvents(yr);save();vCalendar();toast('Nigerian calendar loaded');}
@@ -2150,6 +2157,7 @@ function buildNav(){
     if(hasModule('staffAttendance'))items.splice(7,0,['staffatt','👔','Staff Att.']);
     if(hasModule('houses'))items.push(['houses','🏠','Houses']);
     if(hasModule('quran'))items.push(['quran','☪','Qur’an']);
+    if(hasModule('tahfiz'))items.splice(9,0,['tahfiz','📖','Memorization']);
     if(hasModule('finance'))items.push(['finance','💵','Accounts']);
     if(hasModule('gallery'))items.push(['gallery','🖼️','Gallery']);
     if(hasModule('lessonPlans'))items.push(['lessons','📚','Lesson Plans']);
@@ -2172,7 +2180,7 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
     customers:vStoreCustomers,quotes:vStoreQuotes,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
-    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce};
+    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:vTahfiz};
   (map[p]||vDashboard)();}
 
 /* ===================== OWNER: DASHBOARD ===================== */
@@ -2873,7 +2881,66 @@ function renderRepList(){const list=studentsIn(repClass);
     <td class="center">${r.count?r.avg.toFixed(1)+'%':'—'}</td><td class="center">${r.pos?'<span class="pill green">'+ord(r.pos)+'</span>':'—'}</td>
     <td class="right" style="white-space:nowrap">${hasModule('affective')?`<button class="btn sm sec" onclick="editRatings('${r.s.id}')">⭐ Ratings</button>`:''}<button class="btn sm" onclick="openReport('${r.s.id}')">View</button>${hasModule('reportPrint')?`<button class="btn sm gold" onclick="printOneReport('${r.s.id}')">🖨</button>`:''}</td></tr>`).join('')}
   </tbody></table></div>`;}
-function reportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid);const {rows,size}=computeClassResults(s.classId,sess,term);const row=rows.find(r=>r.s.id===sid);
+function tahfizReportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid);if(!s)return '';
+  sess=sess||DB.settings.session;term=term||DB.settings.term;
+  const {rows}=computeClassResults(s.classId,sess,term);const row=rows.find(r=>r.s.id===sid)||{marks:[],count:0,total:0,avg:0,pos:null};
+  const g=G();const subsList=DB.subjects[s.classId]||[];const rem=DB.remarks[rkey(sid,sess,term)]||{};const t=tGet(sid,sess,term);
+  const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'📖';
+  let daysOpen=0;Object.keys(DB.attendance).forEach(k=>{const p=k.split('|');if(p[1]===s.classId){const rec=DB.attendance[k];if(rec&&Object.keys(rec).length)daysOpen++;}});
+  const classList=studentsIn(s.classId),subPos={};
+  subsList.forEach(sub=>{const arr=classList.map(st=>{const r=(DB.results[rkey(st.id,sess,term)]||{})[sub]||{};const has=r.ca1!=null||r.ca2!=null||r.exam!=null;return{id:st.id,tt:(+r.ca1||0)+(+r.ca2||0)+(+r.exam||0),has};}).filter(x=>x.has).sort((a,b)=>b.tt-a.tt);const m={};arr.forEach((x,i)=>m[x.id]=i+1);subPos[sub]=m;});
+  const ev=(t.ev!=null&&t.ev!=='')?Number(t.ev):null;const evG=ev!=null?tahfizGrade(ev):null;
+  const overall=ev!=null?ev:(row.count?Math.round(row.avg):null);
+  const overallG=overall!=null?(ev!=null?tahfizGrade(overall):gradeOf(overall)):null;
+  const feesNote=(DB.settings.nextTermFeesNote||'').trim()||naira(Number((DB.fees[rkey(sid,sess,term)]||{}).due)||0);
+  const hasSubjects=subsList.length>0&&row.marks.some(m=>m.has);
+  const hd='background:var(--rg);color:#fff;font-weight:800;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:5px 16px';
+  return `<div class="rc" style="${themeVars()}">
+    <div class="rc-top">${isIslamic()?`<div class="rc-bism">۞ ${BISMILLAH.a} ۞</div>`:''}
+      <div class="rc-head"><div class="rc-crest">${logo}</div>
+        <div class="rc-sch"><h2>${esc(DB.settings.schoolName)}</h2>${(DB.settings.shortName||DB.settings.code)?`<div class="nick">(${esc(DB.settings.shortName||DB.settings.code)})</div>`:''}<div class="addr">${addrTel()}</div></div></div></div>
+    <div class="rc-title">✦ END OF TERM REPORT · ${esc(term)}, ${esc(sess)} ✦</div>
+    <div class="rc-info">
+      <div class="rc-photo"><div class="p">${s.photo?`<img src="${s.photo}">`:'👤'}</div><div class="cap">PASSPORT</div>
+        <div class="qr"><img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}"><div class="cap">Scan to verify</div></div></div>
+      <div class="rc-fields">
+        <div class="f"><span>Student Name</span><b>${esc(s.name)}</b></div><div class="f"><span>Admission No</span><b>${esc(s.admissionNo||'—')}</b></div><div class="f"><span>Class</span><b>${esc(className(s.classId))}</b></div>
+        <div class="f"><span>Academic Session</span><b>${esc(sess)}</b></div><div class="f"><span>Term</span><b>${esc(term)}</b></div><div class="f"><span>Days School Opened</span><b>${daysOpen}</b></div>
+        <div class="f"><span>Result Status</span><b>${overallG?esc(overallG.r):'—'}</b></div><div class="f"><span>Overall Score</span><b>${overall!=null?overall+'%':'—'}</b></div><div class="f"><span>Next Term Begins</span><b>${esc(DB.settings.nextResumption||'—')}</b></div></div>
+      <div class="rc-pos"><div class="l">GRADE</div><div class="n">${overallG?esc(overallG.g):'—'}</div><div class="l">overall</div></div></div>
+    <div class="rc-sum"><span>Next Term Fees: <b>${esc(feesNote)}</b></span></div>
+
+    <div style="${hd}">Qur'an Memorization Performance</div>
+    <table class="rc-tbl"><tbody>
+      <tr><td class="sub" style="width:42%">Surah / Ayah at Commencement</td><td style="text-align:left">${esc(t.ss||'—')}${t.as?' — Ayah '+esc(t.as):''}</td></tr>
+      <tr><td class="sub">Current Surah / Ayah</td><td style="text-align:left">${esc(t.sc||'—')}${t.ac?' — Ayah '+esc(t.ac):''}</td></tr>
+      <tr><td class="sub">Pages Memorized</td><td style="text-align:left">${(t.pg!=null&&t.pg!=='')?esc(t.pg)+' pages':'—'}</td></tr>
+      <tr><td class="sub">Hizb Memorized</td><td style="text-align:left">${(t.hz!=null&&t.hz!=='')?esc(t.hz)+' Hizb':'—'}</td></tr>
+      <tr><td class="sub">Evaluation Score</td><td style="text-align:left">${ev!=null?ev+'% — '+evG.r:'—'}</td></tr>
+    </tbody></table>
+
+    ${hasSubjects?`<div style="${hd}">Other Subjects</div>
+    <table class="rc-tbl"><thead>
+      <tr><th rowspan="2">Subject</th><th colspan="2">Continuous Assessment</th><th rowspan="2">Exam<br>(${g.exam})</th><th rowspan="2">Total<br>(100)</th><th rowspan="2">Grade</th><th rowspan="2">Position</th><th rowspan="2">Remark</th></tr>
+      <tr><th>1st CA (${g.ca1})</th><th>2nd CA (${g.ca2})</th></tr></thead><tbody>
+      ${row.marks.map(m=>{const gr=gradeOf(m.total||0);const pos=(subPos[m.sub]||{})[sid];return `<tr><td class="sub">${esc(m.sub)}</td><td>${m.ca1??'–'}</td><td>${m.ca2??'–'}</td><td>${m.exam??'–'}</td>
+        <td class="tot">${m.has?m.total:'–'}</td><td>${m.has?gr.g:'–'}</td><td>${m.has&&pos?ord(pos):'–'}</td><td class="${m.has&&gr.g==='F'?'rem-fail':''}">${m.has?gr.r:'–'}</td></tr>`;}).join('')}
+    </tbody></table>`:''}
+
+    <div style="${hd}">Performance Grading</div>
+    <table class="rc-tbl"><thead><tr><th style="text-align:left">Component</th><th>Score</th><th>Grade</th><th>Remark</th></tr></thead><tbody>
+      <tr><td class="sub">Qur'anic Memorization</td><td>${ev!=null?ev+'%':'—'}</td><td>${evG?evG.g:'—'}</td><td>${evG?evG.r:'—'}</td></tr>
+      ${hasSubjects?`<tr><td class="sub">Subjects Average</td><td>${row.count?row.avg.toFixed(1)+'%':'—'}</td><td>${row.count?gradeOf(row.avg).g:'—'}</td><td>${row.count?gradeOf(row.avg).r:'—'}</td></tr>`:''}
+    </tbody></table>
+
+    <div class="rc-scale"><b>Grade guide:</b> 80–100 = A (Excellent) &nbsp;|&nbsp; 70–79 = B (Very Good) &nbsp;|&nbsp; 60–69 = C (Good) &nbsp;|&nbsp; 50–59 = D (Pass)</div>
+    <div class="rc-comments" style="grid-template-columns:1fr">
+      <div class="c"><b>Teacher's Comment</b><div class="box">${esc(rem.teacher||(ev!=null?('Grade '+evG.g+'. '+evG.r+' performance in Qur’an memorization this term.'):'—'))}</div></div></div>
+    <div class="rc-sign">${signCell((classTeacher(s.classId)||{}).name,"Class Teacher")}${signCell('',"School Supervisor")}${signCell('',"Proprietor / Director")}</div>
+    <div class="rc-foot">${esc(DB.settings.motto||'Knowledge is Light')}</div>
+  </div>`;}
+function reportHTML(sid,sess,term){if(hasModule('tahfiz'))return tahfizReportHTML(sid,sess,term);
+  const s=DB.students.find(x=>x.id===sid);const {rows,size}=computeClassResults(s.classId,sess,term);const row=rows.find(r=>r.s.id===sid);
   const g=G();const subsList=DB.subjects[s.classId]||[];const rem=DB.remarks[rkey(sid,sess,term)]||{};const isl=isIslamic();
   const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';const issue=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
   let daysOpen=0,present=0,absent=0,late=0;
@@ -2923,6 +2990,31 @@ function printOneReport(sid){printRC(reportHTML(sid));}
 function printAllReportsSchool(){const list=studentsIn(repClass).filter(s=>{const rr=DB.results[rkey(s.id)];return rr&&Object.keys(rr).length;});
   if(!list.length){toast('No report cards with scores in this class',true);return;}
   toast('Preparing '+list.length+' report card(s)…');printReportsBulk(list.map(s=>reportHTML(s.id)));}
+
+/* ===================== TAHFIZ (Qur'an memorization) ENTRY ===================== */
+let tahClass='';
+function vTahfiz(){const cls=teacherClasses();if(!tahClass||!cls.find(c=>c.id===tahClass))tahClass=cls[0]?cls[0].id:'';
+  $('#view').innerHTML=`<div class="page-head"><div><h2>📖 Qur’an Memorization</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)} — record each pupil's memorization for this term</p></div></div>
+  <div class="card no-print" style="background:#fff8e6;border:1px solid #f0d089;border-left:4px solid #caa64e;padding:11px 15px;margin-bottom:12px;font-size:14px">📌 <b>Recording for: ${esc(DB.settings.term)}, ${esc(DB.settings.session)}.</b><br><span class="muted" style="font-size:12.5px">Entries save to the cloud as you type (watch the sync status at the top). Fix the term on the <a onclick="go('session')" style="color:var(--green);cursor:pointer;font-weight:600">Session</a> page first if it is wrong.</span></div>
+  <div class="toolbar"><div><label>Class</label><select onchange="tahClass=this.value;renderTah()">${cls.map(c=>`<option value="${c.id}" ${tahClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div></div>
+  <div id="tahArea"></div>`;renderTah();}
+function renderTah(){const list=studentsIn(tahClass);
+  if(!list.length){$('#tahArea').innerHTML=`<div class="card"><div class="empty"><div class="big">📖</div>No pupils in this class.</div></div>`;return;}
+  $('#tahArea').innerHTML=list.map(s=>{const t=tGet(s.id);const ev=(t.ev!=null&&t.ev!=='')?Number(t.ev):null;const gr=ev!=null?tahfizGrade(ev):null;
+    return `<div class="card pad mb"><div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b>${esc(s.name)}</b><span class="pill ${gr&&gr.g==='E'?'red':'green'}">${gr?gr.g+' · '+gr.r:'—'}</span></div>
+      <div class="grid2 mt" style="gap:8px">
+        <div class="fld"><label>Surah at commencement</label><input value="${esc(t.ss||'')}" onchange="setTah('${s.id}','ss',this.value)"></div>
+        <div class="fld"><label>Ayah at commencement</label><input value="${esc(t.as||'')}" onchange="setTah('${s.id}','as',this.value)"></div>
+        <div class="fld"><label>Current Surah</label><input value="${esc(t.sc||'')}" onchange="setTah('${s.id}','sc',this.value)"></div>
+        <div class="fld"><label>Current Ayah</label><input value="${esc(t.ac||'')}" onchange="setTah('${s.id}','ac',this.value)"></div>
+        <div class="fld"><label>Pages memorized</label><input type="number" value="${esc(t.pg??'')}" onchange="setTah('${s.id}','pg',this.value)"></div>
+        <div class="fld"><label>Hizb memorized</label><input type="number" step="0.1" value="${esc(t.hz??'')}" onchange="setTah('${s.id}','hz',this.value)"></div>
+        <div class="fld"><label>Evaluation score (%)</label><input type="number" min="0" max="100" value="${esc(t.ev??'')}" onchange="setTah('${s.id}','ev',this.value)"></div>
+      </div></div>`;}).join('');}
+function setTah(sid,field,val){const k=rkey(sid);DB.tahfiz[k]=DB.tahfiz[k]||{};val=(val==null?'':(''+val).trim());
+  if(val==='')delete DB.tahfiz[k][field];else DB.tahfiz[k][field]=val;
+  if(!Object.keys(DB.tahfiz[k]).length)delete DB.tahfiz[k];save();
+  if(field==='ev')renderTah();}
 function autoRemark(avg,subs){if(!subs||!subs.some(m=>m.has))return'No results entered yet.';
   const scored=subs.filter(m=>m.has);const best=scored.slice().sort((a,b)=>b.total-a.total)[0];const worst=scored.slice().sort((a,b)=>a.total-b.total)[0];
   let base=avg>=70?'An excellent result.':avg>=60?'A very good performance.':avg>=50?'A good effort.':avg>=40?'A fair result; more effort needed.':'Needs serious improvement.';
