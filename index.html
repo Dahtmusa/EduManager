@@ -745,6 +745,10 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(!d.settings.schoolFee||typeof d.settings.schoolFee!=='object')d.settings.schoolFee={day:0,boarding:0};
   if(d.settings.feeMode==null)d.settings.feeMode='items';
   if(d.settings.facebookUrl==null)d.settings.facebookUrl='';
+  if(d.settings.instagramUrl==null)d.settings.instagramUrl='';
+  if(d.settings.tiktokUrl==null)d.settings.tiktokUrl='';
+  if(d.settings.youtubeUrl==null)d.settings.youtubeUrl='';
+  if(d.settings.twitterUrl==null)d.settings.twitterUrl='';
   if(d.settings.whatsapp==null)d.settings.whatsapp='';
   if(d.settings.heroDesc==null)d.settings.heroDesc='A centre of excellence, nurturing disciplined and well-rounded leaders.';
   if(d.settings.showTeachers==null)d.settings.showTeachers=true;
@@ -1535,17 +1539,20 @@ function vWebsite(){const set=DB.settings;
     <p class="muted mb">Adds a floating <b>💬 WhatsApp</b> button to the homepage so parents can chat instantly.</p>
     <div class="fld"><label>WhatsApp number</label><input id="wb_wa" value="${esc(set.whatsapp||'')}" placeholder="e.g. 08030000000 or 2348030000000"></div>
     <button class="btn" onclick="saveWa()">Save WhatsApp</button></div>
-  <div class="card pad mb" style="max-width:760px"><h3 class="mb">Facebook page link</h3>
-    <p class="muted mb">Adds a <b>“Follow us on Facebook”</b> button to your homepage. To show specific event photos/videos, add them yourself in the <b>Gallery</b> (you stay in control of what appears — irrelevant posts won't be pulled in).</p>
-    <div class="fld"><label>Facebook Page URL (optional)</label><input id="wb_fb" value="${esc(set.facebookUrl||'')}" placeholder="https://facebook.com/yourschool"></div>
-    <button class="btn" onclick="saveFb()">Save</button></div>
+  <div class="card pad mb" style="max-width:760px"><h3 class="mb">Social media links</h3>
+    <p class="muted mb">These show as clickable icons in your homepage footer. Leave blank to hide.</p>
+    <div class="grid2">
+      <div class="fld"><label>Facebook</label><input id="sm_fb" value="${esc(set.facebookUrl||'')}" placeholder="https://facebook.com/…"></div>
+      <div class="fld"><label>Instagram</label><input id="sm_ig" value="${esc(set.instagramUrl||'')}" placeholder="https://instagram.com/…"></div>
+      <div class="fld"><label>TikTok</label><input id="sm_tt" value="${esc(set.tiktokUrl||'')}" placeholder="https://tiktok.com/@…"></div>
+      <div class="fld"><label>YouTube</label><input id="sm_yt" value="${esc(set.youtubeUrl||'')}" placeholder="https://youtube.com/@…"></div>
+      <div class="fld"><label>X (Twitter)</label><input id="sm_tw" value="${esc(set.twitterUrl||'')}" placeholder="https://x.com/…"></div></div>
+    <button class="btn mt" onclick="saveSocials()">Save social links</button></div>
   <div class="card pad mb" style="max-width:760px"><h3 class="mb">Leadership on homepage</h3>
     <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" style="width:auto" ${set.showLeadership!==false?'checked':''} onchange="DB.settings.showLeadership=this.checked;save();toast('Saved')"> Show the <b>Our Leadership</b> section on the homepage</label>
     <p class="muted mt" style="font-size:12.5px">Leadership is drawn automatically from your <b>Staff</b> records, ranked by position (Director, Assistant Director, School Supervisor, then teachers). To set who appears, open <a onclick="go('teachers')" style="color:var(--green);cursor:pointer;font-weight:600">Staff / Teachers</a>, set each person's <b>position, photo and short bio</b>, and tick “Show on homepage”. Roles not yet filled show a “To be announced” placeholder.</p></div>
-  <div class="card pad mb" style="max-width:760px"><div class="flex" style="justify-content:space-between;align-items:center"><h3>Activities showcase</h3><button class="btn sm" onclick="editActivity()">＋ Add</button></div>
-    <p class="muted mb">Highlights of school life shown on the homepage.</p>
-    ${(set.activities||[]).map((a,i)=>`<div class="flex" style="justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--line);padding:8px 0"><div class="flex gap" style="align-items:center">${a.image?`<img src="${a.image}" style="width:44px;height:44px;border-radius:8px;object-fit:cover">`:'🎯'}<b>${esc(a.title||'')}</b></div>
-      <div class="flex gap"><button class="btn icon" onclick="actMove(${i},-1)">▲</button><button class="btn icon" onclick="actMove(${i},1)">▼</button><button class="btn sm sec" onclick="editActivity(${i})">Edit</button><button class="btn icon" onclick="delActivity(${i})">🗑️</button></div></div>`).join('')||'<p class="muted">None yet.</p>'}</div>
+  <div class="card pad mb" style="max-width:760px"><h3 class="mb">Activities &amp; Gallery</h3>
+    <p class="muted" style="font-size:12.5px">Add activities, events, photos and videos on the <a onclick="go('gallery')" style="color:var(--green);cursor:pointer;font-weight:600">Gallery</a> page. For each one you type its own title and choose whether to <b>feature it on the homepage</b>; everything else appears on the public <b>Our Gallery</b> page.</p></div>
   <div class="card pad" style="max-width:760px"><h3 class="mb">Admissions section</h3>
     <div class="fld"><label>Admission information (shown in the homepage Admissions section)</label><textarea id="wb_adminfo" rows="3">${esc(set.admissionInfo||'')}</textarea></div>
     <button class="btn sec mb" onclick="saveAdmInfo()">Save admission info</button>
@@ -1557,6 +1564,7 @@ function addHero(){const inp=document.createElement('input');inp.type='file';inp
 function delHero(i){DB.settings.heroImages.splice(i,1);save();vWebsite();}
 function saveAbout(){DB.settings.about=$('#wb_about').value.trim();save();toast('About saved');}
 function saveFb(){DB.settings.facebookUrl=$('#wb_fb').value.trim();save();toast('Facebook page saved');}
+function saveSocials(){const s=DB.settings;s.facebookUrl=$('#sm_fb').value.trim();s.instagramUrl=$('#sm_ig').value.trim();s.tiktokUrl=$('#sm_tt').value.trim();s.youtubeUrl=$('#sm_yt').value.trim();s.twitterUrl=$('#sm_tw').value.trim();save();toast('Social links saved');}
 function saveHeroDesc(){DB.settings.heroDesc=$('#wb_hdesc').value.trim();save();toast('Tagline saved');}
 function saveAdmInfo(){DB.settings.admissionInfo=$('#wb_adminfo').value.trim();save();toast('Admission info saved');}
 function saveWa(){DB.settings.whatsapp=$('#wb_wa').value.trim();save();toast('WhatsApp saved');}
@@ -1617,21 +1625,22 @@ function renderGallery(){if(!DB.gallery.length){$('#galArea').innerHTML=`<div cl
   $('#galArea').innerHTML=`<div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${DB.gallery.slice().reverse().map(a=>{const cover=(a.media||[]).find(m=>m.type==='image');return `<div class="card" style="overflow:hidden;cursor:pointer" onclick="openAlbum('${a.id}')">
     <div style="height:140px;background:#eef2ef;display:flex;align-items:center;justify-content:center;font-size:40px">${cover?`<img src="${cover.url}" style="width:100%;height:100%;object-fit:cover">`:'🖼️'}</div>
     <div class="pad" style="padding:12px"><div class="flex" style="justify-content:space-between"><b>${esc(a.title)}</b><span class="pill grey">${(a.media||[]).length}</span></div>
-      <div class="muted" style="font-size:12px">${esc(a.category||'')}${a.date?' · '+esc(a.date):''}</div></div></div>`;}).join('')}</div>`;
+      <div class="muted" style="font-size:12px">${a.date?esc(a.date):''}${a.showHome?' · <span class="pill green" style="font-size:9px">🏠 Homepage</span>':''}</div></div></div>`;}).join('')}</div>`;
 }
 function editAlbum(id){const a=id?DB.gallery.find(x=>x.id===id):{date:today()};
   modal(id?'Edit activity':'Add activity',`<div class="grid2">
-    <div class="fld"><label>Title *</label><input id="al_title" value="${esc(a.title||'')}" placeholder="e.g. 2026 Inter-house Sports"></div>
-    <div class="fld"><label>Category</label><select id="al_cat">${GAL_CATS.map(c=>`<option ${a.category===c?'selected':''}>${esc(c)}</option>`).join('')}</select></div>
+    <div class="fld full"><label>Title / heading *</label><input id="al_title" value="${esc(a.title||'')}" placeholder="e.g. 2026 Inter-house Sports, Graduation Day…"></div>
     <div class="fld"><label>Date</label><input id="al_date" type="date" value="${esc(a.date||today())}"></div>
-    <div class="fld full"><label>Description</label><input id="al_desc" value="${esc(a.desc||'')}"></div></div>`,
+    <div class="fld full"><label>Description</label><input id="al_desc" value="${esc(a.desc||'')}" placeholder="A short description of the event"></div></div>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink);margin-top:6px"><input type="checkbox" id="al_home" style="width:auto" ${a.showHome?'checked':''}> Feature this on the <b>homepage</b> (otherwise it shows only in <b>Our Gallery</b>)</label>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveAlbum('${id||''}')">Save</button>`);}
 function saveAlbum(id){const t=$('#al_title').value.trim();if(!t){toast('Title required',true);return;}
-  const obj={title:t,category:$('#al_cat').value,date:$('#al_date').value,desc:$('#al_desc').value.trim()};
+  const obj={title:t,date:$('#al_date').value,desc:$('#al_desc').value.trim(),showHome:$('#al_home').checked};
   if(id)Object.assign(DB.gallery.find(x=>x.id===id),obj);else{obj.id=uid('al');obj.media=[];DB.gallery.push(obj);}save();closeModal();renderGallery();toast('Saved');}
+function toggleAlbumHome(id){const a=DB.gallery.find(x=>x.id===id);if(!a)return;a.showHome=!a.showHome;save();openAlbum(id);toast(a.showHome?'Featured on homepage':'Removed from homepage');}
 function openAlbum(id){const a=DB.gallery.find(x=>x.id===id);
-  modal(a.title,`<div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div><span class="pill grey">${esc(a.category||'')}</span> <span class="muted" style="font-size:12px">${esc(a.date||'')}</span><div class="muted" style="font-size:12.5px;margin-top:4px">${esc(a.desc||'')}</div></div>
-    <div class="flex gap"><button class="btn sm sec" onclick="addPhoto('${id}')">⬆ Add photo</button><button class="btn sm sec" onclick="addVideo('${id}')">🎬 Add video link</button><button class="btn sm sec" onclick="editAlbum('${id}')">Edit</button><button class="btn icon" onclick="delAlbum('${id}')">🗑️</button></div></div>
+  modal(a.title,`<div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:8px"><div><span class="pill ${a.showHome?'green':'grey'}" style="font-size:10px">${a.showHome?'🏠 On homepage':'Gallery only'}</span> <span class="muted" style="font-size:12px">${esc(a.date||'')}</span><div class="muted" style="font-size:12.5px;margin-top:4px">${esc(a.desc||'')}</div></div>
+    <div class="flex gap" style="flex-wrap:wrap"><button class="btn sm sec" onclick="addPhoto('${id}')">⬆ Add photo</button><button class="btn sm sec" onclick="addVideo('${id}')">🎬 Add video link</button><button class="btn sm ${a.showHome?'sec':'gold'}" onclick="toggleAlbumHome('${id}')">${a.showHome?'Remove from homepage':'Feature on homepage'}</button><button class="btn sm sec" onclick="editAlbum('${id}')">Edit</button><button class="btn icon" onclick="delAlbum('${id}')">🗑️</button></div></div>
     <div class="cards-row mt" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${(a.media||[]).map((m,i)=>mediaTile(m,id,i,true)).join('')||'<p class="muted">No media yet. Add photos or a video link.</p>'}</div>`,
     `<button class="btn sec" onclick="closeModal()">Close</button>`,true);}
 function addPhoto(id){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;
@@ -2105,6 +2114,7 @@ function renderAuth(){
   if(MODE!=='owner'&&DB&&DB.kind==='family'){renderFamilyAuth();return;}
   if(MODE!=='owner'&&DB&&DB.kind==='posagent'){renderPosAuth();return;}
   if(MODE==='check'){renderChecker();return;}
+  if(MODE==='gallery'){renderPublicGallery();return;}
   if(MODE==='parent'){renderParent();return;}
   if(MODE==='owner'){
     sc.innerHTML=`<div class="auth owner"><div class="acard"><div class="crest p">🛰️</div>
@@ -2128,6 +2138,8 @@ function renderSchoolHome(){
   const logoTop=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover">`:'🎓';
   const ev=upcomingEvents(4);
   const galOn=hasModule('gallery')&&(DB.gallery||[]).length;
+  const homeAlbums=(DB.gallery||[]).filter(a=>a.showHome);
+  const socials=[['facebookUrl','📘','Facebook','#1877f2'],['instagramUrl','📸','Instagram','#e1306c'],['tiktokUrl','🎵','TikTok','#000'],['youtubeUrl','▶️','YouTube','#ff0000'],['twitterUrl','𝕏','X','#111']].filter(x=>(set[x[0]]||'').trim());
   const heroes=set.heroImages||[];
   const heroBg=heroes.length?`<div id="heroSlides" style="position:absolute;inset:0">${heroes.map((u,i)=>`<div class="hero-slide" style="background-image:url('${u}');opacity:${i===0?1:0}"></div>`).join('')}<div style="position:absolute;inset:0;background:linear-gradient(135deg,${t.rg}cc,${t.rgd}cc)"></div></div>`:'';
   const cv=set.coreValues||[];const houses=(hasModule('houses')&&DB.houses)?DB.houses:[];
@@ -2141,7 +2153,7 @@ function renderSchoolHome(){
   const aboutImg=heroes[1]||heroes[0]||((DB.gallery||[]).flatMap(a=>a.media||[]).find(m=>m.type==='image')||{}).url||'';
   sc.innerHTML=`<div class="home" style="--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}">
     <div class="home-top"><div class="b"><div class="lg">${logoTop}</div><span class="nm">${esc(set.shortName||set.schoolName)}</span></div>
-      <div class="nav"><a class="active" onclick="hgo('home')">🏠 Home</a><a onclick="hgo('about')">ℹ️ About</a>${lead.length?`<a onclick="hgo('leadership')">👤 Leadership</a>`:''}${acts.length?`<a onclick="hgo('activities')">🎯 Activities</a>`:''}<a onclick="hgo('admission')">📥 Admission</a><a onclick="hgo('alumni')">🎓 Alumni</a><a onclick="hgo('contact')">📞 Contact</a>${hasModule('parentPortal')?`<a onclick="MODE='parent';renderParent()">👪 Parents</a>`:''}<a class="login" onclick="staffLoginModal()">🔐 Login</a></div></div>
+      <div class="nav"><a class="active" onclick="hgo('home')">🏠 Home</a><a onclick="hgo('about')">ℹ️ About</a>${lead.length?`<a onclick="hgo('leadership')">👤 Leadership</a>`:''}${acts.length?`<a onclick="hgo('activities')">🎯 Activities</a>`:''}<a onclick="hgo('admission')">📥 Admission</a>${(hasModule('gallery')&&(DB.gallery||[]).length)?`<a onclick="MODE='gallery';renderPublicGallery()">🖼️ Gallery</a>`:''}<a onclick="hgo('alumni')">🎓 Alumni</a><a onclick="hgo('contact')">📞 Contact</a>${hasModule('parentPortal')?`<a onclick="MODE='parent';renderParent()">👪 Parents</a>`:''}<a class="login" onclick="staffLoginModal()">🔐 Login</a></div></div>
     <div id="home" class="home-hero" style="position:relative;${heroes.length?'':`background:linear-gradient(135deg,${t.rg},${t.rgd})`}">${heroBg}
       <div style="position:relative">${set.logo?`<div class="hero-crest">${logoTop}</div>`:''}${set.islamic?`<div class="bismillah" style="color:${t.gold};font-size:17px;margin-bottom:8px">${BISMILLAH.a}</div>`:''}
         <h1>${esc(set.schoolName)}</h1><div class="tag">${esc(set.motto||'')}</div>
@@ -2159,17 +2171,16 @@ function renderSchoolHome(){
       <div class="house-car" id="houseCar">${houses.map((h,i)=>`<div class="house-slide${i===0?' on':''}" style="${h.image?`background-image:url('${h.image}')`:`background:linear-gradient(135deg,${esc(h.color||t.rg)},${t.rgd})`}"><div class="cap"><b>${esc(h.name)}</b></div></div>`).join('')}</div></div>`:''}
     ${lead.length?`<div id="leadership" class="home-sec"><div class="sec-h"><h2>Our Leadership</h2><div class="u"></div><p>Guiding our institution</p></div>
       <div class="teachers-grid">${lead.map(l=>`<div class="tcard"${l.ph?' style="opacity:.7"':''}><div class="ph">${l.photo?`<img src="${l.photo}">`:'👤'}</div><b>${esc(l.name)}</b><div class="role">${esc(l.role||'')}</div>${l.bio?`<div class="muted" style="font-size:12px;margin-top:4px">${esc(l.bio)}</div>`:''}</div>`).join('')}</div></div>`:''}
-    ${acts.length?`<div id="activities" class="sec-dark" style="background:${t.rg}"><div class="home-sec"><div class="sec-h"><h2>Our Activities</h2><div class="u"></div><p>Life at ${esc(set.shortName||set.schoolName)}</p></div>
-      <div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${acts.map(a=>`<div class="card" style="overflow:hidden">${a.image?`<div style="height:150px;background:#eef2ef"><img src="${a.image}" style="width:100%;height:100%;object-fit:cover"></div>`:''}<div style="padding:12px"><b>${esc(a.title||'')}</b>${a.desc?`<div class="muted" style="font-size:12.5px;margin-top:3px">${esc(a.desc)}</div>`:''}</div></div>`).join('')}</div></div></div>`:''}
+    ${(hasModule('gallery')&&homeAlbums.length)?`<div id="activities" class="sec-dark" style="background:${t.rg}"><div class="home-sec"><div class="sec-h"><h2>Activities &amp; Highlights</h2><div class="u"></div><p>Life at ${esc(set.shortName||set.schoolName)}</p></div>
+      <div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${homeAlbums.slice().reverse().map(a=>{const cover=(a.media||[]).find(m=>m.type==='image');const vid=(a.media||[]).find(m=>m.type==='video');return `<div class="card" style="overflow:hidden;cursor:pointer" onclick="publicAlbum('${a.id}')">
+        <div style="height:150px;background:#0d1b12;display:flex;align-items:center;justify-content:center;font-size:40px;color:#fff">${cover?`<img src="${cover.url}" style="width:100%;height:100%;object-fit:cover">`:(vid?'🎬':'🖼️')}</div>
+        <div style="padding:12px"><b>${esc(a.title)}</b>${a.desc?`<div class="muted" style="font-size:12.5px;margin-top:3px">${esc(a.desc)}</div>`:''}<div class="muted" style="font-size:11px;margin-top:3px">${(a.media||[]).length} item(s)${a.date?' · '+esc(a.date):''}</div></div></div>`;}).join('')}</div>
+      ${(DB.gallery||[]).length>homeAlbums.length?`<div style="text-align:center;margin-top:14px"><button class="btn gold" onclick="MODE='gallery';renderPublicGallery()">🖼️ View full gallery</button></div>`:''}</div></div>`:''}
     ${teachers.length?`<div class="sec-dark" style="background:#222"><div class="home-sec"><div class="sec-h"><h2>Meet Our Teachers</h2><div class="u"></div><p>Dedicated educators shaping young minds</p></div>
       <div class="teachers-grid">${teachers.map(u=>`<div class="tcard"><div class="ph">${u.photo?`<img src="${u.photo}">`:'👩‍🏫'}</div><b>${esc(u.name)}</b><div class="role">${esc(u.position||'Teacher')}</div></div>`).join('')}</div></div></div>`:''}
     ${support.length?`<div class="home-sec"><div class="sec-h"><h2>Support &amp; Section Staff</h2><div class="u"></div><p>The team that keeps our school running</p></div>
       <div class="teachers-grid">${support.map(u=>`<div class="tcard"><div class="ph">${u.photo?`<img src="${u.photo}">`:'🧑‍💼'}</div><b>${esc(u.name)}</b><div class="role">${esc(u.position||'')}</div>${u.bio?`<div class="muted" style="font-size:12px;margin-top:4px">${esc(u.bio)}</div>`:''}</div>`).join('')}</div></div>`:''}
-    ${galOn?`<div class="home-sec"><div class="sec-h"><h2>Gallery</h2><div class="u"></div><p>Moments from our activities</p></div><div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
-      ${DB.gallery.slice().reverse().map(a=>{const cover=(a.media||[]).find(m=>m.type==='image');return `<div class="card" style="overflow:hidden;cursor:pointer" onclick="publicAlbum('${a.id}')">
-        <div style="height:150px;background:#eef2ef;display:flex;align-items:center;justify-content:center;font-size:40px">${cover?`<img src="${cover.url}" style="width:100%;height:100%;object-fit:cover">`:'🖼️'}</div>
-        <div style="padding:12px"><div class="flex" style="justify-content:space-between"><b>${esc(a.title)}</b><span class="pill grey">${(a.media||[]).length}</span></div><div class="muted" style="font-size:12px">${esc(a.category||'')}${a.date?' · '+esc(a.date):''}</div></div></div>`;}).join('')}
-    </div></div>`:''}
+    ${(galOn&&!homeAlbums.length)?`<div class="home-sec" style="text-align:center"><div class="sec-h"><h2>Our Gallery</h2><div class="u"></div><p>Photos &amp; videos from our activities</p></div><button class="btn gold" onclick="MODE='gallery';renderPublicGallery()">🖼️ Open the gallery</button></div>`:''}
     <div id="alumni" class="home-sec"><div class="sec-h"><h2>Our Alumni</h2><div class="u"></div><p>Proud graduates of ${esc(set.shortName||set.schoolName)}</p></div>
       ${alum.length?alumYears.map(y=>`<div style="margin-bottom:14px"><h4 style="text-align:center;color:${t.rg};margin:0 0 8px">Class of ${esc(y)}</h4>
         <div class="teachers-grid">${alumBy[y].map(a=>`<div class="tcard"><div class="ph">${a.photo?`<img src="${a.photo}">`:'🎓'}</div><b>${esc(a.name)}</b>${a.occupation?`<div class="role">${esc(a.occupation)}</div>`:''}</div>`).join('')}</div></div>`).join(''):`<p class="muted center">Are you a former pupil? Reconnect with us below.</p>`}
@@ -2179,7 +2190,8 @@ function renderSchoolHome(){
     ${hasModule('parentPortal')?`<div class="home-sec" style="text-align:center"><button class="btn gold" onclick="MODE='parent';renderParent()">👪 Parent Portal Login</button></div>`:''}
     <div id="contact" class="sec-dark" style="background:${t.rgd}"><div class="home-sec" style="text-align:center"><div class="sec-h"><h2>Contact Us</h2><div class="u"></div></div>
       <div style="font-size:14px;line-height:1.9">📍 ${esc(set.address||'')}<br>${set.phone?'☎ '+esc(set.phone)+'<br>':''}${set.email?'✉ '+esc(set.email):''}</div>
-      <div class="flex gap" style="justify-content:center;margin-top:16px;flex-wrap:wrap">${set.whatsapp?`<a class="btn" style="background:#25d366" href="${waLink(set.whatsapp)}" target="_blank">💬 WhatsApp</a>`:''}${set.facebookUrl?`<a class="btn" style="background:#1877f2" href="${esc(set.facebookUrl)}" target="_blank">📘 Facebook</a>`:''}<button class="btn gold" onclick="MODE='check';renderChecker()">Check Result</button><button class="btn btn-ghost" onclick="staffLoginModal()">Staff Login</button></div></div></div>
+      ${socials.length?`<div class="flex gap" style="justify-content:center;margin-top:14px;flex-wrap:wrap">${socials.map(sx=>`<a href="${esc(set[sx[0]])}" target="_blank" rel="noopener" title="${sx[2]}" style="width:42px;height:42px;border-radius:50%;background:${sx[3]};color:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;text-decoration:none">${sx[1]}</a>`).join('')}</div>`:''}
+      <div class="flex gap" style="justify-content:center;margin-top:14px;flex-wrap:wrap">${set.whatsapp?`<a class="btn" style="background:#25d366" href="${waLink(set.whatsapp)}" target="_blank">💬 WhatsApp</a>`:''}<button class="btn gold" onclick="MODE='check';renderChecker()">Check Result</button><button class="btn btn-ghost" onclick="staffLoginModal()">Staff Login</button></div></div></div>
     ${set.whatsapp?`<a class="wa-fab" href="${waLink(set.whatsapp)}" target="_blank" title="Chat on WhatsApp">💬</a>`:''}
   </div>`;
   clearInterval(window._heroT);if(heroes.length>1){let hi=0;window._heroT=setInterval(()=>{const sl=document.querySelectorAll('#heroSlides .hero-slide');if(!sl.length){clearInterval(window._heroT);return;}sl[hi].style.opacity=0;hi=(hi+1)%sl.length;sl[hi].style.opacity=1;},4500);}
@@ -2250,9 +2262,21 @@ function staffLoginModal(){const set=DB.settings;
   setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);
 }
 function publicAlbum(id){const a=DB.gallery.find(x=>x.id===id);if(!a)return;
-  modal(a.title,`<div><span class="pill grey">${esc(a.category||'')}</span> <span class="muted" style="font-size:12px">${esc(a.date||'')}</span>${a.desc?`<div class="muted" style="font-size:12.5px;margin-top:4px">${esc(a.desc)}</div>`:''}</div>
+  modal(a.title,`<div><span class="muted" style="font-size:12px">${esc(a.date||'')}</span>${a.desc?`<div class="muted" style="font-size:12.5px;margin-top:4px">${esc(a.desc)}</div>`:''}</div>
     <div class="cards-row mt" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${(a.media||[]).map((m,i)=>mediaTile(m,id,i,false)).join('')||'<p class="muted">No media.</p>'}</div>`,
     `<button class="btn sec" onclick="closeModal()">Close</button>`,true);}
+function renderPublicGallery(){const t=theme();const set=DB.settings;const albums=(DB.gallery||[]).slice().reverse();
+  $('#app').style.display='none';$('#screen').style.display='';
+  $('#screen').innerHTML=`<div style="min-height:100vh;background:#eef3f8">
+    <div style="background:linear-gradient(135deg,${t.rg},${t.rgd});color:#fff;padding:20px 16px;text-align:center">
+      <div style="font-size:20px;font-weight:800">${esc(set.schoolName)}</div><div style="color:#e9dfc7;font-size:13px">Our Gallery — activities, events &amp; moments</div></div>
+    <div style="max-width:1000px;margin:0 auto;padding:16px 14px">
+      <div class="flex no-print" style="justify-content:flex-end;margin-bottom:10px"><button class="btn sec sm" onclick="MODE='school';renderAuth()">← Back to homepage</button></div>
+      ${albums.length?`<div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(240px,1fr))">${albums.map(a=>{const cover=(a.media||[]).find(m=>m.type==='image');const vid=(a.media||[]).find(m=>m.type==='video');return `<div class="card" style="overflow:hidden;cursor:pointer" onclick="publicAlbum('${a.id}')">
+        <div style="height:160px;background:#0d1b12;display:flex;align-items:center;justify-content:center;font-size:42px;color:#fff">${cover?`<img src="${cover.url}" style="width:100%;height:100%;object-fit:cover">`:(vid?'🎬':'🖼️')}</div>
+        <div style="padding:12px"><b>${esc(a.title)}</b>${a.desc?`<div class="muted" style="font-size:12.5px;margin-top:3px">${esc(a.desc)}</div>`:''}<div class="muted" style="font-size:11px;margin-top:3px">${(a.media||[]).length} item(s)${a.date?' · '+esc(a.date):''}</div></div></div>`;}).join('')}</div>`
+        :`<div class="card"><div class="empty"><div class="big">🖼️</div>No gallery items yet.</div></div>`}
+    </div></div>`;window.scrollTo(0,0);}
 function ownerLogin(){const u=$('#ou').value.trim().toLowerCase(),p=$('#op').value;const o=MASTER.platform.owner;
   if(u===o.username.toLowerCase()&&p===o.password){USER={name:o.name,role:'owner'};enterApp();}else{$('#aerr').style.display='block';$('#aerr').textContent='Invalid owner credentials.';}}
 function schoolLogin(){const u=$('#su').value.trim().toLowerCase(),p=$('#sp').value;
