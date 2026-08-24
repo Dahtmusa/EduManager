@@ -28,7 +28,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // App version — bump this on EVERY deploy. The cloud remembers the highest version any
 // device has loaded; a device on a lower version is locked out until it updates. This
 // stops out-of-date devices from silently overwriting everyone's data.
-const APP_VERSION = 20260815;
+const APP_VERSION = 20260824;
 // Compact overrides used ONLY inside the print iframe so a report card fills the A4 width
 // (tighter vertical spacing = shorter card = little/no shrink needed).
 const RC_COMPACT='.rc{border-radius:0!important;font-size:12px!important;color:#1c2a24!important}'
@@ -714,10 +714,19 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(!d.tahfiz||typeof d.tahfiz!=='object')d.tahfiz={};
   if(!Array.isArray(d.settings.feeItems))d.settings.feeItems=[];
   if(d.settings.nextTermFeesNote==null)d.settings.nextTermFeesNote='';
+  if(d.settings.tahfizTarget==null)d.settings.tahfizTarget=20;
+  if(!d.settings.tahfizWeights)d.settings.tahfizWeights={prog:40,acc:25,rev:25,cons:10};
   if(!Array.isArray(d.announcements))d.announcements=[];
   if(!Array.isArray(d.settings.heroImages))d.settings.heroImages=[];
   if(d.settings.about==null)d.settings.about='';
   if(d.settings.onlineAdmission==null)d.settings.onlineAdmission=false;
+  if(d.settings.admissionsOpen==null)d.settings.admissionsOpen=true;
+  if(d.settings.admissionFee==null)d.settings.admissionFee=5000;
+  if(d.settings.admissionSession==null)d.settings.admissionSession=d.settings.session||'';
+  if(d.settings.admissionScreening==null)d.settings.admissionScreening='';
+  if(d.settings.admissionCloseDate==null)d.settings.admissionCloseDate='';
+  if(d.settings.admissionPayUrl==null)d.settings.admissionPayUrl='';
+  if(d.settings.appSeq==null)d.settings.appSeq=0;
   if(d.settings.facebookUrl==null)d.settings.facebookUrl='';
   if(d.settings.whatsapp==null)d.settings.whatsapp='';
   if(d.settings.heroDesc==null)d.settings.heroDesc='A centre of excellence, nurturing disciplined and well-rounded leaders.';
@@ -783,7 +792,25 @@ function G(){return DB.settings.grade||{ca1:20,ca2:20,exam:60};}
 function gradeOf(t){if(t>=75)return{g:'A',r:'Distinction'};if(t>=65)return{g:'B',r:'Very Good'};if(t>=55)return{g:'C',r:'Credit'};if(t>=45)return{g:'D',r:'Pass'};if(t>=40)return{g:'E',r:'Fair'};return{g:'F',r:'Fail'};}
 /* Tahfiz (Qur'an memorization) grade bands, per Aliyu & Maimuna Centre */
 function tahfizGrade(t){t=+t||0;if(t>=80)return{g:'A',r:'Excellent'};if(t>=70)return{g:'B',r:'Very Good'};if(t>=60)return{g:'C',r:'Good'};if(t>=50)return{g:'D',r:'Pass'};return{g:'E',r:'Weak'};}
-function tGet(sid,sess,term){return (DB.tahfiz&&DB.tahfiz[rkey(sid,sess,term)])||{};}
+function tahfizTarget(){return Number(DB.settings.tahfizTarget)||20;}
+function tahfizWeights(){const w=DB.settings.tahfizWeights||{};return {prog:+w.prog||0,acc:+w.acc||0,rev:+w.rev||0,cons:+w.cons||0};}
+function tKey(sid){return DB.settings.session+'|'+DB.settings.term+'|'+tahMonth+'|'+sid;}
+function tGetM(sid){return (DB.tahfiz&&DB.tahfiz[tKey(sid)])||{};}
+function monthLabel(m){if(!m||!/^\d{4}-\d{2}$/.test(m))return m||'';const d=new Date(m+'-01');return d.toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
+function tahPrevPg(sid,curMonth){let best='',pg=0;const suf='|'+sid;Object.keys(DB.tahfiz||{}).forEach(k=>{if(!k.endsWith(suf))return;const p=k.split('|');if(p.length!==4||p[3]!==sid)return;if(p[2]<curMonth&&p[2]>best){best=p[2];pg=Number(DB.tahfiz[k].pg)||0;}});return pg;}
+function tahEntryScore(e,prevPg){const target=tahfizTarget();const newP=Math.max(0,(Number(e.pg)||0)-(Number(prevPg)||0));
+  const prog=target?Math.min(100,newP/target*100):0;
+  const acc=(e.acc!=null&&e.acc!=='')?Number(e.acc):0,rev=(e.rev!=null&&e.rev!=='')?Number(e.rev):0,cons=(e.cons!=null&&e.cons!=='')?Number(e.cons):100;
+  const w=tahfizWeights();const sum=(w.prog+w.acc+w.rev+w.cons)||1;
+  const score=Math.round((prog*w.prog+acc*w.acc+rev*w.rev+cons*w.cons)/sum);
+  return {newP,prog:Math.round(prog),acc,rev,cons,score,grade:tahfizGrade(score)};}
+function tahTermEntries(sid,sess,term,anyStatus){sess=sess||DB.settings.session;term=term||DB.settings.term;const out=[];
+  Object.keys(DB.tahfiz||{}).forEach(k=>{const p=k.split('|');if(p.length!==4||p[0]!==sess||p[1]!==term||p[3]!==sid)return;const e=DB.tahfiz[k];if(!anyStatus&&e.status!=='approved')return;out.push(Object.assign({month:p[2]},e));});
+  out.sort((a,b)=>a.month<b.month?-1:1);return out;}
+function tahTermSummary(sid,sess,term){const es=tahTermEntries(sid,sess,term);if(!es.length)return null;
+  let total=0;const rows=es.map(e=>{const sc=tahEntryScore(e,tahPrevPg(sid,e.month));total+=sc.score;return {month:e.month,e,sc};});
+  const first=es[0],last=es[es.length-1];const score=Math.round(total/es.length);
+  return {score,grade:tahfizGrade(score),ss:first.ss,as:first.as,sc:last.sc,ac:last.ac,pg:last.pg,hz:last.hz,rows,months:es.length};}
 const THEMES={green:{n:'Green & Gold',rg:'#0b5e3a',rgd:'#08482c',gold:'#caa64e'},blue:{n:'Royal Blue & Gold',rg:'#15366e',rgd:'#0f2750',gold:'#d4af37'},maroon:{n:'Maroon & Gold',rg:'#6e1f2a',rgd:'#54141d',gold:'#d4af37'},teal:{n:'Teal & Gold',rg:'#0c5b56',rgd:'#084540',gold:'#c9a24b'},purple:{n:'Purple & Gold',rg:'#4a2a6e',rgd:'#371f52',gold:'#d4af37'}};
 function theme(){return THEMES[(DB&&DB.settings&&DB.settings.theme)||'green']||THEMES.green;}
 function themeVars(){const t=theme();return `--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}`;}
@@ -2057,7 +2084,8 @@ function renderSchoolHome(){
       <div class="cv-grid">${cv.map(v=>`<div class="cv"><div class="i">${esc(v.i||'⭐')}</div><h4>${esc(v.t)}</h4><p>${esc(v.d)}</p></div>`).join('')}</div></div></div>`:''}
     <div id="admission" class="home-sec"><div class="sec-h"><h2>Admissions</h2><div class="u"></div><p>Join our school community</p></div>
       <div class="card pad" style="max-width:720px;margin:0 auto;text-align:center;font-size:14px;line-height:1.8;white-space:pre-line">${esc(set.admissionInfo||'')}
-        <div class="mt">${set.onlineAdmission?`<button class="btn gold" onclick="applyOnline()">📝 Apply for Admission Online</button>`:`<div class="muted" style="font-size:13px">To apply, please contact the school${set.phone?' on <b>'+esc(set.phone)+'</b>':''}.</div>`}</div></div></div>
+        ${set.onlineAdmission&&(Number(set.admissionFee)||set.admissionScreening)?`<div class="muted" style="font-size:12.5px;white-space:normal;margin-top:6px">${Number(set.admissionFee)?`Application fee: <b>${naira(Number(set.admissionFee))}</b> (non-refundable). `:''}${set.admissionScreening?`Screening: <b>${esc(set.admissionScreening)}</b>.`:''}</div>`:''}
+        <div class="mt flex gap" style="justify-content:center;flex-wrap:wrap">${set.onlineAdmission?(set.admissionsOpen===false?`<span class="pill red">Applications closed</span><button class="btn sec" onclick="checkAppStatus()">Check application status</button>`:`<button class="btn gold" onclick="applyOnline()">📝 Apply for Admission Online</button><button class="btn sec" onclick="checkAppStatus()">Check application status</button>`):`<div class="muted" style="font-size:13px">To apply, please contact the school${set.phone?' on <b>'+esc(set.phone)+'</b>':''}.</div>`}</div></div></div>
     ${houses.length?`<div class="home-sec"><div class="sec-h"><h2>Our School Houses</h2><div class="u"></div><p>Unity, discipline and healthy competition</p></div>
       <div class="house-car" id="houseCar">${houses.map((h,i)=>`<div class="house-slide${i===0?' on':''}" style="${h.image?`background-image:url('${h.image}')`:`background:linear-gradient(135deg,${esc(h.color||t.rg)},${t.rgd})`}"><div class="cap"><b>${esc(h.name)}</b></div></div>`).join('')}</div></div>`:''}
     ${teachers.length?`<div class="sec-dark" style="background:#222"><div class="home-sec"><div class="sec-h"><h2>Meet Our Teachers</h2><div class="u"></div><p>Dedicated educators shaping young minds</p></div>
@@ -2079,21 +2107,60 @@ function renderSchoolHome(){
   clearInterval(window._houseT);if(houses.length>1){let ci=0;window._houseT=setInterval(()=>{const sl=document.querySelectorAll('#houseCar .house-slide');if(!sl.length){clearInterval(window._houseT);return;}sl[ci].classList.remove('on');ci=(ci+1)%sl.length;sl[ci].classList.add('on');},4000);}
 }
 function hgo(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth'});}
-function applyOnline(){
-  modal('Apply for Admission — '+DB.settings.schoolName,`<p class="muted mb">Complete the form and the school will review your application and contact you.</p>
+function applyOnline(){const set=DB.settings;
+  if(set.admissionsOpen===false){modal('Admissions closed',`<div class="center" style="padding:14px"><div style="font-size:46px">🔒</div><h3 style="margin:6px 0">Applications are currently closed</h3>
+    <p class="muted">${esc(set.schoolName)} is not accepting online applications at the moment.${set.admissionScreening?' Next intake: <b>'+esc(set.admissionScreening)+'</b>.':''}${set.phone?' For enquiries call <b>'+esc(set.phone)+'</b>.':''}</p></div>`,
+    `<button class="btn sec" onclick="checkAppStatus()">Check an existing application</button><button class="btn" onclick="closeModal()">Close</button>`);return;}
+  const fee=Number(set.admissionFee)||0;const sess=set.admissionSession||set.session||'';
+  modal('Apply for Admission — '+set.schoolName,`<p class="muted mb">Complete the form to apply for the <b>${esc(sess)}</b> session.${fee?` A non-refundable application fee of <b>${naira(fee)}</b> applies.`:''} You will receive an <b>Application Number</b> to track your status.</p>
     <div class="grid2"><div class="fld full"><label>Pupil full name *</label><input id="oa_name"></div>
       <div class="fld"><label>Class applying for *</label><select id="oa_class">${DB.classes.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
+      <div class="fld"><label>Section</label><select id="oa_section"><option>Day</option><option>Boarding</option></select></div>
       <div class="fld"><label>Gender</label><select id="oa_gender"><option>Male</option><option>Female</option></select></div>
       <div class="fld"><label>Date of birth</label><input id="oa_dob" type="date"></div>
       <div class="fld"><label>Parent/Guardian name *</label><input id="oa_gname"></div>
       <div class="fld"><label>Phone *</label><input id="oa_gphone" placeholder="080…"></div>
+      <div class="fld full"><label>Previous school (if any)</label><input id="oa_prev"></div>
       <div class="fld full"><label>Home address</label><input id="oa_addr"></div></div>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="submitOnline()">Submit application</button>`,true);}
-function submitOnline(){const name=$('#oa_name').value.trim(),gname=$('#oa_gname').value.trim(),gphone=$('#oa_gphone').value.trim();
+function submitOnline(){const set=DB.settings;const name=$('#oa_name').value.trim(),gname=$('#oa_gname').value.trim(),gphone=$('#oa_gphone').value.trim();
   if(!name||!gname||!gphone){toast('Pupil name, guardian name and phone are required',true);return;}
-  DB.applicants.push({id:uid('a'),name,classId:$('#oa_class').value,gender:$('#oa_gender').value,dob:$('#oa_dob').value,guardianName:gname,guardianPhone:gphone,address:$('#oa_addr').value.trim(),dateApplied:today(),status:'applied',online:true});
+  const seq=(Number(set.appSeq)||0)+1;set.appSeq=seq;const yr=(set.admissionSession||set.session||(today().slice(0,4))).slice(0,4);
+  const appNo='APP/'+yr+'/'+String(seq).padStart(3,'0');const fee=Number(set.admissionFee)||0;
+  DB.applicants.push({id:uid('a'),appNo,session:set.admissionSession||set.session||'',name,classId:$('#oa_class').value,section:($('#oa_section')&&$('#oa_section').value)||'Day',
+    gender:$('#oa_gender').value,dob:$('#oa_dob').value,guardianName:gname,guardianPhone:gphone,prevSchool:($('#oa_prev')&&$('#oa_prev').value.trim())||'',address:$('#oa_addr').value.trim(),
+    dateApplied:today(),status:'applied',online:true,feeAmount:fee,feePaid:false});
   save();closeModal();
-  modal('Application received ✓',`<div class="center" style="padding:14px"><div style="font-size:46px">✅</div><h3 style="margin:6px 0">Thank you!</h3><p class="muted">Your application for <b>${esc(name)}</b> has been received. <b>${esc(DB.settings.schoolName)}</b> will reach you on the phone number provided.</p></div>`,`<button class="btn" onclick="closeModal()">Done</button>`);}
+  const bk=set.bank||{};const payBtn=set.admissionPayUrl?`<a class="btn gold" href="${esc(set.admissionPayUrl)}" target="_blank">💳 Pay ${fee?naira(fee):''} online</a>`:'';
+  modal('Application received ✓',`<div class="center" style="padding:8px 4px"><div style="font-size:42px">✅</div><h3 style="margin:6px 0">Thank you!</h3>
+      <p class="muted" style="margin:0 0 8px">Your application for <b>${esc(name)}</b> has been received.</p>
+      <div style="background:#e9f7ee;border:1px solid #b6e3c7;border-radius:10px;padding:12px;margin:8px 0"><div class="muted" style="font-size:12px">YOUR APPLICATION NUMBER</div><div style="font-size:22px;font-weight:800;font-family:monospace;letter-spacing:.05em">${esc(appNo)}</div><div class="muted" style="font-size:11.5px;margin-top:3px">Please save this. You will need it to check your status.</div></div></div>
+    ${fee?`<div style="background:#fbf6e7;border:1px dashed #caa64e;border-radius:10px;padding:12px 14px;font-size:13px;margin-top:6px">
+      <b>Pay the application fee: ${naira(fee)}</b> (non-refundable).<br>
+      ${bk.number?`Account Name: <b>${esc(bk.name||'—')}</b><br>Bank: <b>${esc(bk.bank||'—')}</b><br>Account No: <b style="font-family:monospace;font-size:15px">${esc(bk.number)}</b><br>`:'Please contact the school for payment account details.<br>'}
+      <div style="margin-top:6px;padding:6px 9px;background:#fff6d9;border:1px solid #e8cf83;border-radius:6px;font-size:11.5px;color:#5a4600">⚠ Use your Application Number <b>${esc(appNo)}</b> as the transfer reference / narration so your payment is matched.</div>
+      ${payBtn?`<div style="margin-top:8px">${payBtn}</div>`:''}</div>`:''}
+    ${set.admissionScreening?`<p class="muted" style="font-size:12.5px;margin-top:8px">📅 Screening: <b>${esc(set.admissionScreening)}</b></p>`:''}`,
+    `<button class="btn sec" onclick="checkAppStatus('${jq(appNo)}')">Check status</button><button class="btn" onclick="closeModal()">Done</button>`);}
+function checkAppStatus(pref){const set=DB.settings;
+  modal('Check application status — '+set.schoolName,`<p class="muted mb">Enter your Application Number and the phone number you applied with.</p>
+    <div class="fld"><label>Application Number *</label><input id="cs_no" value="${pref?esc(pref):''}" placeholder="APP/2026/001"></div>
+    <div class="fld"><label>Guardian phone *</label><input id="cs_ph" placeholder="080…"></div>
+    <div id="cs_out"></div>`,`<button class="btn sec" onclick="closeModal()">Close</button><button class="btn" onclick="doCheckAppStatus()">Check</button>`);}
+function doCheckAppStatus(){const no=($('#cs_no').value||'').trim().toUpperCase(),ph=($('#cs_ph').value||'').replace(/[^0-9]/g,'');
+  if(!no||!ph){toast('Enter your App No and phone',true);return;}
+  const a=DB.applicants.find(x=>(x.appNo||'').toUpperCase()===no&&(x.guardianPhone||'').replace(/[^0-9]/g,'').slice(-10)===ph.slice(-10));
+  const out=$('#cs_out');if(!a){out.innerHTML=`<div class="viewonly" style="margin-top:10px">No application matches that number and phone. Check the details and try again.</div>`;return;}
+  const map={applied:['blue','Received — under initial review'],reviewing:['amber','Invited to screening'],approved:['green','Admitted 🎉'],enrolled:['green','Enrolled — welcome!'],rejected:['red','Not successful this time']};
+  const st=map[a.status]||['grey',a.status];const set=DB.settings;const fee=Number(a.feeAmount)||0;
+  out.innerHTML=`<div class="card pad" style="margin-top:10px;text-align:left">
+    <div class="flex" style="justify-content:space-between;flex-wrap:wrap;gap:6px"><b>${esc(a.name)}</b><span class="pill ${st[0]}">${st[1]}</span></div>
+    <div class="muted" style="font-size:12.5px;margin-top:4px">${esc(className(a.classId))}${a.section?' · '+esc(a.section):''} · Applied ${esc(a.dateApplied||'')}</div>
+    ${fee?`<div style="margin-top:8px;font-size:13px">Application fee: <b>${a.feePaid?'<span class="pill green" style="font-size:10px">Paid ✓</span>':'<span class="pill amber" style="font-size:10px">Not yet confirmed</span>'}</b>${!a.feePaid&&set.bank&&set.bank.number?`<div class="muted" style="font-size:11.5px;margin-top:4px">Pay ${naira(fee)} to <b>${esc(set.bank.number)}</b> (${esc(set.bank.bank||'')}, ${esc(set.bank.name||'')}) using <b>${esc(a.appNo)}</b> as reference.</div>`:''}</div>`:''}
+    ${a.status==='reviewing'&&(a.screeningDate||set.admissionScreening)?`<div style="margin-top:8px;padding:8px 10px;background:#fff6d9;border:1px solid #e8cf83;border-radius:8px;font-size:12.5px">📅 <b>Screening:</b> ${esc(a.screeningDate||set.admissionScreening)}</div>`:''}
+    ${a.status==='approved'?`<div style="margin-top:8px;font-size:12.5px">Congratulations! Please visit the school to complete enrolment${set.phone?' or call <b>'+esc(set.phone)+'</b>':''}.</div>`:''}
+    ${a.status==='rejected'?`<div class="muted" style="margin-top:8px;font-size:12.5px">Thank you for applying. Please contact the school for further guidance.</div>`:''}
+  </div>`;}
 function staffLoginModal(){const set=DB.settings;
   modal('Staff Login — '+set.schoolName,`${set.islamic?`<div class="bismillah" style="font-size:15px;margin-bottom:8px">${BISMILLAH.a}</div>`:''}
     <div class="auth-err" id="aerr"></div>
@@ -2678,18 +2745,40 @@ function confirmDelStudent(id){DB.students=DB.students.filter(x=>x.id!==id);
 
 /* ===================== SCHOOL: ADMISSIONS ===================== */
 let admFilter='all';
-function vAdmissions(){
-  $('#view').innerHTML=`<div class="page-head"><div><h2>Admissions</h2><p>Process new pupil applications</p></div><button class="btn" onclick="editApplicant()">＋ New Application</button></div>
-  <div class="subtabs">${[['all','All'],['applied','New'],['reviewing','Reviewing'],['approved','Approved'],['enrolled','Enrolled'],['rejected','Rejected']]
+function vAdmissions(){const set=DB.settings,admin=USER.role==='admin';const open=set.admissionsOpen!==false;
+  const link=(set.domain?set.domain.replace(/\/+$/,''):location.origin+location.pathname)+(set.domain?'':'?s='+SCHOOL_CODE);
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Admissions</h2><p>Online applications, screening and enrolment</p></div><button class="btn" onclick="editApplicant()">＋ New Application</button></div>
+  ${admin?`<div class="card pad mb" style="border-left:4px solid ${open?'#0b8a45':'#c0392b'}">
+    <div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px">
+      <div><b>Online admission portal</b> <span class="pill ${set.onlineAdmission?(open?'green':'red'):'grey'}">${!set.onlineAdmission?'Feature off':(open?'OPEN — accepting applications':'CLOSED')}</span>
+        <div class="muted" style="font-size:12px;margin-top:3px">${set.onlineAdmission?`Parents apply at <b>${esc(link)}</b> → Admission.`:'Turn the feature on under Website → Homepage to publish the form.'}</div></div>
+      <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:600;font-size:13.5px;cursor:pointer"><input type="checkbox" style="width:auto" ${open?'checked':''} onchange="DB.settings.admissionsOpen=this.checked;save();vAdmissions();toast(this.checked?'Portal opened':'Portal closed')"> Portal open</label>
+    </div>
+    <div class="grid2 mt" style="gap:10px">
+      <div class="fld"><label>Application fee (₦)</label><input id="ad_fee" type="number" value="${esc(set.admissionFee??5000)}"></div>
+      <div class="fld"><label>Admission session</label><input id="ad_sess" value="${esc(set.admissionSession||set.session||'')}" placeholder="2026/2027"></div>
+      <div class="fld"><label>Screening date &amp; venue (shown to applicants)</label><input id="ad_scr" value="${esc(set.admissionScreening||'')}" placeholder="e.g. Sat 12 Sep 2026, 9am at the school hall"></div>
+      <div class="fld"><label>Applications close on (optional)</label><input id="ad_close" type="date" value="${esc(set.admissionCloseDate||'')}"></div>
+      <div class="fld full"><label>Online payment link (optional — Paystack/Flutterwave)</label><input id="ad_payurl" value="${esc(set.admissionPayUrl||'')}" placeholder="https://paystack.com/pay/..."></div>
+    </div>
+    <div class="flex gap"><button class="btn" onclick="saveAdmissionPortal()">Save portal settings</button>
+      <button class="btn sec" onclick="copyText('${jq(link)}')">🔗 Copy apply link</button></div>
+    <p class="muted" style="font-size:12px;margin:8px 0 0">Applicants pay the fee to your school account (set on the Fee setup / Calendar page) using their <b>Application Number</b> as the reference. You confirm each payment below. The fee is non-refundable.</p>
+  </div>`:''}
+  <div class="subtabs">${[['all','All'],['applied','New'],['reviewing','Screening'],['approved','Admitted'],['enrolled','Enrolled'],['rejected','Not admitted']]
     .map(([k,l])=>`<button class="subtab${admFilter===k?' active':''}" onclick="admFilter='${k}';vAdmissions()">${l} (${k==='all'?DB.applicants.length:DB.applicants.filter(a=>a.status===k).length})</button>`).join('')}</div>
   <div id="admTable"></div>`;renderAdm();}
+function saveAdmissionPortal(){const s=DB.settings;s.admissionFee=Number($('#ad_fee').value)||0;s.admissionSession=$('#ad_sess').value.trim();
+  s.admissionScreening=$('#ad_scr').value.trim();s.admissionCloseDate=$('#ad_close').value;s.admissionPayUrl=$('#ad_payurl').value.trim();
+  save();vAdmissions();toast('Portal settings saved');}
 function renderAdm(){let list=DB.applicants.slice().reverse();if(admFilter!=='all')list=list.filter(a=>a.status===admFilter);const el=$('#admTable');
   if(!list.length){el.innerHTML=`<div class="card"><div class="empty"><div class="big">📥</div>No applications here.<br><button class="btn sm mt" onclick="editApplicant()">Add an application</button></div></div>`;return;}
-  const stp={applied:['blue','New'],reviewing:['amber','Reviewing'],approved:['green','Approved'],enrolled:['green','Enrolled'],rejected:['red','Rejected']};
-  el.innerHTML=`<div class="t-wrap"><table><thead><tr><th></th><th>Applicant</th><th>Class</th><th>Guardian</th><th>Applied</th><th>Status</th><th></th></tr></thead><tbody>
+  const stp={applied:['blue','New'],reviewing:['amber','Screening'],approved:['green','Admitted'],enrolled:['green','Enrolled'],rejected:['red','Not admitted']};
+  el.innerHTML=`<div class="t-wrap"><table><thead><tr><th></th><th>Applicant</th><th>App&nbsp;No</th><th>Class / Section</th><th>Guardian</th><th>Fee</th><th>Status</th><th></th></tr></thead><tbody>
   ${list.map(a=>{const st=stp[a.status]||['grey',a.status];return `<tr><td>${avatar(a.photo,'🧒')}</td><td><b>${esc(a.name)}</b>${a.online?' <span class="pill blue" style="font-size:9px">🌐 online</span>':''}<br><span class="muted" style="font-size:11.5px">${esc(a.gender||'')}${a.dob?' · '+esc(a.dob):''}</span></td>
-    <td>${esc(className(a.classId))}</td><td>${esc(a.guardianName||'—')}<br><span class="muted" style="font-size:11.5px">${esc(a.guardianPhone||'')}</span></td>
-    <td class="muted">${esc(a.dateApplied||'')}</td><td><span class="pill ${st[0]}">${st[1]}</span></td>
+    <td><span class="muted" style="font-size:11.5px;font-family:monospace">${esc(a.appNo||'—')}</span></td>
+    <td>${esc(className(a.classId))}${a.section==='Boarding'?' <span class="pill amber" style="font-size:9px">Boarding</span>':''}</td><td>${esc(a.guardianName||'—')}<br><span class="muted" style="font-size:11.5px">${esc(a.guardianPhone||'')}</span></td>
+    <td>${a.feePaid?'<span class="pill green" style="font-size:10px">Paid</span>':(a.feeAmount?'<span class="pill amber" style="font-size:10px">Pending</span>':'<span class="muted">—</span>')}</td><td><span class="pill ${st[0]}">${st[1]}</span></td>
     <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="reviewApplicant('${a.id}')">Process</button><button class="btn icon" onclick="editApplicant('${a.id}')">✏️</button></td></tr>`;}).join('')}
   </tbody></table></div>`;}
 function editApplicant(id){const a=id?DB.applicants.find(x=>x.id===id):{};
@@ -2710,16 +2799,21 @@ function saveApplicant(id){const name=$('#a_name').value.trim();if(!name){toast(
     guardianName:$('#a_gname').value.trim(),guardianPhone:$('#a_gphone').value.trim(),address:$('#a_addr').value.trim(),notes:$('#a_notes').value.trim()};
   if(id)Object.assign(DB.applicants.find(x=>x.id===id),obj);else{obj.id=uid('a');obj.status='applied';DB.applicants.push(obj);}
   save();closeModal();vAdmissions();toast('Application saved');}
-function reviewApplicant(id){const a=DB.applicants.find(x=>x.id===id);
-  modal('Process Application — '+a.name,`<div class="flex gap mb">${avatar(a.photo,'🧒')}<div><b>${esc(a.name)}</b><br><span class="muted">${esc(className(a.classId))} · ${esc(a.gender||'')}</span></div></div>
+function reviewApplicant(id){const a=DB.applicants.find(x=>x.id===id);const fee=Number(a.feeAmount)||0;
+  modal('Process Application — '+a.name,`<div class="flex gap mb">${avatar(a.photo,'🧒')}<div><b>${esc(a.name)}</b>${a.appNo?` <span class="pill grey" style="font-size:10px;font-family:monospace">${esc(a.appNo)}</span>`:''}<br><span class="muted">${esc(className(a.classId))}${a.section?' · '+esc(a.section):''} · ${esc(a.gender||'')}</span></div></div>
     <div class="t-wrap mb"><table><tr><th>Guardian</th><td>${esc(a.guardianName||'—')} (${esc(a.guardianPhone||'—')})</td></tr>
-    <tr><th>Address</th><td>${esc(a.address||'—')}</td></tr><tr><th>DOB</th><td>${esc(a.dob||'—')}</td></tr>
-    <tr><th>Applied</th><td>${esc(a.dateApplied||'—')}</td></tr><tr><th>Notes</th><td>${esc(a.notes||'—')}</td></tr><tr><th>Status</th><td><b>${esc(a.status)}</b></td></tr></table></div>
+    <tr><th>Address</th><td>${esc(a.address||'—')}</td></tr><tr><th>DOB</th><td>${esc(a.dob||'—')}</td></tr>${a.prevSchool?`<tr><th>Previous school</th><td>${esc(a.prevSchool)}</td></tr>`:''}
+    <tr><th>Applied</th><td>${esc(a.dateApplied||'—')}${a.session?' · '+esc(a.session):''}</td></tr><tr><th>Notes</th><td>${esc(a.notes||'—')}</td></tr><tr><th>Status</th><td><b>${esc(a.status)}</b></td></tr></table></div>
+    ${fee?`<div class="flex" style="justify-content:space-between;align-items:center;gap:8px;background:#fbf6e7;border:1px dashed #caa64e;border-radius:8px;padding:9px 12px;margin-bottom:10px">
+      <span style="font-size:13px">Application fee ${naira(fee)} — ${a.feePaid?'<b style="color:#0b8a45">Paid ✓</b>':'<b style="color:#b26a00">not confirmed</b>'}</span>
+      <button class="btn sm ${a.feePaid?'sec':'gold'}" onclick="toggleFeePaid('${id}')">${a.feePaid?'Mark unpaid':'Confirm payment'}</button></div>`:''}
+    ${a.status!=='enrolled'?`<div class="fld"><label>Screening date &amp; venue for this applicant (optional — overrides the general one)</label><input id="rv_scr" value="${esc(a.screeningDate||'')}" placeholder="${esc(DB.settings.admissionScreening||'e.g. Sat 12 Sep, 9am')}"></div>`:''}
     ${a.status==='enrolled'?'<p class="pill green">Already enrolled as a pupil.</p>':''}`,
-    a.status==='enrolled'?`<button class="btn sec" onclick="closeModal()">Close</button>`:`<button class="btn sec" onclick="setAppStatus('${id}','reviewing')">Reviewing</button>
-      <button class="btn danger" onclick="setAppStatus('${id}','rejected')">Reject</button><button class="btn gold" onclick="setAppStatus('${id}','approved')">Approve</button>
-      <button class="btn" onclick="enrollApplicant('${id}')">✓ Approve & Enroll</button>`);}
-function setAppStatus(id,st){DB.applicants.find(x=>x.id===id).status=st;save();closeModal();vAdmissions();toast('Marked '+st);}
+    a.status==='enrolled'?`<button class="btn sec" onclick="closeModal()">Close</button>`:`<button class="btn sec" onclick="setAppStatus('${id}','reviewing')">Invite to screening</button>
+      <button class="btn danger" onclick="setAppStatus('${id}','rejected')">Not admit</button><button class="btn gold" onclick="setAppStatus('${id}','approved')">Admit</button>
+      <button class="btn" onclick="enrollApplicant('${id}')">✓ Admit & Enroll</button>`);}
+function toggleFeePaid(id){const a=DB.applicants.find(x=>x.id===id);a.feePaid=!a.feePaid;if(a.feePaid)a.feePaidOn=today();save();closeModal();vAdmissions();toast(a.feePaid?'Payment confirmed':'Marked unpaid');}
+function setAppStatus(id,st){const a=DB.applicants.find(x=>x.id===id);a.status=st;const scr=$('#rv_scr');if(scr)a.screeningDate=scr.value.trim();save();closeModal();vAdmissions();toast('Marked '+st);}
 function enrollApplicant(id){const a=DB.applicants.find(x=>x.id===id);const adm='ADM/'+DB.settings.session.slice(0,4)+'/'+String(DB.students.length+1).padStart(3,'0');
   const stu={id:uid('s'),name:a.name,photo:a.photo||'',admissionNo:adm,classId:a.classId,section:a.section||'Day',gender:a.gender,dob:a.dob,guardianName:a.guardianName,guardianPhone:a.guardianPhone,address:a.address};
   DB.students.push(stu);a.status='enrolled';a.studentId=stu.id;save();closeModal();vAdmissions();toast('Enrolled — '+adm);}
@@ -2889,12 +2983,12 @@ function renderRepList(){const list=studentsIn(repClass);
 function tahfizReportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid);if(!s)return '';
   sess=sess||DB.settings.session;term=term||DB.settings.term;
   const {rows}=computeClassResults(s.classId,sess,term);const row=rows.find(r=>r.s.id===sid)||{marks:[],count:0,total:0,avg:0,pos:null};
-  const g=G();const subsList=DB.subjects[s.classId]||[];const rem=DB.remarks[rkey(sid,sess,term)]||{};const t=tGet(sid,sess,term);
+  const g=G();const subsList=DB.subjects[s.classId]||[];const rem=DB.remarks[rkey(sid,sess,term)]||{};const sum=tahTermSummary(sid,sess,term)||{};
   const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'📖';
   let daysOpen=0;Object.keys(DB.attendance).forEach(k=>{const p=k.split('|');if(p[1]===s.classId){const rec=DB.attendance[k];if(rec&&Object.keys(rec).length)daysOpen++;}});
   const classList=studentsIn(s.classId),subPos={};
   subsList.forEach(sub=>{const arr=classList.map(st=>{const r=(DB.results[rkey(st.id,sess,term)]||{})[sub]||{};const has=r.ca1!=null||r.ca2!=null||r.exam!=null;return{id:st.id,tt:(+r.ca1||0)+(+r.ca2||0)+(+r.exam||0),has};}).filter(x=>x.has).sort((a,b)=>b.tt-a.tt);const m={};arr.forEach((x,i)=>m[x.id]=i+1);subPos[sub]=m;});
-  const ev=(t.ev!=null&&t.ev!=='')?Number(t.ev):null;const evG=ev!=null?tahfizGrade(ev):null;
+  const ev=(sum.score!=null)?sum.score:null;const evG=sum.grade||null;
   const overall=ev!=null?ev:(row.count?Math.round(row.avg):null);
   const overallG=overall!=null?(ev!=null?tahfizGrade(overall):gradeOf(overall)):null;
   const feesNote=(DB.settings.nextTermFeesNote||'').trim()||naira(Number((DB.fees[rkey(sid,sess,term)]||{}).due)||0);
@@ -2935,12 +3029,16 @@ function tahfizReportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid)
 
     ${sec('Qur’an Memorization Performance')}
     <table style="${tbl}"><tbody>
-      <tr><td style="${cellL};width:42%">Surah / Ayah at Commencement</td><td style="${cell}">${esc(t.ss||'—')}${t.as?' — Ayah '+esc(t.as):''}</td></tr>
-      <tr><td style="${cellL}">Current Surah / Ayah</td><td style="${cell};background:#fdfaf0">${esc(t.sc||'—')}${t.ac?' — Ayah '+esc(t.ac):''}</td></tr>
-      <tr><td style="${cellL}">Pages Memorized</td><td style="${cell}">${(t.pg!=null&&t.pg!=='')?esc(t.pg)+' pages':'—'}</td></tr>
-      <tr><td style="${cellL}">Hizb Memorized</td><td style="${cell};background:#fdfaf0">${(t.hz!=null&&t.hz!=='')?esc(t.hz)+' Hizb':'—'}</td></tr>
-      <tr><td style="${cellL}">Evaluation Score</td><td style="${cell}">${ev!=null?'<b style="color:var(--rg)">'+ev+'%</b> — '+evG.r:'—'}</td></tr>
+      <tr><td style="${cellL};width:42%">Surah / Ayah at Commencement</td><td style="${cell}">${esc(sum.ss||'—')}${sum.as?' — Ayah '+esc(sum.as):''}</td></tr>
+      <tr><td style="${cellL}">Current Surah / Ayah</td><td style="${cell};background:#fdfaf0">${esc(sum.sc||'—')}${sum.ac?' — Ayah '+esc(sum.ac):''}</td></tr>
+      <tr><td style="${cellL}">Pages Memorized</td><td style="${cell}">${(sum.pg!=null&&sum.pg!=='')?esc(sum.pg)+' pages':'—'}</td></tr>
+      <tr><td style="${cellL}">Hizb Memorized</td><td style="${cell};background:#fdfaf0">${(sum.hz!=null&&sum.hz!=='')?esc(sum.hz)+' Hizb':'—'}</td></tr>
+      <tr><td style="${cellL}">Term Evaluation${sum.months?' (avg of '+sum.months+' month'+(sum.months===1?'':'s')+')':''}</td><td style="${cell}">${ev!=null?'<b style="color:var(--rg)">'+ev+'%</b> — '+evG.r:'—'}</td></tr>
     </tbody></table>
+    ${(sum.rows&&sum.rows.length)?`${sec('Monthly Evaluations')}
+    <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Month</th><th style="${thc}">New pages</th><th style="${thc}">Accuracy</th><th style="${thc}">Revision</th><th style="${thc}">Score</th><th style="${thc}">Grade</th></tr></thead><tbody>
+      ${sum.rows.map((r,ix)=>{const bg=ix%2?'#fbf6ea':'#fff';return `<tr><td style="${cell};background:${bg}">${esc(monthLabel(r.month))}</td><td style="${cell};text-align:center;background:${bg}">${r.sc.newP}</td><td style="${cell};text-align:center;background:${bg}">${r.sc.acc}%</td><td style="${cell};text-align:center;background:${bg}">${r.sc.rev}%</td><td style="${cell};text-align:center;font-weight:800;color:var(--rg);background:${bg}">${r.sc.score}%</td><td style="${cell};text-align:center;background:${bg}">${r.sc.grade.g}</td></tr>`;}).join('')}
+    </tbody></table>`:''}
 
     ${hasSubjects?`${sec('Other Subjects')}
     <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Subject</th><th style="${thc}">1st CA (${g.ca1})</th><th style="${thc}">2nd CA (${g.ca2})</th><th style="${thc}">Exam (${g.exam})</th><th style="${thc}">Total</th><th style="${thc}">Grade</th><th style="${thc};text-align:left">Remark</th></tr></thead><tbody>
@@ -3017,62 +3115,86 @@ function printAllReportsSchool(){const list=studentsIn(repClass).filter(s=>{cons
   toast('Preparing '+list.length+' report card(s)…');printReportsBulk(list.map(s=>reportHTML(s.id)));}
 
 /* ===================== TAHFIZ (Qur'an memorization) ENTRY ===================== */
-let tahClass='', tahDirty={};
-function tahLockKey(cid){return 'TAH|'+DB.settings.session+'|'+DB.settings.term+'|'+cid;}
-function tahLocked(cid){return !!(DB.locked&&DB.locked[tahLockKey(cid)]);}
+let tahClass='', tahDirty={}, tahMonth='';
+function tahStatusOf(cid){const list=studentsIn(cid);let sub=false;for(const s of list){const e=tGetM(s.id);if(e.status==='approved')return 'approved';if(e.status==='submitted')sub=true;}return sub?'submitted':'draft';}
+function tahLocked(cid){return tahStatusOf(cid)!=='draft';}
+function tahHasData(e){return Object.keys(e||{}).filter(x=>x!=='status'&&x!=='by').length>0;}
 function vTahfiz(){const cls=teacherClasses();if(!tahClass||!cls.find(c=>c.id===tahClass))tahClass=cls[0]?cls[0].id:'';
-  $('#view').innerHTML=`<div class="page-head"><div><h2>📖 Qur’an Memorization</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)} — record each pupil's memorization for this term</p></div></div>
-  <div class="card no-print" style="background:#fff8e6;border:1px solid #f0d089;border-left:4px solid #caa64e;padding:11px 15px;margin-bottom:12px;font-size:14px">📌 <b>Recording for: ${esc(DB.settings.term)}, ${esc(DB.settings.session)}.</b><br><span class="muted" style="font-size:12.5px">Type each pupil's memorization, then tap <b>Save this class</b>. Records are only stored once you Save. Fix the term on the <a onclick="go('session')" style="color:var(--green);cursor:pointer;font-weight:600">Session</a> page first if it is wrong.</span></div>
-  <div class="toolbar"><div><label>Class</label><select onchange="switchTahClass(this.value)">${cls.map(c=>`<option value="${c.id}" ${tahClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div></div>
+  if(!tahMonth){const d=new Date();tahMonth=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
+  const admin=USER.role==='admin';
+  $('#view').innerHTML=`<div class="page-head"><div><h2>📖 Qur’an Monthly Evaluation</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)} — teachers record monthly, director reviews</p></div>${admin?`<button class="btn sec no-print" onclick="tahGradingSetup()">⚙️ Grading setup</button>`:''}</div>
+  <div class="card no-print" style="background:#fff8e6;border:1px solid #f0d089;border-left:4px solid #caa64e;padding:11px 15px;margin-bottom:12px;font-size:13.5px">📌 <b>${esc(DB.settings.term)}, ${esc(DB.settings.session)}.</b> Score is computed from <b>progress, accuracy, revision and consistency</b>. Teachers fill a month and <b>submit for the director's review</b>; approved months appear on report cards. Fix the term on the <a onclick="go('session')" style="color:var(--green);cursor:pointer;font-weight:600">Session</a> page first if wrong.</div>
+  <div class="toolbar"><div><label>Class</label><select onchange="switchTahClass(this.value)">${cls.map(c=>`<option value="${c.id}" ${tahClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div><label>Evaluation month</label><input type="month" value="${esc(tahMonth)}" onchange="tahMonth=this.value;renderTah()"></div></div>
   <div id="tahSaveBar"></div><div id="tahArea"></div>`;renderTah();}
-function switchTahClass(cid){if(tahDirty[tahClass]&&!confirm('You have unsaved memorization in this class. Switch class anyway? Your typing stays on this device but is NOT in the cloud until you tap Save.')){vTahfiz();return;}tahClass=cid;renderTah();}
-function renderTahSaveBar(){const bar=$('#tahSaveBar');if(!bar)return;const cid=tahClass;
-  if(tahLocked(cid)){const ts=DB.locked[tahLockKey(cid)];const when=ts?new Date(ts).toLocaleDateString('en-GB'):'';
-    bar.innerHTML=`<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;background:#e9f7ee;border:1px solid #b6e3c7;padding:12px 15px;margin-bottom:12px">
-      <span style="font-size:14px">🔒 <b>Saved to the cloud${when?' on '+esc(when):''}.</b> This class is locked.</span>
-      <button class="btn sm gold" onclick="unlockTahClass()">✏️ Edit</button></div>`;
-  }else{const dirty=!!tahDirty[cid];
-    bar.innerHTML=`<div class="card" style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px;margin-bottom:12px;border-left:4px solid ${dirty?'#e0a100':'var(--line)'}">
-      <span style="font-size:14px">${dirty?'● <b>Unsaved changes.</b> Complete the class, then Save.':'Enter each pupil, then Save this class.'}</span>
-      <button class="btn" id="saveTahBtn" onclick="saveTahToCloud()">💾 Save this class to the cloud</button></div>`;}}
+function switchTahClass(cid){if(tahDirty[tahClass]&&!confirm('You have unsaved entries in this class. Switch anyway? Unsaved typing is not in the cloud until you Save & submit.')){vTahfiz();return;}tahClass=cid;renderTah();}
+function renderTahSaveBar(){const bar=$('#tahSaveBar');if(!bar)return;const cid=tahClass,st=tahStatusOf(cid),admin=USER.role==='admin';let html='';
+  if(st==='draft'){const dirty=!!tahDirty[cid];
+    html=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px;border-left:4px solid ${dirty?'#e0a100':'var(--line)'}">
+      <span style="font-size:14px">${dirty?'● <b>Unsaved changes.</b> ':''}Fill each pupil for <b>${esc(monthLabel(tahMonth))}</b>, then submit.</span>
+      <button class="btn" id="saveTahBtn" onclick="saveTahSubmit()">💾 Save &amp; submit for review</button></div>`;
+  }else if(st==='submitted'){
+    html=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px;background:#fff6d9;border:1px solid #e8cf83">
+      <span style="font-size:14px">⏳ <b>Submitted for review</b> — ${esc(monthLabel(tahMonth))}. ${admin?'Please review below.':'Awaiting the director.'}</span>
+      ${admin?`<div class="flex gap"><button class="btn" onclick="tahApprove()">✅ Approve</button><button class="btn sec" onclick="tahReturn()">↩ Return to teacher</button></div>`:''}</div>`;
+  }else{
+    html=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px;background:#e9f7ee;border:1px solid #b6e3c7">
+      <span style="font-size:14px">🔒 <b>Approved</b> — ${esc(monthLabel(tahMonth))}. This appears on report cards.</span>
+      ${admin?`<button class="btn sm sec" onclick="tahReturn()">✏️ Reopen for edits</button>`:''}</div>`;}
+  bar.innerHTML=`<div class="card" style="margin-bottom:12px">${html}</div>`;}
 function renderTah(){renderTahSaveBar();const list=studentsIn(tahClass);
   if(!list.length){$('#tahArea').innerHTML=`<div class="card"><div class="empty"><div class="big">📖</div>No pupils in this class.</div></div>`;return;}
   const lk=tahLocked(tahClass),d=lk?'disabled':'';
-  $('#tahArea').innerHTML=list.map(s=>{const t=tGet(s.id);const ev=(t.ev!=null&&t.ev!=='')?Number(t.ev):null;const gr=ev!=null?tahfizGrade(ev):null;
-    return `<div class="card pad mb"><div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b>${esc(s.name)}</b><span class="pill ${gr&&gr.g==='E'?'red':'green'}" id="tgr_${s.id}">${gr?gr.g+' · '+gr.r:'—'}</span></div>
+  $('#tahArea').innerHTML=list.map(s=>{const e=tGetM(s.id);const has=tahHasData(e);const sc=tahEntryScore(e,tahPrevPg(s.id,tahMonth));
+    return `<div class="card pad mb"><div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px"><b>${esc(s.name)}</b>
+      <span id="tsc_${s.id}" class="pill ${has?(sc.grade.g==='E'?'red':'green'):'grey'}">${has?sc.score+'% · '+sc.grade.g:'—'}</span></div>
       <div class="grid2 mt" style="gap:8px">
-        <div class="fld"><label>Surah at commencement</label><input ${d} value="${esc(t.ss||'')}" onchange="setTah('${s.id}','ss',this.value)"></div>
-        <div class="fld"><label>Ayah at commencement</label><input ${d} value="${esc(t.as||'')}" onchange="setTah('${s.id}','as',this.value)"></div>
-        <div class="fld"><label>Current Surah</label><input ${d} value="${esc(t.sc||'')}" onchange="setTah('${s.id}','sc',this.value)"></div>
-        <div class="fld"><label>Current Ayah</label><input ${d} value="${esc(t.ac||'')}" onchange="setTah('${s.id}','ac',this.value)"></div>
-        <div class="fld"><label>Pages memorized</label><input ${d} type="number" value="${esc(t.pg??'')}" onchange="setTah('${s.id}','pg',this.value)"></div>
-        <div class="fld"><label>Hizb memorized</label><input ${d} type="number" step="0.1" value="${esc(t.hz??'')}" onchange="setTah('${s.id}','hz',this.value)"></div>
-        <div class="fld"><label>Evaluation score (%)</label><input ${d} type="number" min="0" max="100" value="${esc(t.ev??'')}" onchange="setTah('${s.id}','ev',this.value)"></div>
-      </div>${lk?'<p class="muted" style="font-size:12px;margin:6px 0 0">🔒 Locked. Tap Edit above to change.</p>':''}</div>`;}).join('');}
-function setTah(sid,field,val){if(tahLocked(tahClass))return;const k=rkey(sid);DB.tahfiz[k]=DB.tahfiz[k]||{};val=(val==null?'':(''+val).trim());
+        <div class="fld"><label>Evaluation date</label><input ${d} type="date" value="${esc(e.date||'')}" onchange="setTah('${s.id}','date',this.value)"></div>
+        <div class="fld"><label>Surah at commencement</label><input ${d} value="${esc(e.ss||'')}" onchange="setTah('${s.id}','ss',this.value)"></div>
+        <div class="fld"><label>Ayah at commencement</label><input ${d} value="${esc(e.as||'')}" onchange="setTah('${s.id}','as',this.value)"></div>
+        <div class="fld"><label>Current Surah</label><input ${d} value="${esc(e.sc||'')}" onchange="setTah('${s.id}','sc',this.value)"></div>
+        <div class="fld"><label>Current Ayah</label><input ${d} value="${esc(e.ac||'')}" onchange="setTah('${s.id}','ac',this.value)"></div>
+        <div class="fld"><label>Pages memorized (total to date)</label><input ${d} type="number" value="${esc(e.pg??'')}" onchange="setTah('${s.id}','pg',this.value)"></div>
+        <div class="fld"><label>Hizb memorized</label><input ${d} type="number" step="0.1" value="${esc(e.hz??'')}" onchange="setTah('${s.id}','hz',this.value)"></div>
+        <div class="fld"><label>Accuracy / Tajweed (0–100)</label><input ${d} type="number" min="0" max="100" value="${esc(e.acc??'')}" onchange="setTah('${s.id}','acc',this.value)"></div>
+        <div class="fld"><label>Revision / retention (0–100)</label><input ${d} type="number" min="0" max="100" value="${esc(e.rev??'')}" onchange="setTah('${s.id}','rev',this.value)"></div>
+        <div class="fld"><label>Consistency (0–100, blank = 100)</label><input ${d} type="number" min="0" max="100" value="${esc(e.cons??'')}" onchange="setTah('${s.id}','cons',this.value)"></div>
+      </div>
+      <div class="muted" id="tinfo_${s.id}" style="font-size:12px;margin-top:6px">${has?`New pages this month: <b>${sc.newP}</b> (target ${tahfizTarget()}) · Progress ${sc.prog}% → <b>Computed score ${sc.score}% (${sc.grade.g} · ${sc.grade.r})</b>`:'Enter this month’s figures to compute the score.'}</div>
+      ${lk?'<p class="muted" style="font-size:12px;margin:4px 0 0">🔒 Locked. '+(USER.role==='admin'?'Use the buttons above to approve or reopen.':'Awaiting director review.')+'</p>':''}</div>`;}).join('');}
+function setTah(sid,field,val){if(tahLocked(tahClass))return;const k=tKey(sid);DB.tahfiz[k]=DB.tahfiz[k]||{};val=(val==null?'':(''+val).trim());
   if(val==='')delete DB.tahfiz[k][field];else DB.tahfiz[k][field]=val;
-  if(!Object.keys(DB.tahfiz[k]).length)delete DB.tahfiz[k];
+  if(!tahHasData(DB.tahfiz[k]))delete DB.tahfiz[k];
   saveStoreLocal();tahDirty[tahClass]=true;renderTahSaveBar();
-  if(field==='ev'){const t=tGet(sid);const ev=(t.ev!=null&&t.ev!=='')?Number(t.ev):null;const gr=ev!=null?tahfizGrade(ev):null;const el=$('#tgr_'+sid);if(el){el.className='pill '+(gr&&gr.g==='E'?'red':'green');el.textContent=gr?gr.g+' · '+gr.r:'—';}}}
-async function saveTahToCloud(){const cid=tahClass;
-  if(!navigator.onLine){toast('⚠ No internet — NOT saved. Connect and try again.',true);return;}
-  if(!supa){toast('⚠ Cloud not connected — NOT saved.',true);return;}
+  const e=tGetM(sid);const has=tahHasData(e);const sc=tahEntryScore(e,tahPrevPg(sid,tahMonth));
+  const pill=$('#tsc_'+sid);if(pill){pill.className='pill '+(has?(sc.grade.g==='E'?'red':'green'):'grey');pill.textContent=has?sc.score+'% · '+sc.grade.g:'—';}
+  const info=$('#tinfo_'+sid);if(info)info.innerHTML=has?`New pages this month: <b>${sc.newP}</b> (target ${tahfizTarget()}) · Progress ${sc.prog}% → <b>Computed score ${sc.score}% (${sc.grade.g} · ${sc.grade.r})</b>`:'Enter this month’s figures to compute the score.';}
+async function tahCommit(cid,mutate,msg){
+  if(!navigator.onLine){toast('⚠ No internet — not saved. Connect and try again.',true);return;}
+  if(!supa){toast('⚠ Cloud not connected — not saved.',true);return;}
   const btn=$('#saveTahBtn');if(btn){btn.disabled=true;btn.textContent='Saving…';}setSync('saving','Saving…');
-  try{
+  try{const sess=DB.settings.session,term=DB.settings.term,list=studentsIn(cid);mutate(list,sess,term);
     const{data,error}=await supa.from('school_data').select('data').eq('id',SCHOOL_CODE).maybeSingle();if(error)throw error;
-    const server=(data&&data.data&&typeof data.data==='object')?data.data:_clone(DB);
-    server.tahfiz=server.tahfiz||{};server.locked=server.locked||{};
-    const sess=DB.settings.session,term=DB.settings.term;
-    studentsIn(cid).forEach(s=>{const k=sess+'|'+term+'|'+s.id;if(DB.tahfiz[k]!==undefined)server.tahfiz[k]=DB.tahfiz[k];else delete server.tahfiz[k];});
-    server.locked['TAH|'+sess+'|'+term+'|'+cid]=Date.now();
+    const server=(data&&data.data&&typeof data.data==='object')?data.data:_clone(DB);server.tahfiz=server.tahfiz||{};
+    list.forEach(s=>{const k=sess+'|'+term+'|'+tahMonth+'|'+s.id;if(DB.tahfiz[k]!==undefined)server.tahfiz[k]=DB.tahfiz[k];else delete server.tahfiz[k];});
     const{error:e2}=await supa.from('school_data').upsert({id:SCHOOL_CODE,data:server,updated_at:new Date().toISOString()});if(e2)throw e2;
     Object.keys(DB.tahfiz||{}).forEach(k=>{if(server.tahfiz[k]===undefined)server.tahfiz[k]=DB.tahfiz[k];});
     DB=server;STORE[SCHOOL_CODE]=server;BASE[SCHOOL_CODE]=_clone(server);saveStoreLocal();saveBase();
-    delete tahDirty[cid];setSync('on','Synced');toast('✓ Saved to the cloud');renderTah();
-  }catch(e){console.warn('saveTahToCloud',e);setSync('err','Sync error');
-    toast('⚠ NOT saved — check your internet and try again',true);if(btn){btn.disabled=false;btn.textContent='💾 Save this class to the cloud';}}}
-function unlockTahClass(){const cid=tahClass;if(!confirm('Unlock this class to edit its memorization? Remember to tap Save again after your changes.'))return;
-  if(DB.locked)delete DB.locked[tahLockKey(cid)];saveStoreLocal();tahDirty[cid]=true;renderTah();}
+    delete tahDirty[cid];setSync('on','Synced');toast(msg);renderTah();
+  }catch(e){console.warn('tahCommit',e);setSync('err','Sync error');toast('⚠ Not saved — check your internet and try again',true);const b=$('#saveTahBtn');if(b){b.disabled=false;b.textContent='💾 Save & submit for review';}}}
+function saveTahSubmit(){tahCommit(tahClass,(list,sess,term)=>{list.forEach(s=>{const k=sess+'|'+term+'|'+tahMonth+'|'+s.id;const e=DB.tahfiz[k];if(e&&tahHasData(e)){e.status='submitted';e.by=USER.name;}});},'✓ Submitted for the director’s review');}
+function tahApprove(){tahCommit(tahClass,(list,sess,term)=>{list.forEach(s=>{const e=DB.tahfiz[sess+'|'+term+'|'+tahMonth+'|'+s.id];if(e&&e.status)e.status='approved';});},'✓ Approved — now on report cards');}
+function tahReturn(){if(!confirm('Return this month to the teacher for editing?'))return;tahCommit(tahClass,(list,sess,term)=>{list.forEach(s=>{const e=DB.tahfiz[sess+'|'+term+'|'+tahMonth+'|'+s.id];if(e)delete e.status;});},'Returned to teacher for edits');}
+function tahGradingSetup(){const w=tahfizWeights();modal('Grading setup',`<p class="muted mb">Set the monthly page target and how much each part counts. Weights are relative and need not total 100.</p>
+    <div class="fld"><label>Monthly page target (full marks for progress)</label><input id="tg_target" type="number" value="${tahfizTarget()}"></div>
+    <div class="grid2"><div class="fld"><label>Progress weight</label><input id="tg_prog" type="number" value="${w.prog}"></div>
+      <div class="fld"><label>Accuracy weight</label><input id="tg_acc" type="number" value="${w.acc}"></div>
+      <div class="fld"><label>Revision weight</label><input id="tg_rev" type="number" value="${w.rev}"></div>
+      <div class="fld"><label>Consistency weight</label><input id="tg_cons" type="number" value="${w.cons}"></div></div>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveTahGrading()">Save</button>`);}
+function saveTahGrading(){DB.settings.tahfizTarget=Number($('#tg_target').value)||20;
+  DB.settings.tahfizWeights={prog:Number($('#tg_prog').value)||0,acc:Number($('#tg_acc').value)||0,rev:Number($('#tg_rev').value)||0,cons:Number($('#tg_cons').value)||0};
+  save();closeModal();if(CURRENT==='tahfiz')renderTah();toast('Grading settings saved');}
 function autoRemark(avg,subs){if(!subs||!subs.some(m=>m.has))return'No results entered yet.';
   const scored=subs.filter(m=>m.has);const best=scored.slice().sort((a,b)=>b.total-a.total)[0];const worst=scored.slice().sort((a,b)=>a.total-b.total)[0];
   let base=avg>=70?'An excellent result.':avg>=60?'A very good performance.':avg>=50?'A good effort.':avg>=40?'A fair result; more effort needed.':'Needs serious improvement.';
