@@ -916,7 +916,7 @@ function stopCam(){if(_camStream){_camStream.getTracks().forEach(t=>t.stop());_c
 /* ===================== SIGNATURE PAD ===================== */
 function sigImg(d,h){return d?`<img src="${d}" style="display:block;max-height:${h||26}px;max-width:100%;margin:0 auto -3px">`:'';}
 function staffByPosition(pos){return DB.users.find(u=>u.role==='teacher'&&(u.position||'')===pos)||null;}
-function directorUser(){return staffByPosition('Director')||DB.users.find(u=>u.role==='admin')||null;}
+function directorUser(){return DB.users.find(u=>u.role==='admin'&&u.signature)||staffByPosition('Director')||DB.users.find(u=>u.role==='admin')||null;}
 function openSignPad(kind,id){
   modal('✍️ Draw signature',`<p class="muted mb">Sign inside the box with your finger (phone) or mouse (laptop), then tap Save.</p>
     <canvas id="sigCv" width="560" height="200" style="width:100%;height:200px;border:2px dashed #bbb;border-radius:10px;background:#fff;touch-action:none;display:block;cursor:crosshair"></canvas>
@@ -935,6 +935,18 @@ function sigSave(kind,id){const cv=$('#sigCv');if(!cv)return;if(cv._blank){toast
   let data;try{data=cv.toDataURL('image/png');}catch(e){toast('Could not save signature',true);return;}
   if(kind==='student'){const s=DB.students.find(x=>x.id===id);if(s)s.signature=data;}else{const u=DB.users.find(x=>x.id===id);if(u)u.signature=data;}
   save();closeModal();toast('Signature saved ✓');}
+function editAdminProfile(){const u=DB.users.find(x=>x.id===USER.id)||USER;_photo=u.photo||'';
+  modal('My profile — School Director',`${photoField(u.photo)}<div class="grid2">
+    <div class="fld full"><label>Display name</label><input id="ap_name" value="${esc(u.name||'')}"></div>
+    <div class="fld"><label>Title / position</label><input id="ap_pos" value="${esc(u.position||'Director')}" placeholder="Director"></div>
+    <div class="fld"><label>Phone</label><input id="ap_phone" value="${esc(u.phone||'')}"></div>
+    <div class="fld full"><label>Short bio (for homepage)</label><textarea id="ap_bio" rows="2">${esc(u.bio||'')}</textarea></div></div>
+    <div class="mb" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px"><span style="font-weight:600;font-size:13px">✍️ Signature ${u.signature?`<img src="${u.signature}" style="height:26px;vertical-align:middle;margin-left:6px">`:'<span class="muted" style="font-weight:400">— none yet</span>'}</span><button type="button" class="btn sm sec" onclick="openSignPad('staff','${u.id}')">${u.signature?'Redraw':'Draw signature'}</button></div>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500"><input type="checkbox" id="ap_site" style="width:auto" ${u.showOnSite?'checked':''}> Show me on the homepage <b>Leadership</b> section (as Director)</label>
+    <p class="muted" style="font-size:12px;margin-top:6px">This is the School Director profile used on report sheets and ID cards. Director and Administrator are the same account.</p>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveAdminProfile()">Save</button>`);}
+function saveAdminProfile(){const u=DB.users.find(x=>x.id===USER.id);if(!u)return;u.name=$('#ap_name').value.trim()||u.name;u.position=$('#ap_pos').value.trim()||'Director';u.phone=$('#ap_phone').value.trim();u.bio=$('#ap_bio').value.trim();u.photo=_photo;u.showOnSite=$('#ap_site').checked;u.group='leadership';
+  save();closeModal();USER=u;const wn=$('#whoName');if(wn)wn.textContent=u.name;toast('Profile saved');}
 
 /* ===================== QR & LOGO ===================== */
 function renderQRs(){if(!window.qrcode)return;document.querySelectorAll('img.qrimg[data-qr]').forEach(el=>{if(el.dataset.done)return;
@@ -2194,6 +2206,7 @@ function renderSchoolHome(){
   const support=DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false&&staffGroup(u)==='support').sort((a,b)=>rankOf(a)-rankOf(b)||(a.name||'').localeCompare(b.name||''));
   const acts=(set.activities||[]).filter(a=>a.title||a.image),alum=alumniPublicList();
   const leadStaff=DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false&&staffGroup(u)==='leadership').sort((a,b)=>rankOf(a)-rankOf(b));
+  const _dir=directorUser();if(_dir&&_dir.role==='admin'&&_dir.showOnSite===true)leadStaff.unshift(_dir);
   const _coreRoles=['Director','Assistant Director','School Supervisor'];const _filled=new Set(leadStaff.map(u=>u.position));
   const lead=(set.showLeadership===false)?[]:leadStaff.map(u=>({name:u.name,role:u.position,photo:u.photo,bio:u.bio})).concat(_coreRoles.filter(r=>!_filled.has(r)).map(r=>({name:'To be announced',role:r,photo:'',bio:'',ph:true})));
   const alumBy={};alum.forEach(a=>{const y=(a.year||'').match(/(\d{4})/);const k=y?y[1]:'Other';(alumBy[k]=alumBy[k]||[]).push(a);});const alumYears=Object.keys(alumBy).sort().reverse();
@@ -2794,7 +2807,7 @@ function vDashboard(){
   const t=today();let present=0,marked=0;DB.classes.forEach(c=>{const a=DB.attendance[t+'|'+c.id];if(a)Object.values(a).forEach(v=>{marked++;if(v==='P')present++;});});
   const att=marked?Math.round(present/marked*100):0;const collPct=fs.expected?Math.round(fs.collected/fs.expected*100):0;
   $('#view').innerHTML=`<div class="page-head"><div><h2>Dashboard</h2><p>${esc(DB.settings.schoolName)} — ${esc(DB.settings.term)}, ${esc(DB.settings.session)}</p></div>
-    <div class="flex gap"><button class="btn sec sm" onclick="openSignPad('staff',USER.id)">✍️ My signature</button><button class="btn sec sm" onclick="exportSchool()">⬇ Export data</button><button class="btn sec sm" onclick="exportStudentsCSV()">⬇ Students CSV</button></div></div>
+    <div class="flex gap"><button class="btn sec sm" onclick="editAdminProfile()">👤 My profile (Director)</button><button class="btn sec sm" onclick="exportSchool()">⬇ Export data</button><button class="btn sec sm" onclick="exportStudentsCSV()">⬇ Students CSV</button></div></div>
   <div class="cards-row">
     <div class="stat accent"><div class="lbl">Total Pupils</div><div class="num">${totalStu}</div><div class="meta">${secc.day} Day · ${secc.boarding} Boarding</div></div>
     <div class="stat"><div class="lbl">Teachers</div><div class="num">${totalTeach}</div><div class="meta">${DB.classes.length} classes</div></div>
@@ -3881,7 +3894,7 @@ function studentCardBack(s){return `<div class="idc"><div class="idc-back">
   <div class="r"><span>Session</span><b>${esc(DB.settings.session)}</b></div>
   <div class="qr" style="margin-top:8px"><img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}"><div class="muted" style="font-size:8.5px">Scan to verify</div></div>
   <div class="terms">This card remains the property of ${esc(DB.settings.schoolName)} and must be surrendered on request. If found, please return to the school address.</div>
-  <div class="sig"><div class="ln">${sigImg(s.signature,24)}Holder's Signature</div><div class="ln">${sigImg((headTeacher()||{}).signature,24)}Head Teacher</div></div></div>
+  <div class="sig"><div class="ln">${sigImg(s.signature,24)}Pupil's Signature</div><div class="ln">${sigImg((directorUser()||{}).signature,24)}School Director</div></div></div>
   <div class="idc-foot">${esc(DB.settings.motto||'')}</div></div>`;}
 function teacherCardHTML(u){const code=u.staffId||u.id;return `<div class="idc staff">
   <div class="idc-band"></div><div class="idc-head"><div class="idc-logo">${idLogo()}</div><div class="idc-school">${esc(DB.settings.schoolName)}<small>STAFF IDENTITY CARD</small></div></div>
@@ -3899,7 +3912,7 @@ function teacherCardBack(u){return `<div class="idc staff"><div class="idc-back"
   <div class="r"><span>Session</span><b>${esc(DB.settings.session)}</b></div>
   <div class="qr" style="margin-top:8px"><img class="qrimg" data-qr="${esc(u.staffId||u.id)}"><div class="muted" style="font-size:8.5px">Scan to verify</div></div>
   <div class="terms">This card certifies the holder as authorised staff of ${esc(DB.settings.schoolName)}. It remains school property and must be returned on exit.</div>
-  <div class="sig"><div class="ln">${sigImg(u.signature,24)}Staff Signature</div><div class="ln">${sigImg((headTeacher()||{}).signature,24)}Head Teacher</div></div></div>
+  <div class="sig"><div class="ln">${sigImg(u.signature,24)}Staff Signature</div><div class="ln">${sigImg((directorUser()||{}).signature,24)}School Director</div></div></div>
   <div class="idc-foot">${esc(DB.settings.motto||'')}</div></div>`;}
 function renderBarcodes(){if(!window.JsBarcode)return;document.querySelectorAll('svg.bc[data-code]').forEach(el=>{if(el.dataset.done)return;
   try{JsBarcode(el,el.getAttribute('data-code'),{format:'CODE128',height:42,width:1.7,fontSize:12,margin:0,displayValue:true});if(el.childNodes.length)el.dataset.done='1';}catch(e){}});}
