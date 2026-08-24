@@ -1,58 +1,21 @@
-/* EduManager Cloud — service worker
-   Strategy:
-   - HTML/navigation: NETWORK-FIRST. When online you always get the freshest app
-     (so GitHub/Netlify updates appear automatically); when offline you get the
-     last cached page. This is what makes updates auto-apply without breaking offline.
-   - Other GET assets (CDN libs, icon): CACHE-FIRST so the app runs fully offline
-     after the first online visit.
-   - Supabase API calls are never cached (always go to the network).
-   Bump CACHE below if you ever need to force-clear caches for everyone. */
-const CACHE = 'emc-cache-v9';
-const CORE = ['./', './index.html', './manifest.json', './icon.svg'];
-
-self.addEventListener('install', e => {
-  self.skipWaiting();
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(CORE).catch(() => {})));
-});
+/* EduManager Cloud — service worker (FULLY ONLINE mode)
+   No offline caching. Every request goes straight to the network so the app
+   always shows live cloud data and the newest code. Any old caches from
+   previous versions are deleted on activate. A pass-through fetch handler is
+   kept only so the app stays installable as a home-screen app.
+   If the device is offline, requests fail by design — the app requires a
+   live internet connection. */
+self.addEventListener('install', e => { self.skipWaiting(); });
 
 self.addEventListener('activate', e => {
-  e.waitUntil(
-    caches.keys()
-      .then(keys => Promise.all(keys.map(k => (k === CACHE ? null : caches.delete(k)))))
-      .then(() => self.clients.claim())
-  );
+  e.waitUntil((async () => {
+    try { const ks = await caches.keys(); await Promise.all(ks.map(k => caches.delete(k))); } catch (_) {}
+    await self.clients.claim();
+  })());
 });
 
 self.addEventListener('fetch', e => {
   const req = e.request;
-  if (req.method !== 'GET') return;
-  let url;
-  try { url = new URL(req.url); } catch (_) { return; }
-
-  // Never cache the cloud database — always network.
-  if (url.hostname.indexOf('supabase') !== -1) return;
-
-  const isHTML = req.mode === 'navigate' ||
-    (req.headers.get('accept') || '').indexOf('text/html') !== -1;
-
-  if (isHTML) {
-    // network-first → fresh app when online, cached app when offline
-    e.respondWith(
-      fetch(req)
-        .then(r => { const cp = r.clone(); caches.open(CACHE).then(c => c.put('./index.html', cp)); return r; })
-        .catch(() => caches.match('./index.html').then(r => r || caches.match('./')))
-    );
-    return;
-  }
-
-  // cache-first for static assets / CDN libraries
-  e.respondWith(
-    caches.match(req).then(cached => {
-      if (cached) return cached;
-      return fetch(req).then(r => {
-        if (r && r.status === 200) { const cp = r.clone(); caches.open(CACHE).then(c => c.put(req, cp)); }
-        return r;
-      }).catch(() => cached);
-    })
-  );
+  if (req.method !== 'GET') return;          // let non-GET go straight to network
+  e.respondWith(fetch(req));                  // network-only, never cache
 });

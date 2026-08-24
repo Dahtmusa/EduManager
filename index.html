@@ -28,7 +28,7 @@ const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 // App version — bump this on EVERY deploy. The cloud remembers the highest version any
 // device has loaded; a device on a lower version is locked out until it updates. This
 // stops out-of-date devices from silently overwriting everyone's data.
-const APP_VERSION = 20260824;
+const APP_VERSION = 20260825;
 // Compact overrides used ONLY inside the print iframe so a report card fills the A4 width
 // (tighter vertical spacing = shorter card = little/no shrink needed).
 const RC_COMPACT='.rc{border-radius:0!important;font-size:12px!important;color:#1c2a24!important}'
@@ -3733,8 +3733,18 @@ function renderOffline(msg){window._offline=1;const app=$('#app');if(app)app.sty
   sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest" style="background:#64748b">📡</div><h1>You're offline</h1>
     <div class="sub">${esc(msg||'This app loads your data live from the cloud, so it needs an internet connection. Please connect and try again.')}</div>
     <button class="btn" style="width:100%;justify-content:center;margin-top:16px" onclick="location.reload()">🔄 Retry</button></div></div>`;}
-window.addEventListener('online',()=>{if(window._offline)location.reload();else if(USER)toast('Back online');});
-window.addEventListener('offline',()=>{if(USER){toast('You are offline — changes will sync when you reconnect.',true);setSync('err','Offline');}});
+/* ---- Fully-online enforcement: lock the app whenever the connection drops ---- */
+function showConnLock(){let o=document.getElementById('connLock');
+  if(!o){o=document.createElement('div');o.id='connLock';o.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(15,23,20,.9);display:flex;align-items:center;justify-content:center;padding:22px';
+    o.innerHTML='<div style="background:#fff;border-radius:16px;max-width:340px;text-align:center;padding:26px 22px;box-shadow:0 12px 40px rgba(0,0,0,.35)"><div style="font-size:44px">📡</div><h2 style="margin:8px 0 4px;font-size:20px">Connection lost</h2><p style="color:#6b7a72;font-size:14px;line-height:1.5;margin:0">This app runs fully online. Your work is safe. Reconnect to the internet and it will resume and re-sync automatically.</p></div>';
+    document.body.appendChild(o);}
+  o.style.display='flex';}
+function hideConnLock(){const o=document.getElementById('connLock');if(o)o.style.display='none';}
+window.addEventListener('offline',()=>{setSync('err','Offline');if(window._offline)return;if(USER||MODE==='owner')showConnLock();});
+window.addEventListener('online',async()=>{hideConnLock();if(window._offline){location.reload();return;}
+  setSync('saving','Reconnecting…');
+  try{if(MODE==='owner'){await flushPush('__master__');}else if(SCHOOL_CODE){await flushPush(SCHOOL_CODE);await flushPush('__master__');}}catch(e){}
+  setSync('on','Synced');if(USER&&CURRENT){try{buildNav();go(CURRENT);}catch(e){}}toast('Back online — synced');});
 function renderUpdateRequired(v){window._offline=1;const app=$('#app');if(app)app.style.display='none';const sc=$('#screen');if(!sc){setTimeout(()=>location.reload(),1500);return;}sc.style.display='';
   sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest" style="background:#b45309">⬆️</div><h1>Update required</h1>
     <div class="sub">A newer version of the app is available. To keep every device in sync and protect your records, this device must update before you can continue. <b>Your data is safe in the cloud.</b></div>
