@@ -845,6 +845,7 @@ function currentWeek(){const tb=DB.settings.dates&&DB.settings.dates.termBegin;
 function teacherClasses(){return USER.role==='admin'?DB.classes:DB.classes.filter(c=>(USER.classes||[]).includes(c.id));}
 const POSITION_RANK={'Proprietor / Director':1,'Director':1,'Proprietor':1,'Assistant Director':2,'School Supervisor':3,'Principal':2,'Vice Principal':3,'Head Teacher':4,'Assistant Head Teacher':5,'Senior Master / Mistress':6,'Head of Department':7,'Exam Officer':8,'Accountant / Bursar':9,'Counsellor':10,'Sports Master / Mistress':11,'ICT Teacher':12,'Mu’allim / Islamic Studies':13,'Imam / Chaplain':14,'Librarian':15,'Form Teacher':16,'Teacher':20};
 function rankOf(u){if(u.rank!=null&&u.rank!=='')return Number(u.rank);const p=u.position||'Teacher';return POSITION_RANK[p]!=null?POSITION_RANK[p]:22;}
+function staffGroup(u){if(u.group)return u.group;if(u.showOnSite===false)return 'hidden';return ((u.position||'Teacher')!=='Teacher')?'leadership':'teaching';}
 function classTeacher(classId){return DB.users.find(u=>u.role==='teacher'&&(u.classes||[]).includes(classId))||null;}
 function headTeacher(){const staff=DB.users.filter(u=>u.role==='teacher');const order=['Principal','Head Teacher','Vice Principal','Assistant Head Teacher'];for(const p of order){const m=staff.find(u=>u.position===p);if(m)return m;}return staff.slice().sort((a,b)=>rankOf(a)-rankOf(b))[0]||null;}
 function proprietor(){const staff=DB.users.filter(u=>u.role==='teacher');const order=['Proprietor / Director','Proprietor','Director'];for(const p of order){const m=staff.find(u=>u.position===p);if(m)return m;}return null;}
@@ -2130,9 +2131,10 @@ function renderSchoolHome(){
   const heroes=set.heroImages||[];
   const heroBg=heroes.length?`<div id="heroSlides" style="position:absolute;inset:0">${heroes.map((u,i)=>`<div class="hero-slide" style="background-image:url('${u}');opacity:${i===0?1:0}"></div>`).join('')}<div style="position:absolute;inset:0;background:linear-gradient(135deg,${t.rg}cc,${t.rgd}cc)"></div></div>`:'';
   const cv=set.coreValues||[];const houses=(hasModule('houses')&&DB.houses)?DB.houses:[];
-  const teachers=set.showTeachers!==false?DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false).sort((a,b)=>rankOf(a)-rankOf(b)||(a.name||'').localeCompare(b.name||'')):[];
+  const teachers=set.showTeachers!==false?DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false&&staffGroup(u)==='teaching').sort((a,b)=>rankOf(a)-rankOf(b)||(a.name||'').localeCompare(b.name||'')):[];
+  const support=DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false&&staffGroup(u)==='support').sort((a,b)=>rankOf(a)-rankOf(b)||(a.name||'').localeCompare(b.name||''));
   const acts=(set.activities||[]).filter(a=>a.title||a.image),alum=alumniPublicList();
-  const leadStaff=DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false&&(u.position||'Teacher')!=='Teacher').sort((a,b)=>rankOf(a)-rankOf(b));
+  const leadStaff=DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false&&staffGroup(u)==='leadership').sort((a,b)=>rankOf(a)-rankOf(b));
   const _coreRoles=['Director','Assistant Director','School Supervisor'];const _filled=new Set(leadStaff.map(u=>u.position));
   const lead=(set.showLeadership===false)?[]:leadStaff.map(u=>({name:u.name,role:u.position,photo:u.photo,bio:u.bio})).concat(_coreRoles.filter(r=>!_filled.has(r)).map(r=>({name:'To be announced',role:r,photo:'',bio:'',ph:true})));
   const alumBy={};alum.forEach(a=>{const y=(a.year||'').match(/(\d{4})/);const k=y?y[1]:'Other';(alumBy[k]=alumBy[k]||[]).push(a);});const alumYears=Object.keys(alumBy).sort().reverse();
@@ -2161,6 +2163,8 @@ function renderSchoolHome(){
       <div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${acts.map(a=>`<div class="card" style="overflow:hidden">${a.image?`<div style="height:150px;background:#eef2ef"><img src="${a.image}" style="width:100%;height:100%;object-fit:cover"></div>`:''}<div style="padding:12px"><b>${esc(a.title||'')}</b>${a.desc?`<div class="muted" style="font-size:12.5px;margin-top:3px">${esc(a.desc)}</div>`:''}</div></div>`).join('')}</div></div></div>`:''}
     ${teachers.length?`<div class="sec-dark" style="background:#222"><div class="home-sec"><div class="sec-h"><h2>Meet Our Teachers</h2><div class="u"></div><p>Dedicated educators shaping young minds</p></div>
       <div class="teachers-grid">${teachers.map(u=>`<div class="tcard"><div class="ph">${u.photo?`<img src="${u.photo}">`:'👩‍🏫'}</div><b>${esc(u.name)}</b><div class="role">${esc(u.position||'Teacher')}</div></div>`).join('')}</div></div></div>`:''}
+    ${support.length?`<div class="home-sec"><div class="sec-h"><h2>Support &amp; Section Staff</h2><div class="u"></div><p>The team that keeps our school running</p></div>
+      <div class="teachers-grid">${support.map(u=>`<div class="tcard"><div class="ph">${u.photo?`<img src="${u.photo}">`:'🧑‍💼'}</div><b>${esc(u.name)}</b><div class="role">${esc(u.position||'')}</div>${u.bio?`<div class="muted" style="font-size:12px;margin-top:4px">${esc(u.bio)}</div>`:''}</div>`).join('')}</div></div>`:''}
     ${galOn?`<div class="home-sec"><div class="sec-h"><h2>Gallery</h2><div class="u"></div><p>Moments from our activities</p></div><div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
       ${DB.gallery.slice().reverse().map(a=>{const cover=(a.media||[]).find(m=>m.type==='image');return `<div class="card" style="overflow:hidden;cursor:pointer" onclick="publicAlbum('${a.id}')">
         <div style="height:150px;background:#eef2ef;display:flex;align-items:center;justify-content:center;font-size:40px">${cover?`<img src="${cover.url}" style="width:100%;height:100%;object-fit:cover">`:'🖼️'}</div>
@@ -2789,7 +2793,7 @@ function vInsights(){
 /* ===================== SCHOOL: STUDENTS ===================== */
 let stuFilter='',stuClass='',stuSection='';
 function vStudents(){const secc=sectionCounts();
-  $('#view').innerHTML=`<div class="page-head"><div><h2>Students</h2><p>${DB.students.filter(s=>!s.graduated).length} pupils · ${secc.day} Day · ${secc.boarding} Boarding</p></div><button class="btn" onclick="editStudent()">＋ Add Pupil</button></div>
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Students</h2><p>${DB.students.filter(s=>!s.graduated).length} pupils · ${secc.day} Day · ${secc.boarding} Boarding</p></div><div class="flex gap"><button class="btn sec" onclick="renumberAdmissions()">🔢 Admission format</button><button class="btn" onclick="editStudent()">＋ Add Pupil</button></div></div>
   <div class="subtabs">${[['','All'],['Day','Day ('+secc.day+')'],['Boarding','Boarding ('+secc.boarding+')']].map(([k,l])=>`<button class="subtab${stuSection===k?' active':''}" onclick="stuSection='${k}';vStudents()">${l}</button>`).join('')}</div>
   <div class="toolbar"><div class="grow"><input placeholder="Search name or admission no…" value="${esc(stuFilter)}" oninput="stuFilter=this.value;renderStuTable()"></div>
     <div style="max-width:200px"><select onchange="stuClass=this.value;renderStuTable()"><option value="">All classes</option>${DB.classes.map(c=>`<option value="${c.id}" ${stuClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div></div>
@@ -2837,6 +2841,17 @@ function saveStudent(id){const name=$('#f_name').value.trim();if(!name){toast('N
     emName:g('#f_emname'),emPhone:g('#f_emphone'),blood:g('#f_blood'),geno:g('#f_geno'),allergies:g('#f_allergies'),health:g('#f_health'),meds:g('#f_meds'),special:g('#f_special')};
   if(id)Object.assign(DB.students.find(x=>x.id===id),obj);else{obj.id=uid('s');DB.students.push(obj);}
   save();closeModal();renderStuTable();toast('Pupil saved');}
+function renumberAdmissions(){const pfx=(DB.settings.admissionPrefix||'ADM').trim()||'ADM';const yr=((DB.settings.admissionSession||DB.settings.session||'').slice(0,4))||(''+new Date().getFullYear());
+  const list=DB.students.filter(s=>!s.graduated);
+  modal('Renumber admission numbers?',`<p>This sets <b>every current pupil's</b> admission number to the format <b>${esc(pfx)}/${esc(yr)}/001</b>, numbered in class order.</p>
+    <p class="muted" style="font-size:12.5px">Affects <b>${list.length}</b> pupil(s). Any numbers already issued will be replaced — if parents sign in with the admission number, share the new one with them.</p>
+    <p class="muted" style="font-size:12.5px">Prefix <b>${esc(pfx)}</b> · Year <b>${esc(yr)}</b>. Change these on the <a onclick="closeModal();go('admissions')" style="color:var(--green);cursor:pointer">Admissions</a> page first if they are not right.</p>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="doRenumberAdmissions()">Renumber ${list.length} pupil(s)</button>`);}
+function doRenumberAdmissions(){const pfx=(DB.settings.admissionPrefix||'ADM').trim()||'ADM';const yr=((DB.settings.admissionSession||DB.settings.session||'').slice(0,4))||(''+new Date().getFullYear());let n=0;
+  DB.classes.forEach(c=>{DB.students.filter(s=>!s.graduated&&s.classId===c.id).sort((a,b)=>(a.name||'').localeCompare(b.name||'')).forEach(s=>{n++;s.admissionNo=pfx+'/'+yr+'/'+String(n).padStart(3,'0');});});
+  DB.students.filter(s=>!s.graduated&&!DB.classes.find(c=>c.id===s.classId)).forEach(s=>{n++;s.admissionNo=pfx+'/'+yr+'/'+String(n).padStart(3,'0');});
+  DB.settings.appSeq=Math.max(Number(DB.settings.appSeq)||0,n);
+  save();closeModal();if(CURRENT==='students')renderStuTable();toast('Renumbered '+n+' pupil(s) as '+pfx+'/'+yr+'/…');}
 function delStudent(id){const s=DB.students.find(x=>x.id===id);
   modal('Delete pupil?',`<p>Remove <b>${esc(s.name)}</b> and all their records? This cannot be undone.</p>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="confirmDelStudent('${id}')">Delete</button>`);}
@@ -2958,7 +2973,7 @@ function vTeachers(){const ts=DB.users.filter(u=>u.role==='teacher').sort((a,b)=
 function editTeacher(id){const u=id?DB.users.find(x=>x.id===id):{classes:[]};const sid=u.staffId||('STAFF/'+String(DB.users.filter(x=>x.role==='teacher').length+1).padStart(3,'0'));
   const base=(DB.settings.positions&&DB.settings.positions.length)?DB.settings.positions:['Teacher','Director','Assistant Director','School Supervisor'];
   const used=[...new Set(DB.users.filter(u=>u.role==='teacher').map(u=>u.position).filter(Boolean))];
-  const POSITIONS=[...new Set([...base,...used])];
+  const POSITIONS=[...new Set([...base,...used])];const gcur=staffGroup(u);
   modal(id?'Edit Staff':'Add Staff',`${photoField(u.photo)}<div class="grid2">
     <div class="fld"><label>Full name *</label><input id="t_name" value="${esc(u.name||'')}"></div>
     <div class="fld"><label>Position / Designation</label><input id="t_pos" list="posList" value="${esc(u.position||'Teacher')}" placeholder="e.g. Director"><datalist id="posList">${POSITIONS.map(p=>`<option value="${esc(p)}">`).join('')}</datalist></div>
@@ -2967,36 +2982,42 @@ function editTeacher(id){const u=id?DB.users.find(x=>x.id===id):{classes:[]};con
     <div class="fld"><label>Staff ID</label><input id="t_sid" value="${esc(sid)}"></div>
     <div class="fld"><label>Username *</label><input id="t_user" value="${esc(u.username||'')}" placeholder="e.g. mrs.bello"></div>
     <div class="fld"><label>Password *</label><input id="t_pass" value="${esc(u.password||'')}"></div>
+    <div class="fld"><label>Homepage placement</label><select id="t_group">
+      <option value="leadership" ${gcur==='leadership'?'selected':''}>Leadership (Director, Asst Director, Supervisor…)</option>
+      <option value="teaching" ${gcur==='teaching'?'selected':''}>Teaching staff (Meet Our Teachers)</option>
+      <option value="support" ${gcur==='support'?'selected':''}>Support / Section staff</option>
+      <option value="hidden" ${gcur==='hidden'?'selected':''}>Do not show on homepage</option></select></div>
     <div class="fld full"><label>Short bio (shown on homepage)</label><textarea id="t_bio" rows="2" placeholder="A brief profile for the website">${esc(u.bio||'')}</textarea></div></div>
-    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" id="t_site" style="width:auto" ${u.showOnSite!==false?'checked':''}> Show this staff on the <b>homepage</b> (leadership / teachers)</label>
+    <p class="muted" style="font-size:12px;margin-top:2px">“Homepage placement” decides which section this person appears in on the public site. Leadership is ranked by position; roles left empty show a “To be announced” placeholder.</p>
     <label class="mt">Assigned classes</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
     ${DB.classes.map(c=>`<label style="display:flex;align-items:center;gap:7px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" style="width:auto" class="t_class" value="${c.id}" ${(u.classes||[]).includes(c.id)?'checked':''}> ${esc(c.name)}</label>`).join('')}</div>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveTeacher('${id||''}')">Save</button>`);}
 function saveTeacher(id){const name=$('#t_name').value.trim(),username=$('#t_user').value.trim(),password=$('#t_pass').value.trim(),staffId=$('#t_sid').value.trim();
   if(!name||!username||!password){toast('Name, username, password required',true);return;}
   if(DB.users.some(u=>u.username.toLowerCase()===username.toLowerCase()&&u.id!==id)){toast('Username taken',true);return;}
-  const classes=[...document.querySelectorAll('.t_class:checked')].map(c=>c.value);const position=$('#t_pos').value.trim()||'Teacher';const rank=$('#t_rank').value!==''?Number($('#t_rank').value):null;const showOnSite=$('#t_site').checked;
+  const classes=[...document.querySelectorAll('.t_class:checked')].map(c=>c.value);const position=$('#t_pos').value.trim()||'Teacher';const rank=$('#t_rank').value!==''?Number($('#t_rank').value):null;
+  const group=$('#t_group')?$('#t_group').value:'teaching';const showOnSite=group!=='hidden';
   const phone=$('#t_phone')?$('#t_phone').value.trim():'';const bio=$('#t_bio')?$('#t_bio').value.trim():'';
-  if(id)Object.assign(DB.users.find(x=>x.id===id),{name,username,password,classes,staffId,photo:_photo,position,rank,showOnSite,phone,bio});
-  else DB.users.push({id:uid('u'),name,username,password,role:'teacher',classes,staffId,photo:_photo,position,rank,showOnSite,phone,bio});
+  if(id)Object.assign(DB.users.find(x=>x.id===id),{name,username,password,classes,staffId,photo:_photo,position,rank,group,showOnSite,phone,bio});
+  else DB.users.push({id:uid('u'),name,username,password,role:'teacher',classes,staffId,photo:_photo,position,rank,group,showOnSite,phone,bio});
   save();closeModal();vTeachers();toast('Staff saved');}
 function delTeacher(id){DB.users=DB.users.filter(x=>x.id!==id);save();vTeachers();toast('Teacher removed');}
 /* ===================== INCIDENTS ===================== */
 function openIncidentCount(){return (DB.incidents||[]).filter(i=>i.status!=='seen').length;}
 function reportIncident(){const cls=teacherClasses();if(!cls.length){toast('No class assigned to you yet',true);return;}
-  modal('Report an incident',`<p class="muted mb">Log a classroom incident (sickness, behaviour, injury…) for the director to see.</p>
+  modal('Report an incident',`<p class="muted mb">Log a classroom incident (sickness, behaviour, injury…) for the administrator to see.</p>
     <div class="grid2"><div class="fld"><label>Class</label><select id="in_class">${cls.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
       <div class="fld"><label>Type</label><select id="in_type">${['Sickness / Health','Misbehaviour','Accident / Injury','Absence concern','Other'].map(t=>`<option>${t}</option>`).join('')}</select></div>
       <div class="fld"><label>Pupil (optional)</label><select id="in_stu"><option value="">— Whole class / N.A.</option></select></div>
       <div class="fld"><label>Date</label><input id="in_date" type="date" value="${today()}"></div>
       <div class="fld full"><label>What happened? *</label><textarea id="in_desc" rows="3"></textarea></div></div>`,
-    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveIncident()">Submit to director</button>`,true);
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveIncident()">Submit to admin</button>`,true);
   const fill=()=>{const cid=$('#in_class').value;$('#in_stu').innerHTML='<option value="">— Whole class / N.A.</option>'+studentsIn(cid).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');};
   const cs=$('#in_class');if(cs){cs.onchange=fill;fill();}}
 function saveIncident(){const cid=$('#in_class').value,type=$('#in_type').value,sidv=$('#in_stu').value,desc=$('#in_desc').value.trim(),date=$('#in_date').value;
   if(!desc){toast('Please describe the incident',true);return;}
   DB.incidents=DB.incidents||[];DB.incidents.push({id:uid('inc'),at:Date.now(),byId:USER.id,byName:USER.name,classId:cid,studentId:sidv||'',type,desc,date,status:'open'});
-  save();closeModal();buildNav();toast('Incident reported to the director');if(CURRENT==='incidents')vIncidents();else if(CURRENT==='tdash')vTdash();}
+  save();closeModal();buildNav();toast('Incident reported to the administrator');if(CURRENT==='incidents')vIncidents();else if(CURRENT==='tdash')vTdash();}
 function vIncidents(){const admin=USER.role==='admin';const list=(DB.incidents||[]).filter(i=>admin||i.byId===USER.id||(USER.classes||[]).includes(i.classId)).slice().reverse();
   $('#view').innerHTML=`<div class="page-head"><div><h2>🚩 Incidents</h2><p>Classroom reports${admin?' from teachers':''}</p></div><button class="btn" onclick="reportIncident()">＋ Report incident</button></div>
   ${list.length?`<div class="t-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Class / Pupil</th><th>Report</th><th>By</th><th></th></tr></thead><tbody>
@@ -3245,6 +3266,7 @@ function tahfizReportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid)
       ${ms.length?ms.map((m,ix)=>{const bg=ix%2?'#fbf6ea':'#fff';return `<tr><td style="${cell};background:${bg}">${esc(monthLabel(m.month))}</td><td style="${cell};background:${bg}">${m.sc?esc(surahLabel(m.sc))+(m.ac?':'+esc(m.ac):''):'—'}</td><td style="${cell};text-align:center;background:${bg}">${m.pg!=null&&m.pg!==''?esc(m.pg):'–'}</td><td style="${cell};text-align:center;font-weight:800;color:var(--rg);background:${bg}">${m.mark}</td></tr>`;}).join(''):`<tr><td colspan="4" style="${cell};text-align:center;color:#8a7a45">No approved monthly evaluations yet.</td></tr>`}
       <tr style="background:#f0ede0;font-weight:800"><td style="${cell}" colspan="3">Memorization subtotal</td><td style="${cell};text-align:center;color:var(--rg)">${ts.mem} / ${tahMemMax()}</td></tr>
     </tbody></table>
+    <div style="font-size:10px;color:#6b5e33;margin:3px 16px 0"><b>Months evaluated:</b> ${ms.length?ms.map(m=>esc(monthLabel(m.month))).join(', '):'None yet'}</div>
 
     ${hasOther?`${sec('Other Subjects')}
     <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Subject</th><th style="${thc}">Performance</th></tr></thead><tbody>
@@ -3364,11 +3386,11 @@ function renderTahSaveBar(){const bar=$('#tahSaveBar');if(!bar)return;const cid=
         <span style="font-size:14px">${dirty?'● <b>Unsaved changes.</b> ':''}Evaluate <b>every pupil</b> for <b>${esc(monthLabel(tahMonth))}</b>, then submit.</span>
         <button class="btn" id="saveTahBtn" onclick="saveTahSubmit()">💾 Save &amp; submit for review</button></div>`;
     }else{
-      html=`<div style="padding:12px 15px;background:#fdeceb;border:1px solid #f3b7b3"><span style="font-size:14px">🔒 The director has not opened evaluation for <b>${esc(monthLabel(tahMonth))}</b> yet. Please wait for the request.</span></div>`;}
+      html=`<div style="padding:12px 15px;background:#fdeceb;border:1px solid #f3b7b3"><span style="font-size:14px">🔒 The administrator has not opened evaluation for <b>${esc(monthLabel(tahMonth))}</b> yet. Please wait until it is sent to you.</span></div>`;}
   }else if(st==='submitted'){
     html=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px;background:#fff6d9;border:1px solid #e8cf83">
-      <span style="font-size:14px">⏳ <b>Submitted for review</b> — ${esc(monthLabel(tahMonth))}. ${admin?'Please review below.':'Awaiting the director.'}</span>
-      ${admin?`<div class="flex gap"><button class="btn" onclick="tahApprove()">✅ Approve</button><button class="btn sec" onclick="tahReturn()">↩ Return to teacher</button></div>`:''}</div>`;
+      <span style="font-size:14px">⏳ <b>Submitted for review</b> — ${esc(monthLabel(tahMonth))}. ${admin?'Please review below.':'Awaiting the administrator.'}</span>
+      ${admin?`<div class="flex gap"><button class="btn" onclick="tahApprove()">✅ Approve → report sheet</button><button class="btn sec" onclick="tahReturn()">↩ Return to teacher</button></div>`:''}</div>`;
   }else{
     html=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px;background:#e9f7ee;border:1px solid #b6e3c7">
       <span style="font-size:14px">🔒 <b>Approved</b> — ${esc(monthLabel(tahMonth))}. This appears on report cards.</span>
@@ -3427,7 +3449,7 @@ async function tahCommit(cid,mutate,msg){
     delete tahDirty[cid];setSync('on','Synced');toast(msg);renderTah();
   }catch(e){console.warn('tahCommit',e);setSync('err','Sync error');toast('⚠ Not saved — check your internet and try again',true);const b=$('#saveTahBtn');if(b){b.disabled=false;b.textContent='💾 Save & submit for review';}}}
 function saveTahSubmit(){const bad=tahIncomplete(tahClass);if(bad.length){toast('Please complete all pupils first: '+bad.slice(0,4).join(', ')+(bad.length>4?' +'+(bad.length-4)+' more':''),true);return;}
-  tahCommit(tahClass,(list,sess,term)=>{list.forEach(s=>{const k=sess+'|'+term+'|'+tahMonth+'|'+s.id;const e=DB.tahfiz[k];if(e&&tahHasData(e)){e.status='submitted';e.by=USER.name;}});},'✓ Submitted for the director’s review');}
+  tahCommit(tahClass,(list,sess,term)=>{list.forEach(s=>{const k=sess+'|'+term+'|'+tahMonth+'|'+s.id;const e=DB.tahfiz[k];if(e&&tahHasData(e)){e.status='submitted';e.by=USER.name;}});},'✓ Submitted for the administrator’s review');}
 function tahApprove(){tahCommit(tahClass,(list,sess,term)=>{list.forEach(s=>{const e=DB.tahfiz[sess+'|'+term+'|'+tahMonth+'|'+s.id];if(e&&e.status)e.status='approved';});},'✓ Approved — now on report cards');}
 function tahReturn(){if(!confirm('Return this month to the teacher for editing?'))return;tahCommit(tahClass,(list,sess,term)=>{list.forEach(s=>{const e=DB.tahfiz[sess+'|'+term+'|'+tahMonth+'|'+s.id];if(e)delete e.status;});},'Returned to teacher for edits');}
 function tahOpenMonth(){DB.tahEvalOpen=DB.tahEvalOpen||{};DB.tahEvalOpen[tahMonthKey()]={open:true,at:Date.now(),by:USER.name};
@@ -3447,6 +3469,7 @@ function tahTermMonths(cid,sess,term){sess=sess||DB.settings.session;term=term||
   Object.keys(DB.tahfiz||{}).forEach(k=>{const p=k.split('|');if(p.length!==4||p[0]!==sess||p[1]!==term||!ids[p[3]])return;const e=DB.tahfiz[k];if(e.status!=='approved')return;set[p[2]]=1;});
   return Object.keys(set).sort();}
 function tahMarkFor(sid,month,sess,term){const e=(DB.tahfiz||{})[(sess||DB.settings.session)+'|'+(term||DB.settings.term)+'|'+month+'|'+sid];return (e&&e.status==='approved')?(Number(e.mark)||0):null;}
+function tahEntryOf(sid,month,sess,term){return (DB.tahfiz||{})[(sess||DB.settings.session)+'|'+(term||DB.settings.term)+'|'+month+'|'+sid]||null;}
 function tahGradeCell(ts){return `<span class="pill ${ts.grade.g==='E'?'red':'green'}">${ts.grade.g}</span><br><span class="muted" style="font-size:9.5px">${ts.grade.r}</span>`;}
 function renderTerm(){const el=$('#tahTermArea');if(!el)return;const list=tahStudents(tahClass);const subs=DB.settings.otherSubjects||[];const attMax=tahAttMax();const mm=tahMonthMax();
   if(!list.length){el.innerHTML=`<div class="card"><div class="empty"><div class="big">📋</div>No pupils in this class.</div></div>`;return;}
@@ -3466,12 +3489,12 @@ function renderTerm(){const el=$('#tahTermArea');if(!el)return;const list=tahStu
       <td class="center" id="tt_${s.id}"><b>${ts.total}/100</b></td>
       <td class="center" id="tg_${s.id}">${tahGradeCell(ts)}</td>
     </tr>`;}).join('');
-  el.innerHTML=`<div class="card no-print" style="background:#fff8e6;border:1px solid #f0d089;border-left:4px solid #caa64e;padding:10px 14px;margin-bottom:12px;font-size:13px">📌 Term total = the approved monthly scores (each /${mm}, up to ${tahMemMax()}) + attendance &amp; conduct (max ${attMax}) = 100. Monthly scores appear here once the director <b>approves</b> that month. Other-subject percentages are for the report only and do <b>not</b> affect the 100.</div>
+  el.innerHTML=`<div class="card no-print" style="background:#fff8e6;border:1px solid #f0d089;border-left:4px solid #caa64e;padding:10px 14px;margin-bottom:12px;font-size:13px">📌 Term total = the approved monthly scores (each /${mm}, up to ${tahMemMax()}) + attendance &amp; conduct (max ${attMax}) = 100. Monthly scores appear here once the administrator <b>approves</b> that month. Other-subject percentages are for the report only and do <b>not</b> affect the 100.</div>
   <div class="flex" style="justify-content:flex-end;margin-bottom:8px"><button class="btn sm sec" onclick="manageOtherSubjects()">＋ Manage other subjects</button></div>
   <div class="card no-print" style="padding:0;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
     <thead><tr style="background:#f3f7f4;text-align:left"><th class="center" style="padding:8px 6px">#</th><th style="padding:8px 6px">Pupil / Adm No</th>${monthHead}<th class="center" style="padding:8px 6px">Attend.<br><span class="muted" style="font-weight:400">/ ${attMax}</span></th>${subs.map(n=>`<th class="center" style="padding:8px 6px">${esc(n)}<br><span class="muted" style="font-weight:400">%</span></th>`).join('')}<th style="padding:8px 6px">Final remark</th><th class="center" style="padding:8px 6px">Total<br><span class="muted" style="font-weight:400">/ 100</span></th><th class="center" style="padding:8px 6px">Grade</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
-  <p class="muted no-print" style="font-size:12px;margin:8px 2px">Attendance, subject percentages and remarks save automatically. Monthly score columns reflect only <b>approved</b> evaluations.</p>`;}
+  <p class="muted no-print" style="font-size:12px;margin:8px 2px">Attendance, subject percentages and remarks save automatically. Each <b>Eval</b> column appears once the administrator <b>approves</b> that month. Only approved months count in the Total and appear on the report sheet.</p>`;}
 function setTahTerm(sid,field,val){const k=tahTermKey(sid);DB.tahTerm=DB.tahTerm||{};DB.tahTerm[k]=DB.tahTerm[k]||{};val=(val==null?'':(''+val).trim());
   if(field==='att'){if(val==='')delete DB.tahTerm[k].att;else DB.tahTerm[k].att=Math.max(0,Math.min(tahAttMax(),Number(val)||0));}
   else{if(val==='')delete DB.tahTerm[k][field];else DB.tahTerm[k][field]=val;}
@@ -3498,7 +3521,7 @@ function msgRelevant(m){if(USER.role==='admin')return true;const u=USER.id;retur
 function unreadMsgCount(){try{if(!DB||!Array.isArray(DB.messages)||!USER)return '';const u=USER.id;let n=0;DB.messages.forEach(m=>{if(!msgRelevant(m))return;const la=msgLastAct(m);if(la.by!==u&&la.t>((m.readBy&&m.readBy[u])||0))n++;});return n||'';}catch(e){return '';}}
 function vMessages(){const admin=USER.role==='admin';const u=USER.id;
   const list=(DB.messages||[]).filter(msgRelevant).slice().sort((a,b)=>msgLastAct(b).t-msgLastAct(a).t);
-  $('#view').innerHTML=`<div class="page-head"><div><h2>✉️ Messages</h2><p>${admin?'Message your teachers and read their replies':'Messages from the director'}</p></div>${admin?`<button class="btn" onclick="composeMsg()">✉️ New message</button>`:''}</div>
+  $('#view').innerHTML=`<div class="page-head"><div><h2>✉️ Messages</h2><p>${admin?'Message your teachers and read their replies':'Messages from the administrator'}</p></div>${admin?`<button class="btn" onclick="composeMsg()">✉️ New message</button>`:''}</div>
   <div id="msgList">${list.length?list.map(m=>{const la=msgLastAct(m);const unread=la.by!==u&&la.t>((m.readBy&&m.readBy[u])||0);
     const to=m.scope==='all'?'All staff':m.scope==='teacher'?'All teachers':(userName(m.scope)||'a teacher');
     return `<div class="card pad mb" style="cursor:pointer;${unread?'border-left:4px solid #0b8a45':''}" onclick="openMsg('${m.id}')">
@@ -3516,7 +3539,7 @@ function sendMsg(){const scope=$('#cm_to').value,sub=$('#cm_sub').value.trim(),b
   save();closeModal();vMessages();buildNav();toast('Message sent');}
 function openMsg(id){const m=(DB.messages||[]).find(x=>x.id===id);if(!m)return;m.readBy=m.readBy||{};m.readBy[USER.id]=Date.now();save();buildNav();
   const entries=[{by:m.fromName,role:m.fromRole,at:m.at,body:m.body}].concat((m.thread||[]).map(t=>({by:t.byName,role:t.byRole,at:t.at,body:t.body})));
-  modal(m.subject||'Message',`<div style="max-height:52vh;overflow:auto">${entries.map(e=>`<div style="margin-bottom:10px"><div class="muted" style="font-size:11.5px"><b>${esc(e.by)}</b>${e.role==='admin'?' (Director)':''} · ${fmtWhen(e.at)}</div><div style="font-size:13.5px;white-space:pre-wrap;background:#f6f8f6;border-radius:8px;padding:8px 10px;margin-top:3px">${esc(e.body)}</div></div>`).join('')}</div>
+  modal(m.subject||'Message',`<div style="max-height:52vh;overflow:auto">${entries.map(e=>`<div style="margin-bottom:10px"><div class="muted" style="font-size:11.5px"><b>${esc(e.by)}</b>${e.role==='admin'?' (Admin)':''} · ${fmtWhen(e.at)}</div><div style="font-size:13.5px;white-space:pre-wrap;background:#f6f8f6;border-radius:8px;padding:8px 10px;margin-top:3px">${esc(e.body)}</div></div>`).join('')}</div>
     <div class="fld mt"><label>Reply</label><textarea id="msg_reply" rows="2"></textarea></div>`,
     `<button class="btn sec" onclick="closeModal()">Close</button><button class="btn" onclick="sendReply('${id}')">Send reply</button>`,true);}
 function sendReply(id){const m=(DB.messages||[]).find(x=>x.id===id);if(!m)return;const b=$('#msg_reply').value.trim();if(!b){toast('Type a reply',true);return;}
