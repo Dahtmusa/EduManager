@@ -733,11 +733,14 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(!Array.isArray(d.messages))d.messages=[];
   if(!d.tahEvalOpen||typeof d.tahEvalOpen!=='object')d.tahEvalOpen={};
   if(!d.tahTerm||typeof d.tahTerm!=='object')d.tahTerm={};
+  if(!Array.isArray(d.incidents))d.incidents=[];
+  if(!Array.isArray(d.settings.positions))d.settings.positions=['Teacher','Director','Assistant Director','School Supervisor'];
   if(!Array.isArray(d.settings.otherSubjects))d.settings.otherSubjects=[];
   if(d.settings.tahMonthMax==null)d.settings.tahMonthMax=30;
   if(d.settings.tahAttMax==null)d.settings.tahAttMax=10;
   if(!Array.isArray(d.alumni))d.alumni=[];
   if(!Array.isArray(d.settings.leadership))d.settings.leadership=[];
+  if(d.settings.showLeadership==null)d.settings.showLeadership=true;
   if(!Array.isArray(d.settings.activities))d.settings.activities=[];
   if(!d.settings.schoolFee||typeof d.settings.schoolFee!=='object')d.settings.schoolFee={day:0,boarding:0};
   if(d.settings.feeMode==null)d.settings.feeMode='items';
@@ -840,7 +843,7 @@ function currentWeek(){const tb=DB.settings.dates&&DB.settings.dates.termBegin;
   if(tb){const w=Math.floor((Date.now()-new Date(tb).getTime())/(7*86400000))+1;return Math.max(1,Math.min(termWeeks(),w));}
   return Math.max(1,Math.min(termWeeks(),DB.settings.currentWeek||1));}
 function teacherClasses(){return USER.role==='admin'?DB.classes:DB.classes.filter(c=>(USER.classes||[]).includes(c.id));}
-const POSITION_RANK={'Proprietor / Director':1,'Director':1,'Proprietor':1,'Principal':2,'Vice Principal':3,'Head Teacher':4,'Assistant Head Teacher':5,'Senior Master / Mistress':6,'Head of Department':7,'Exam Officer':8,'Accountant / Bursar':9,'Counsellor':10,'Sports Master / Mistress':11,'ICT Teacher':12,'Mu’allim / Islamic Studies':13,'Imam / Chaplain':14,'Librarian':15,'Form Teacher':16,'Teacher':20};
+const POSITION_RANK={'Proprietor / Director':1,'Director':1,'Proprietor':1,'Assistant Director':2,'School Supervisor':3,'Principal':2,'Vice Principal':3,'Head Teacher':4,'Assistant Head Teacher':5,'Senior Master / Mistress':6,'Head of Department':7,'Exam Officer':8,'Accountant / Bursar':9,'Counsellor':10,'Sports Master / Mistress':11,'ICT Teacher':12,'Mu’allim / Islamic Studies':13,'Imam / Chaplain':14,'Librarian':15,'Form Teacher':16,'Teacher':20};
 function rankOf(u){if(u.rank!=null&&u.rank!=='')return Number(u.rank);const p=u.position||'Teacher';return POSITION_RANK[p]!=null?POSITION_RANK[p]:22;}
 function classTeacher(classId){return DB.users.find(u=>u.role==='teacher'&&(u.classes||[]).includes(classId))||null;}
 function headTeacher(){const staff=DB.users.filter(u=>u.role==='teacher');const order=['Principal','Head Teacher','Vice Principal','Assistant Head Teacher'];for(const p of order){const m=staff.find(u=>u.position===p);if(m)return m;}return staff.slice().sort((a,b)=>rankOf(a)-rankOf(b))[0]||null;}
@@ -1389,8 +1392,14 @@ function parentLogin(){const adm=$('#pp_adm').value.trim(),pw=$('#pp_pw').value.
   const ok=(s.parentPin&&s.parentPin===pw)||(gp&&gp.length>=7&&gp===pwd);
   if(!ok){err.style.display='block';err.textContent=gp?'Wrong password. Use the guardian phone number on file.':'No password on file — please contact the school.';return;}
   renderParentDash(s);}
-function renderParentDash(s){const t=theme();const due=Number((DB.fees[rkey(s.id)]||{}).due)||0,paid=approvedPaid(s.id),bal=due-paid;
+function renderParentDash(s){const t=theme();const due=Number((DB.fees[rkey(s.id)]||{}).due)||0,paid=approvedPaid(s.id),bal=due-paid;const bk=DB.settings.bank||{};
   let pres=0,tot=0;Object.keys(DB.attendance).forEach(k=>{const cid=k.split('|')[1];if(cid===s.classId){const v=DB.attendance[k][s.id];if(v!==undefined){tot++;if(v==='P')pres++;}}});
+  const tah=hasModule('tahfiz');let comp;
+  if(tah){comp=studentsIn(s.classId).map(x=>({s:x,score:tahTermScore(x.id).total})).sort((a,b)=>b.score-a.score);}
+  else{const {rows}=computeClassResults(s.classId);comp=rows.slice().sort((a,b)=>(b.count?b.total:-1)-(a.count?a.total:-1)).map(r=>({s:r.s,score:r.count?Math.round(r.avg):null}));}
+  const unit=tah?'':'%';const myPos=comp.findIndex(x=>x.s.id===s.id)+1;
+  const rcpts=DB.payments.filter(p=>p.studentId===s.id&&p.status==='approved').slice().reverse();
+  const incs=(DB.incidents||[]).filter(i=>i.studentId===s.id).slice().reverse();
   $('#screen').innerHTML=`<div style="min-height:100vh;background:#eef3f8;padding:18px 14px">
     <div style="max-width:760px;margin:0 auto">
       <div class="flex no-print" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px"><div><b>${esc(DB.settings.schoolName)}</b> — Parent Portal</div>
@@ -1398,11 +1407,22 @@ function renderParentDash(s){const t=theme();const due=Number((DB.fees[rkey(s.id
       <div class="card pad mb"><div class="flex gap">${s.photo?`<img src="${s.photo}" style="width:64px;height:64px;border-radius:12px;object-fit:cover">`:'<div style="width:64px;height:64px;border-radius:12px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:30px">👧</div>'}
         <div><div style="font-size:19px;font-weight:800">${esc(s.name)}</div><div class="muted">${esc(className(s.classId))} · Adm ${esc(s.admissionNo||'—')}</div></div></div></div>
       <div class="cards-row">
-        <div class="stat"><div class="lbl">Fees due</div><div class="num" style="font-size:20px">${naira(due)}</div></div>
-        <div class="stat"><div class="lbl">Paid</div><div class="num" style="font-size:20px;color:var(--green)">${naira(paid)}</div></div>
-        <div class="stat"><div class="lbl">Balance</div><div class="num" style="font-size:20px;color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</div></div>
-        <div class="stat"><div class="lbl">Attendance</div><div class="num" style="font-size:20px">${tot?Math.round(pres/tot*100)+'%':'—'}</div><div class="meta">${pres}/${tot} present</div></div></div>
-      <div class="card pad mb"><h3 class="mb">📄 Results</h3><p class="muted mb">View & print your child's termly result with the PIN provided by the school.</p>
+        <div class="stat"><div class="lbl">Balance</div><div class="num" style="font-size:20px;color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</div><div class="meta">${naira(paid)} of ${naira(due)} paid</div></div>
+        <div class="stat"><div class="lbl">Attendance</div><div class="num" style="font-size:20px">${tot?Math.round(pres/tot*100)+'%':'—'}</div><div class="meta">${pres}/${tot} present</div></div>
+        <div class="stat"><div class="lbl">Class position</div><div class="num" style="font-size:20px">${myPos?ord(myPos):'—'}</div><div class="meta">of ${comp.length}</div></div></div>
+      <div class="card pad mb"><h3 class="mb">📊 Class performance — ${esc(className(s.classId))}</h3>
+        <div class="t-wrap"><table><thead><tr><th>#</th><th>Pupil</th><th class="right">${tah?'Total /100':'Average'}</th></tr></thead><tbody>
+        ${comp.map((x,i)=>`<tr${x.s.id===s.id?' style="background:'+t.rg+'12;font-weight:700"':''}><td>${i+1}</td><td>${esc(x.s.name)}${x.s.id===s.id?' <span class="pill green" style="font-size:9px">Your child</span>':''}</td><td class="right">${x.score!=null&&!(tah&&x.score===0)?x.score+unit:'—'}</td></tr>`).join('')}
+        </tbody></table></div><p class="muted mt" style="font-size:11.5px">Shown so you can see how your child is doing relative to the class.</p></div>
+      <div class="card pad mb"><h3 class="mb">💳 Fees & receipts</h3>
+        ${bal>0?`<div style="background:#fbf6e7;border:1px dashed #caa64e;border-radius:10px;padding:11px 13px;font-size:13px;margin-bottom:10px">Outstanding: <b style="color:var(--red)">${naira(bal)}</b>.${bk.number?` Pay to <b>${esc(bk.name||'')}</b>, <b>${esc(bk.bank||'')}</b>, <b style="font-family:monospace">${esc(bk.number)}</b>, using <b>${esc(s.admissionNo||'')}</b> as the reference.`:' Please contact the school for payment details.'}</div>`:`<p style="color:var(--green);font-weight:600;font-size:13px">✓ Fully paid for this term.</p>`}
+        ${rcpts.length?`<div class="t-wrap"><table><thead><tr><th>Receipt</th><th>Date</th><th class="right">Amount</th><th></th></tr></thead><tbody>
+          ${rcpts.map(p=>`<tr><td class="muted" style="font-family:monospace;font-size:11.5px">${esc(p.receiptNo||'—')}</td><td class="muted">${esc(p.date||'')}</td><td class="right">${naira(p.amount)}</td><td class="right"><button class="btn sm sec" onclick="openReceipt('${p.id}')">View</button></td></tr>`).join('')}
+        </tbody></table></div>`:'<p class="muted" style="font-size:12.5px">No approved payments yet.</p>'}</div>
+      <div class="card pad mb"><h3 class="mb">🚩 Behaviour &amp; health</h3>
+        ${incs.length?incs.map(i=>`<div class="ev-item" style="display:block"><b>${esc(i.type)}</b> <span class="muted" style="font-size:11px">${esc(i.date||'')}</span><div style="font-size:13px">${esc(i.desc)}</div></div>`).join(''):'<p class="muted" style="font-size:12.5px">No incidents reported. 👍</p>'}
+        <p class="muted mt" style="font-size:11.5px">Your child's medical & emergency details are on file with the school. Please keep them updated with the office.</p></div>
+      <div class="card pad mb"><h3 class="mb">📄 Full result</h3><p class="muted mb">View &amp; print your child's full termly report with the PIN provided by the school.</p>
         <button class="btn" onclick="MODE='check';renderChecker()">Check Result (PIN)</button></div>
       <div class="card pad"><h3 class="mb">📢 Announcements</h3>${DB.announcements.length?DB.announcements.slice().reverse().slice(0,6).map(a=>`<div class="ev-item" style="display:block"><b>${esc(a.title)}</b> <span class="muted" style="font-size:11px">${esc(a.date)}</span><div style="font-size:13px">${esc(a.body)}</div></div>`).join(''):'<p class="muted">No announcements.</p>'}</div>
     </div></div>`;window.scrollTo(0,0);}
@@ -1518,10 +1538,9 @@ function vWebsite(){const set=DB.settings;
     <p class="muted mb">Adds a <b>“Follow us on Facebook”</b> button to your homepage. To show specific event photos/videos, add them yourself in the <b>Gallery</b> (you stay in control of what appears — irrelevant posts won't be pulled in).</p>
     <div class="fld"><label>Facebook Page URL (optional)</label><input id="wb_fb" value="${esc(set.facebookUrl||'')}" placeholder="https://facebook.com/yourschool"></div>
     <button class="btn" onclick="saveFb()">Save</button></div>
-  <div class="card pad mb" style="max-width:760px"><div class="flex" style="justify-content:space-between;align-items:center"><h3>Leadership profiles</h3><button class="btn sm" onclick="editLeader()">＋ Add</button></div>
-    <p class="muted mb">Directors and key staff shown on the homepage, each with your own role heading.</p>
-    ${(set.leadership||[]).map((l,i)=>`<div class="flex" style="justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--line);padding:8px 0"><div class="flex gap" style="align-items:center">${avatar(l.photo,'👤')}<div><b>${esc(l.name||'')}</b><br><span class="muted" style="font-size:12px">${esc(l.role||'')}</span></div></div>
-      <div class="flex gap"><button class="btn icon" onclick="leaderMove(${i},-1)">▲</button><button class="btn icon" onclick="leaderMove(${i},1)">▼</button><button class="btn sm sec" onclick="editLeader(${i})">Edit</button><button class="btn icon" onclick="delLeader(${i})">🗑️</button></div></div>`).join('')||'<p class="muted">None yet.</p>'}</div>
+  <div class="card pad mb" style="max-width:760px"><h3 class="mb">Leadership on homepage</h3>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" style="width:auto" ${set.showLeadership!==false?'checked':''} onchange="DB.settings.showLeadership=this.checked;save();toast('Saved')"> Show the <b>Our Leadership</b> section on the homepage</label>
+    <p class="muted mt" style="font-size:12.5px">Leadership is drawn automatically from your <b>Staff</b> records, ranked by position (Director, Assistant Director, School Supervisor, then teachers). To set who appears, open <a onclick="go('teachers')" style="color:var(--green);cursor:pointer;font-weight:600">Staff / Teachers</a>, set each person's <b>position, photo and short bio</b>, and tick “Show on homepage”. Roles not yet filled show a “To be announced” placeholder.</p></div>
   <div class="card pad mb" style="max-width:760px"><div class="flex" style="justify-content:space-between;align-items:center"><h3>Activities showcase</h3><button class="btn sm" onclick="editActivity()">＋ Add</button></div>
     <p class="muted mb">Highlights of school life shown on the homepage.</p>
     ${(set.activities||[]).map((a,i)=>`<div class="flex" style="justify-content:space-between;align-items:center;gap:8px;border-top:1px solid var(--line);padding:8px 0"><div class="flex gap" style="align-items:center">${a.image?`<img src="${a.image}" style="width:44px;height:44px;border-radius:8px;object-fit:cover">`:'🎯'}<b>${esc(a.title||'')}</b></div>
@@ -2112,7 +2131,10 @@ function renderSchoolHome(){
   const heroBg=heroes.length?`<div id="heroSlides" style="position:absolute;inset:0">${heroes.map((u,i)=>`<div class="hero-slide" style="background-image:url('${u}');opacity:${i===0?1:0}"></div>`).join('')}<div style="position:absolute;inset:0;background:linear-gradient(135deg,${t.rg}cc,${t.rgd}cc)"></div></div>`:'';
   const cv=set.coreValues||[];const houses=(hasModule('houses')&&DB.houses)?DB.houses:[];
   const teachers=set.showTeachers!==false?DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false).sort((a,b)=>rankOf(a)-rankOf(b)||(a.name||'').localeCompare(b.name||'')):[];
-  const lead=(set.leadership||[]).filter(l=>l.name),acts=(set.activities||[]).filter(a=>a.title||a.image),alum=alumniPublicList();
+  const acts=(set.activities||[]).filter(a=>a.title||a.image),alum=alumniPublicList();
+  const leadStaff=DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false&&(u.position||'Teacher')!=='Teacher').sort((a,b)=>rankOf(a)-rankOf(b));
+  const _coreRoles=['Director','Assistant Director','School Supervisor'];const _filled=new Set(leadStaff.map(u=>u.position));
+  const lead=(set.showLeadership===false)?[]:leadStaff.map(u=>({name:u.name,role:u.position,photo:u.photo,bio:u.bio})).concat(_coreRoles.filter(r=>!_filled.has(r)).map(r=>({name:'To be announced',role:r,photo:'',bio:'',ph:true})));
   const alumBy={};alum.forEach(a=>{const y=(a.year||'').match(/(\d{4})/);const k=y?y[1]:'Other';(alumBy[k]=alumBy[k]||[]).push(a);});const alumYears=Object.keys(alumBy).sort().reverse();
   const aboutImg=heroes[1]||heroes[0]||((DB.gallery||[]).flatMap(a=>a.media||[]).find(m=>m.type==='image')||{}).url||'';
   sc.innerHTML=`<div class="home" style="--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}">
@@ -2134,7 +2156,7 @@ function renderSchoolHome(){
     ${houses.length?`<div class="home-sec"><div class="sec-h"><h2>Our School Houses</h2><div class="u"></div><p>Unity, discipline and healthy competition</p></div>
       <div class="house-car" id="houseCar">${houses.map((h,i)=>`<div class="house-slide${i===0?' on':''}" style="${h.image?`background-image:url('${h.image}')`:`background:linear-gradient(135deg,${esc(h.color||t.rg)},${t.rgd})`}"><div class="cap"><b>${esc(h.name)}</b></div></div>`).join('')}</div></div>`:''}
     ${lead.length?`<div id="leadership" class="home-sec"><div class="sec-h"><h2>Our Leadership</h2><div class="u"></div><p>Guiding our institution</p></div>
-      <div class="teachers-grid">${lead.map(l=>`<div class="tcard"><div class="ph">${l.photo?`<img src="${l.photo}">`:'👤'}</div><b>${esc(l.name)}</b><div class="role">${esc(l.role||'')}</div>${l.note?`<div class="muted" style="font-size:12px;margin-top:4px">${esc(l.note)}</div>`:''}</div>`).join('')}</div></div>`:''}
+      <div class="teachers-grid">${lead.map(l=>`<div class="tcard"${l.ph?' style="opacity:.7"':''}><div class="ph">${l.photo?`<img src="${l.photo}">`:'👤'}</div><b>${esc(l.name)}</b><div class="role">${esc(l.role||'')}</div>${l.bio?`<div class="muted" style="font-size:12px;margin-top:4px">${esc(l.bio)}</div>`:''}</div>`).join('')}</div></div>`:''}
     ${acts.length?`<div id="activities" class="sec-dark" style="background:${t.rg}"><div class="home-sec"><div class="sec-h"><h2>Our Activities</h2><div class="u"></div><p>Life at ${esc(set.shortName||set.schoolName)}</p></div>
       <div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${acts.map(a=>`<div class="card" style="overflow:hidden">${a.image?`<div style="height:150px;background:#eef2ef"><img src="${a.image}" style="width:100%;height:100%;object-fit:cover"></div>`:''}<div style="padding:12px"><b>${esc(a.title||'')}</b>${a.desc?`<div class="muted" style="font-size:12.5px;margin-top:3px">${esc(a.desc)}</div>`:''}</div></div>`).join('')}</div></div></div>`:''}
     ${teachers.length?`<div class="sec-dark" style="background:#222"><div class="home-sec"><div class="sec-h"><h2>Meet Our Teachers</h2><div class="u"></div><p>Dedicated educators shaping young minds</p></div>
@@ -2250,7 +2272,7 @@ function enterApp(){
   $('#whoName').textContent=USER.name;$('#whoRole').textContent=owner?'Owner':(USER.role==='admin'?'Administrator':'Teacher');
   $('#termBadge').textContent=owner?'Platform':(DB.settings.term+' • '+DB.settings.session);
   setSync(supa?'on':'off',supa?'Synced':'Local');
-  buildNav();go(owner?'odash':(USER.role==='admin'?'dashboard':'attendance'));
+  buildNav();go(owner?'odash':(USER.role==='admin'?'dashboard':'tdash'));
   setManifest();
 }
 function buildNav(){
@@ -2287,12 +2309,14 @@ function buildNav(){
     if(hasModule('broadsheet'))items.splice(10,0,['broadsheet','📊','Broadsheet']);
     if(hasModule('parentPortal'))items.push(['announce','📢','Announcements']);
     if(hasModule('tahfiz'))items=items.filter(it=>it[0]!=='results');
+    items.push(['incidents','🚩','Incidents',openIncidentCount()||'']);
     items.push(['alumni','🎓','Alumni']);
     items.push(['messages','✉️','Messages',unreadMsgCount()]);
     items.push(['website','🌐','Website']);if(hasBackup())items.push(['backup','🛟','Backup']);}
-  else {items=[['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
-    if(hasModule('tahfiz')){items=items.filter(it=>it[0]!=='results');items.splice(2,0,['tahfiz','📖','Memorization']);}
+  else {items=[['tdash','🏠','My Space'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
+    if(hasModule('tahfiz')){items=items.filter(it=>it[0]!=='results');items.splice(3,0,['tahfiz','📖','Memorization']);}
     if(hasModule('lessonPlans'))items.push(['lessons','📚','Lesson Plans']);
+    items.push(['incidents','🚩','Incidents']);
     items.push(['messages','✉️','Messages',unreadMsgCount()]);}
   const ow=USER.role==='owner'?' owner':'';
   $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${ow}${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
@@ -2308,7 +2332,7 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
     customers:vStoreCustomers,quotes:vStoreQuotes,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
-    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:vTahfiz,messages:vMessages,alumni:vAlumni};
+    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:vTahfiz,messages:vMessages,alumni:vAlumni,incidents:vIncidents,tdash:vTdash};
   (map[p]||vDashboard)();}
 
 /* ===================== OWNER: DASHBOARD ===================== */
@@ -2715,9 +2739,8 @@ function vDashboard(){
   ${isIslamic()?`<div class="mb">${islamicBand()}</div>`:''}
   ${(()=>{const ev=upcomingEvents(4);return ev.length?`<div class="card pad mb"><div class="flex" style="justify-content:space-between"><h3>🗓️ Upcoming events</h3><button class="btn sec sm" onclick="go('calendar')">Manage</button></div>
     <div class="mt">${ev.map(e=>{const soon=(new Date(e.date)-new Date())/86400000<=7;return `<div class="ev-item${soon?' ev-soon':''}"><div class="ev-date"><div class="d">${dayNum(e.date)}</div><div class="m">${monthAbbr(e.date)}</div></div><div style="flex:1"><b>${esc(e.title)}</b><br><span class="muted" style="font-size:12px">${esc(e.date)}</span></div></div>`;}).join('')}</div></div>`:'';})()}
-  ${(pendingPayCount()||pendingAppCount())?`<div class="card pad mb" style="border-left:4px solid var(--gold)"><b>Action needed:</b>
-    ${pendingPayCount()?`<a onclick="go('fees')" style="color:var(--green);cursor:pointer">${pendingPayCount()} payment(s) to approve</a>`:''}${pendingPayCount()&&pendingAppCount()?' · ':''}
-    ${pendingAppCount()?`<a onclick="go('admissions')" style="color:var(--green);cursor:pointer">${pendingAppCount()} admission(s) to review</a>`:''}</div>`:''}
+  ${(pendingPayCount()||pendingAppCount()||openIncidentCount())?`<div class="card pad mb" style="border-left:4px solid var(--gold)"><b>Action needed:</b>
+    ${[pendingPayCount()?`<a onclick="go('fees')" style="color:var(--green);cursor:pointer">${pendingPayCount()} payment(s) to approve</a>`:'',pendingAppCount()?`<a onclick="go('admissions')" style="color:var(--green);cursor:pointer">${pendingAppCount()} admission(s) to review</a>`:'',openIncidentCount()?`<a onclick="go('incidents')" style="color:var(--green);cursor:pointer">${openIncidentCount()} incident(s) reported</a>`:''].filter(Boolean).join(' · ')}</div>`:''}
   <div class="card pad"><h3 class="mb">Pupils per class</h3><div class="t-wrap"><table><thead><tr><th>Class</th><th class="center">Pupils</th><th>Teacher(s)</th><th class="center">Subjects</th></tr></thead><tbody>
     ${DB.classes.map(c=>{const t2=DB.users.filter(u=>u.role==='teacher'&&(u.classes||[]).includes(c.id)).map(u=>esc(u.name)).join(', ')||'<span class="muted">Unassigned</span>';
       return `<tr><td><b>${esc(c.name)}</b></td><td class="center">${studentsIn(c.id).length}</td><td>${t2}</td><td class="center">${(DB.subjects[c.id]||[]).length}</td></tr>`;}).join('')}
@@ -2786,7 +2809,7 @@ function renderStuTable(){
   </tbody></table></div>`;
 }
 function editStudent(id){const s=id?DB.students.find(x=>x.id===id):{};
-  const adm=s.admissionNo||('ADM/'+DB.settings.session.slice(0,4)+'/'+String(DB.students.length+1).padStart(3,'0'));
+  const adm=s.admissionNo||((DB.settings.admissionPrefix||'ADM')+'/'+((DB.settings.admissionSession||DB.settings.session||'').slice(0,4))+'/'+String(DB.students.length+1).padStart(3,'0'));
   modal(id?'Edit Pupil':'Add Pupil',`${photoField(s.photo)}<div class="grid2">
     <div class="fld full"><label>Full name *</label><input id="f_name" value="${esc(s.name||'')}" placeholder="Surname First Middle"></div>
     <div class="fld"><label>Admission No</label><input id="f_adm" value="${esc(adm)}"></div>
@@ -2796,11 +2819,22 @@ function editStudent(id){const s=id?DB.students.find(x=>x.id===id):{};
     <div class="fld"><label>Date of birth</label><input id="f_dob" type="date" value="${esc(s.dob||'')}"></div>
     <div class="fld"><label>Guardian name</label><input id="f_gname" value="${esc(s.guardianName||'')}"></div>
     <div class="fld"><label>Guardian phone</label><input id="f_gphone" value="${esc(s.guardianPhone||'')}" placeholder="080…"></div>
-    <div class="fld full"><label>Address</label><input id="f_addr" value="${esc(s.address||'')}"></div></div>`,
-    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveStudent('${id||''}')">Save</button>`);}
+    <div class="fld full"><label>Address</label><input id="f_addr" value="${esc(s.address||'')}"></div>
+    <div class="fld full" style="margin-top:2px"><div style="font-weight:700;color:var(--green);border-top:1px solid var(--line);padding-top:8px">🩺 Health &amp; emergency information</div></div>
+    <div class="fld"><label>Emergency contact name</label><input id="f_emname" value="${esc(s.emName||'')}"></div>
+    <div class="fld"><label>Emergency contact phone</label><input id="f_emphone" value="${esc(s.emPhone||'')}" placeholder="080…"></div>
+    <div class="fld"><label>Blood group</label><select id="f_blood"><option value="">—</option>${['A+','A-','B+','B-','AB+','AB-','O+','O-'].map(x=>`<option ${s.blood===x?'selected':''}>${x}</option>`).join('')}</select></div>
+    <div class="fld"><label>Genotype</label><select id="f_geno"><option value="">—</option>${['AA','AS','SS','AC','SC'].map(x=>`<option ${s.geno===x?'selected':''}>${x}</option>`).join('')}</select></div>
+    <div class="fld full"><label>Allergies</label><input id="f_allergies" value="${esc(s.allergies||'')}" placeholder="e.g. penicillin, peanuts — or None"></div>
+    <div class="fld full"><label>Health history / chronic illness</label><textarea id="f_health" rows="2" placeholder="Any disease, condition or past illness the school should know">${esc(s.health||'')}</textarea></div>
+    <div class="fld full"><label>Current medications</label><input id="f_meds" value="${esc(s.meds||'')}" placeholder="Any medication the pupil takes — or None"></div>
+    <div class="fld full"><label>Special / spiritual or behavioural notes</label><textarea id="f_special" rows="2" placeholder="Anything else vital for the pupil's care">${esc(s.special||'')}</textarea></div></div>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveStudent('${id||''}')">Save</button>`,true);}
 function saveStudent(id){const name=$('#f_name').value.trim();if(!name){toast('Name required',true);return;}
+  const g=el=>{const e=$(el);return e?e.value.trim():'';};
   const obj={name,photo:_photo,admissionNo:$('#f_adm').value.trim(),classId:$('#f_class').value,section:($('#f_section')&&$('#f_section').value)||'Day',gender:$('#f_gender').value,dob:$('#f_dob').value,
-    guardianName:$('#f_gname').value.trim(),guardianPhone:$('#f_gphone').value.trim(),address:$('#f_addr').value.trim()};
+    guardianName:$('#f_gname').value.trim(),guardianPhone:$('#f_gphone').value.trim(),address:$('#f_addr').value.trim(),
+    emName:g('#f_emname'),emPhone:g('#f_emphone'),blood:g('#f_blood'),geno:g('#f_geno'),allergies:g('#f_allergies'),health:g('#f_health'),meds:g('#f_meds'),special:g('#f_special')};
   if(id)Object.assign(DB.students.find(x=>x.id===id),obj);else{obj.id=uid('s');DB.students.push(obj);}
   save();closeModal();renderStuTable();toast('Pupil saved');}
 function delStudent(id){const s=DB.students.find(x=>x.id===id);
@@ -2922,15 +2956,19 @@ function vTeachers(){const ts=DB.users.filter(u=>u.role==='teacher').sort((a,b)=
     <td class="right" style="white-space:nowrap"><button class="btn icon" title="ID" onclick="showTeacherId('${u.id}')">🪪</button><button class="btn icon" onclick="editTeacher('${u.id}')">✏️</button><button class="btn icon" onclick="delTeacher('${u.id}')">🗑️</button></td></tr>`).join('')
     :`<tr><td colspan=6><div class="empty"><div class="big">👩‍🏫</div>No staff yet.</div></td></tr>`}</tbody></table></div>`;}
 function editTeacher(id){const u=id?DB.users.find(x=>x.id===id):{classes:[]};const sid=u.staffId||('STAFF/'+String(DB.users.filter(x=>x.role==='teacher').length+1).padStart(3,'0'));
-  const POSITIONS=['Teacher','Head Teacher','Assistant Head Teacher','Principal','Vice Principal','Proprietor / Director','Accountant / Bursar','Sports Master / Mistress','Form Teacher','Head of Department','Senior Master / Mistress','Exam Officer','Counsellor','Librarian','ICT Teacher','Mu’allim / Islamic Studies','Imam / Chaplain'];
+  const base=(DB.settings.positions&&DB.settings.positions.length)?DB.settings.positions:['Teacher','Director','Assistant Director','School Supervisor'];
+  const used=[...new Set(DB.users.filter(u=>u.role==='teacher').map(u=>u.position).filter(Boolean))];
+  const POSITIONS=[...new Set([...base,...used])];
   modal(id?'Edit Staff':'Add Staff',`${photoField(u.photo)}<div class="grid2">
     <div class="fld"><label>Full name *</label><input id="t_name" value="${esc(u.name||'')}"></div>
-    <div class="fld"><label>Position / Designation</label><input id="t_pos" list="posList" value="${esc(u.position||'Teacher')}" placeholder="e.g. Head Teacher"><datalist id="posList">${POSITIONS.map(p=>`<option value="${esc(p)}">`).join('')}</datalist></div>
+    <div class="fld"><label>Position / Designation</label><input id="t_pos" list="posList" value="${esc(u.position||'Teacher')}" placeholder="e.g. Director"><datalist id="posList">${POSITIONS.map(p=>`<option value="${esc(p)}">`).join('')}</datalist></div>
+    <div class="fld"><label>Phone number</label><input id="t_phone" value="${esc(u.phone||'')}" placeholder="080…"></div>
     <div class="fld"><label>Homepage rank (lower = higher up)</label><input id="t_rank" type="number" value="${u.rank!=null?u.rank:''}" placeholder="auto by position"></div>
     <div class="fld"><label>Staff ID</label><input id="t_sid" value="${esc(sid)}"></div>
     <div class="fld"><label>Username *</label><input id="t_user" value="${esc(u.username||'')}" placeholder="e.g. mrs.bello"></div>
-    <div class="fld full"><label>Password *</label><input id="t_pass" value="${esc(u.password||'')}"></div></div>
-    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" id="t_site" style="width:auto" ${u.showOnSite!==false?'checked':''}> Show this staff in <b>Meet Our Teachers</b> on the homepage</label>
+    <div class="fld"><label>Password *</label><input id="t_pass" value="${esc(u.password||'')}"></div>
+    <div class="fld full"><label>Short bio (shown on homepage)</label><textarea id="t_bio" rows="2" placeholder="A brief profile for the website">${esc(u.bio||'')}</textarea></div></div>
+    <label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" id="t_site" style="width:auto" ${u.showOnSite!==false?'checked':''}> Show this staff on the <b>homepage</b> (leadership / teachers)</label>
     <label class="mt">Assigned classes</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
     ${DB.classes.map(c=>`<label style="display:flex;align-items:center;gap:7px;text-transform:none;font-weight:500;color:var(--ink)"><input type="checkbox" style="width:auto" class="t_class" value="${c.id}" ${(u.classes||[]).includes(c.id)?'checked':''}> ${esc(c.name)}</label>`).join('')}</div>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveTeacher('${id||''}')">Save</button>`);}
@@ -2938,10 +2976,57 @@ function saveTeacher(id){const name=$('#t_name').value.trim(),username=$('#t_use
   if(!name||!username||!password){toast('Name, username, password required',true);return;}
   if(DB.users.some(u=>u.username.toLowerCase()===username.toLowerCase()&&u.id!==id)){toast('Username taken',true);return;}
   const classes=[...document.querySelectorAll('.t_class:checked')].map(c=>c.value);const position=$('#t_pos').value.trim()||'Teacher';const rank=$('#t_rank').value!==''?Number($('#t_rank').value):null;const showOnSite=$('#t_site').checked;
-  if(id)Object.assign(DB.users.find(x=>x.id===id),{name,username,password,classes,staffId,photo:_photo,position,rank,showOnSite});
-  else DB.users.push({id:uid('u'),name,username,password,role:'teacher',classes,staffId,photo:_photo,position,rank,showOnSite});
+  const phone=$('#t_phone')?$('#t_phone').value.trim():'';const bio=$('#t_bio')?$('#t_bio').value.trim():'';
+  if(id)Object.assign(DB.users.find(x=>x.id===id),{name,username,password,classes,staffId,photo:_photo,position,rank,showOnSite,phone,bio});
+  else DB.users.push({id:uid('u'),name,username,password,role:'teacher',classes,staffId,photo:_photo,position,rank,showOnSite,phone,bio});
   save();closeModal();vTeachers();toast('Staff saved');}
 function delTeacher(id){DB.users=DB.users.filter(x=>x.id!==id);save();vTeachers();toast('Teacher removed');}
+/* ===================== INCIDENTS ===================== */
+function openIncidentCount(){return (DB.incidents||[]).filter(i=>i.status!=='seen').length;}
+function reportIncident(){const cls=teacherClasses();if(!cls.length){toast('No class assigned to you yet',true);return;}
+  modal('Report an incident',`<p class="muted mb">Log a classroom incident (sickness, behaviour, injury…) for the director to see.</p>
+    <div class="grid2"><div class="fld"><label>Class</label><select id="in_class">${cls.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
+      <div class="fld"><label>Type</label><select id="in_type">${['Sickness / Health','Misbehaviour','Accident / Injury','Absence concern','Other'].map(t=>`<option>${t}</option>`).join('')}</select></div>
+      <div class="fld"><label>Pupil (optional)</label><select id="in_stu"><option value="">— Whole class / N.A.</option></select></div>
+      <div class="fld"><label>Date</label><input id="in_date" type="date" value="${today()}"></div>
+      <div class="fld full"><label>What happened? *</label><textarea id="in_desc" rows="3"></textarea></div></div>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveIncident()">Submit to director</button>`,true);
+  const fill=()=>{const cid=$('#in_class').value;$('#in_stu').innerHTML='<option value="">— Whole class / N.A.</option>'+studentsIn(cid).map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');};
+  const cs=$('#in_class');if(cs){cs.onchange=fill;fill();}}
+function saveIncident(){const cid=$('#in_class').value,type=$('#in_type').value,sidv=$('#in_stu').value,desc=$('#in_desc').value.trim(),date=$('#in_date').value;
+  if(!desc){toast('Please describe the incident',true);return;}
+  DB.incidents=DB.incidents||[];DB.incidents.push({id:uid('inc'),at:Date.now(),byId:USER.id,byName:USER.name,classId:cid,studentId:sidv||'',type,desc,date,status:'open'});
+  save();closeModal();buildNav();toast('Incident reported to the director');if(CURRENT==='incidents')vIncidents();else if(CURRENT==='tdash')vTdash();}
+function vIncidents(){const admin=USER.role==='admin';const list=(DB.incidents||[]).filter(i=>admin||i.byId===USER.id||(USER.classes||[]).includes(i.classId)).slice().reverse();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>🚩 Incidents</h2><p>Classroom reports${admin?' from teachers':''}</p></div><button class="btn" onclick="reportIncident()">＋ Report incident</button></div>
+  ${list.length?`<div class="t-wrap"><table><thead><tr><th>Date</th><th>Type</th><th>Class / Pupil</th><th>Report</th><th>By</th><th></th></tr></thead><tbody>
+    ${list.map(i=>{const stu=i.studentId?(DB.students.find(x=>x.id===i.studentId)||{}).name:'';return `<tr${i.status!=='seen'?' style="background:#fff8e6"':''}><td class="muted" style="white-space:nowrap">${esc(i.date||'')}</td><td><b>${esc(i.type)}</b></td><td>${esc(className(i.classId))}${stu?'<br><span class="muted" style="font-size:11.5px">'+esc(stu)+'</span>':''}</td><td style="max-width:320px">${esc(i.desc)}</td><td class="muted">${esc(i.byName)}</td><td class="right">${admin&&i.status!=='seen'?`<button class="btn sm sec" onclick="markIncident('${i.id}')">Mark seen</button>`:(i.status==='seen'?'<span class="pill green" style="font-size:10px">Seen</span>':'')}</td></tr>`;}).join('')}
+  </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">🚩</div>No incidents reported.</div></div>`}`;}
+function markIncident(id){const i=(DB.incidents||[]).find(x=>x.id===id);if(i)i.status='seen';save();buildNav();vIncidents();}
+/* ===================== TEACHER DASHBOARD ===================== */
+function vTdash(){const u=USER;const un=unreadMsgCount();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>My Dashboard</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)}</p></div><button class="btn" onclick="reportIncident()">🚩 Report incident</button></div>
+  <div class="card pad mb" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+    <div style="width:74px;height:74px;border-radius:50%;overflow:hidden;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:32px;flex:0 0 auto">${u.photo?`<img src="${u.photo}" style="width:100%;height:100%;object-fit:cover">`:'👩‍🏫'}</div>
+    <div style="flex:1;min-width:180px"><h3 style="margin:0">${esc(u.name)}</h3><div class="muted">${esc(u.position||'Teacher')}${u.staffId?' · '+esc(u.staffId):''}</div><div style="font-size:13px;margin-top:2px">${u.phone?'☎ '+esc(u.phone):'<span style="color:var(--red)">No phone on file — ask the admin to add it</span>'}</div></div>
+    <div class="flex gap" style="flex-wrap:wrap">${hasModule('tahfiz')?`<button class="btn sec sm" onclick="go('tahfiz')">📖 Evaluation</button>`:`<button class="btn sec sm" onclick="go('results')">📝 Results</button>`}<button class="btn sec sm" onclick="go('attendance')">📅 Attendance</button><button class="btn sec sm" onclick="go('reports')">🏅 Reports</button><button class="btn sec sm" onclick="go('messages')">✉️ Messages${un?' ('+un+')':''}</button></div></div>
+  <div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
+    ${teacherClasses().map(c=>{const n=studentsIn(c.id).length;return `<div class="card pad"><div class="flex" style="justify-content:space-between;align-items:center"><b>${esc(c.name)}</b><span class="pill grey">${n} pupil(s)</span></div>
+      <div class="flex gap mt" style="flex-wrap:wrap"><button class="btn sm sec" onclick="classAnalytics('${c.id}')">📊 Analytics</button><button class="btn sm sec" onclick="classHealthSheet('${c.id}')">🩺 Health</button></div></div>`;}).join('')||'<div class="card pad muted">No classes assigned yet. Ask the admin to assign your classes.</div>'}
+  </div>`;}
+function classScoreList(cid){const list=studentsIn(cid);if(hasModule('tahfiz'))return list.map(s=>({s,score:tahTermScore(s.id).total})).filter(x=>x.score>0);
+  const {rows}=computeClassResults(cid);return rows.filter(r=>r.count).map(r=>({s:r.s,score:Math.round(r.avg)}));}
+function classAnalytics(cid){const arr=classScoreList(cid).sort((a,b)=>b.score-a.score);const unit=hasModule('tahfiz')?'/100':'%';
+  if(!arr.length){modal('Analytics — '+className(cid),`<p class="muted">No scores recorded for this class yet.</p>`,`<button class="btn" onclick="closeModal()">Close</button>`);return;}
+  const avg=Math.round(arr.reduce((a,x)=>a+x.score,0)/arr.length);const top=arr.slice(0,3),low=arr.slice(-3).reverse();
+  modal('Analytics — '+className(cid),`<div class="cards-row mb"><div class="stat"><div class="lbl">Class average</div><div class="num">${avg}${unit}</div></div><div class="stat"><div class="lbl">Pupils scored</div><div class="num">${arr.length}</div></div></div>
+    <b style="color:var(--green)">Top performers</b><div class="t-wrap mt mb"><table><tbody>${top.map((x,i)=>`<tr><td class="muted">${i+1}</td><td><b>${esc(x.s.name)}</b></td><td class="right"><b>${x.score}${unit}</b></td></tr>`).join('')}</tbody></table></div>
+    <b style="color:var(--red)">Needs attention</b><div class="t-wrap mt"><table><tbody>${low.map(x=>`<tr><td><b>${esc(x.s.name)}</b></td><td class="right">${x.score}${unit}</td></tr>`).join('')}</tbody></table></div>`,
+    `<button class="btn" onclick="closeModal()">Close</button>`,true);}
+function classHealthSheet(cid){const list=studentsIn(cid).slice().sort((a,b)=>admOrder(a)-admOrder(b));
+  modal('Class health & emergency — '+className(cid),`<div class="t-wrap"><table><thead><tr><th>Pupil</th><th>Blood</th><th>Geno</th><th>Allergies</th><th>Medications</th><th>Emergency contact</th></tr></thead><tbody>
+    ${list.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.blood||'–')}</td><td>${esc(s.geno||'–')}</td><td>${esc(s.allergies||'–')}</td><td>${esc(s.meds||'–')}</td><td>${s.emName?esc(s.emName)+(s.emPhone?' · '+esc(s.emPhone):''):(s.guardianPhone?esc(s.guardianPhone):'–')}</td></tr>`).join('')||'<tr><td colspan="6" class="muted center">No pupils.</td></tr>'}
+  </tbody></table></div><p class="muted mt" style="font-size:12px">Update these details on each pupil's profile (Students page).</p>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);}
 
 /* ===================== SCHOOL: ATTENDANCE ===================== */
 let attDate=today(),attClass='';
@@ -3271,6 +3356,8 @@ function setSurah(sid,field){const el=$('#'+field+'_'+sid);if(!el)return;const v
   setTah(sid,ayField,'',true);if(field==='sc'){const box=$('#tar_'+sid);if(box){box.textContent='';box.removeAttribute('dir');}}}
 function setAyah(sid,field){const el=$('#'+field+'_'+sid);if(!el)return;setTah(sid,field,el.value,true);if(field==='ac')qFillVerse(sid);}
 function setTah(sid,field,val,quiet){if(!tahEditable(tahClass))return;const k=tKey(sid);DB.tahfiz[k]=DB.tahfiz[k]||{};val=(val==null?'':(''+val).trim());
+  if(field==='mark'&&val!==''){const n=Math.max(0,Math.min(tahMonthMax(),Number(val)||0));val=''+n;const el=$('#mk_'+sid);if(el)el.value=n;}
+  if(field==='pg'&&val!==''){const n=Math.max(0,Number(val)||0);val=''+n;const el=$('#pg_'+sid);if(el)el.value=n;}
   if(val==='')delete DB.tahfiz[k][field];else DB.tahfiz[k][field]=val;
   if(!tahHasData(DB.tahfiz[k])&&!DB.tahfiz[k].status)delete DB.tahfiz[k];
   saveStoreLocal();tahDirty[tahClass]=true;renderTahSaveBar();}
@@ -3305,29 +3392,40 @@ function tahMarksSetup(){modal('Marks setup',`<p class="muted mb">Set the maximu
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveTahMarks()">Save</button>`);}
 function saveTahMarks(){DB.settings.tahMonthMax=Number($('#ms_mm').value)||30;DB.settings.tahAttMax=Number($('#ms_att').value)||10;save();closeModal();if(CURRENT==='tahfiz')vTahfiz();toast('Marks setup saved');}
 /* ---- Term marks & remarks tab ---- */
-function renderTerm(){const el=$('#tahTermArea');if(!el)return;const list=tahStudents(tahClass);const subs=DB.settings.otherSubjects||[];const attMax=tahAttMax();
+function tahTermMonths(cid,sess,term){sess=sess||DB.settings.session;term=term||DB.settings.term;const ids={};studentsIn(cid).forEach(s=>ids[s.id]=1);const set={};
+  Object.keys(DB.tahfiz||{}).forEach(k=>{const p=k.split('|');if(p.length!==4||p[0]!==sess||p[1]!==term||!ids[p[3]])return;const e=DB.tahfiz[k];if(e.status!=='approved')return;set[p[2]]=1;});
+  return Object.keys(set).sort();}
+function tahMarkFor(sid,month,sess,term){const e=(DB.tahfiz||{})[(sess||DB.settings.session)+'|'+(term||DB.settings.term)+'|'+month+'|'+sid];return (e&&e.status==='approved')?(Number(e.mark)||0):null;}
+function tahGradeCell(ts){return `<span class="pill ${ts.grade.g==='E'?'red':'green'}">${ts.grade.g}</span><br><span class="muted" style="font-size:9.5px">${ts.grade.r}</span>`;}
+function renderTerm(){const el=$('#tahTermArea');if(!el)return;const list=tahStudents(tahClass);const subs=DB.settings.otherSubjects||[];const attMax=tahAttMax();const mm=tahMonthMax();
   if(!list.length){el.innerHTML=`<div class="card"><div class="empty"><div class="big">📋</div>No pupils in this class.</div></div>`;return;}
+  const months=tahTermMonths(tahClass);
+  const monthHead=months.length?months.map((m,ix)=>`<th class="center" style="padding:8px 6px">Eval ${ix+1}<br><span class="muted" style="font-weight:400">(${esc(monthLabel(m))}) · /${mm}</span></th>`).join('')
+    :`<th class="center" style="padding:8px 6px">Qur’an<br><span class="muted" style="font-weight:400">/ ${tahMemMax()}</span></th>`;
   const rows=list.map((s,i)=>{const td=tahTermData(s.id);const ts=tahTermScore(s.id);const subj=td.subjects||{};
+    const monthCells=months.length?months.map(m=>{const mk=tahMarkFor(s.id,m);return `<td class="center" style="font-weight:700">${mk!=null?mk:'–'}</td>`;}).join('')
+      :`<td class="center muted">${ts.mem}/${tahMemMax()}</td>`;
     return `<tr>
       <td class="center muted">${i+1}</td>
       <td style="white-space:nowrap"><b>${esc(s.name)}</b> ${sectionBadge(s)}<br><span class="muted" style="font-size:10.5px;font-family:monospace">${esc(s.admissionNo||'—')}</span></td>
-      <td class="center muted">${ts.mem}/${tahMemMax()}</td>
+      ${monthCells}
       <td class="center"><input type="number" min="0" max="${attMax}" value="${esc(td.att??'')}" onchange="setTahTerm('${s.id}','att',this.value)" style="width:56px;text-align:center"></td>
       ${subs.map(name=>`<td class="center"><input type="number" min="0" max="100" value="${esc(subj[name]??'')}" onchange="setTahSubject('${s.id}','${jq(name)}',this.value)" style="width:56px;text-align:center"></td>`).join('')}
-      <td><input value="${esc(td.remark||'')}" onchange="setTahTerm('${s.id}','remark',this.value)" placeholder="Final remark" style="min-width:180px"></td>
-      <td class="center" id="tt_${s.id}"><b>${ts.total}/100</b> <span class="pill ${ts.grade.g==='E'?'red':'green'}" style="font-size:9px">${ts.grade.g}</span></td>
+      <td><input value="${esc(td.remark||'')}" onchange="setTahTerm('${s.id}','remark',this.value)" placeholder="Final remark" style="min-width:170px"></td>
+      <td class="center" id="tt_${s.id}"><b>${ts.total}/100</b></td>
+      <td class="center" id="tg_${s.id}">${tahGradeCell(ts)}</td>
     </tr>`;}).join('');
-  el.innerHTML=`<div class="card no-print" style="background:#fff8e6;border:1px solid #f0d089;border-left:4px solid #caa64e;padding:10px 14px;margin-bottom:12px;font-size:13px">📌 Term total = the approved monthly scores (max ${tahMemMax()}) + attendance &amp; conduct (max ${attMax}) = 100. Other-subject percentages are shown on the report for information and do <b>not</b> affect the 100.</div>
+  el.innerHTML=`<div class="card no-print" style="background:#fff8e6;border:1px solid #f0d089;border-left:4px solid #caa64e;padding:10px 14px;margin-bottom:12px;font-size:13px">📌 Term total = the approved monthly scores (each /${mm}, up to ${tahMemMax()}) + attendance &amp; conduct (max ${attMax}) = 100. Monthly scores appear here once the director <b>approves</b> that month. Other-subject percentages are for the report only and do <b>not</b> affect the 100.</div>
   <div class="flex" style="justify-content:flex-end;margin-bottom:8px"><button class="btn sm sec" onclick="manageOtherSubjects()">＋ Manage other subjects</button></div>
   <div class="card no-print" style="padding:0;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
-    <thead><tr style="background:#f3f7f4;text-align:left"><th class="center" style="padding:8px 6px">#</th><th style="padding:8px 6px">Pupil / Adm No</th><th class="center" style="padding:8px 6px">Qur’an<br><span class="muted" style="font-weight:400">/ ${tahMemMax()}</span></th><th class="center" style="padding:8px 6px">Attend.<br><span class="muted" style="font-weight:400">/ ${attMax}</span></th>${subs.map(n=>`<th class="center" style="padding:8px 6px">${esc(n)}<br><span class="muted" style="font-weight:400">%</span></th>`).join('')}<th style="padding:8px 6px">Final remark</th><th class="center" style="padding:8px 6px">Total</th></tr></thead>
+    <thead><tr style="background:#f3f7f4;text-align:left"><th class="center" style="padding:8px 6px">#</th><th style="padding:8px 6px">Pupil / Adm No</th>${monthHead}<th class="center" style="padding:8px 6px">Attend.<br><span class="muted" style="font-weight:400">/ ${attMax}</span></th>${subs.map(n=>`<th class="center" style="padding:8px 6px">${esc(n)}<br><span class="muted" style="font-weight:400">%</span></th>`).join('')}<th style="padding:8px 6px">Final remark</th><th class="center" style="padding:8px 6px">Total<br><span class="muted" style="font-weight:400">/ 100</span></th><th class="center" style="padding:8px 6px">Grade</th></tr></thead>
     <tbody>${rows}</tbody></table></div>
-  <p class="muted no-print" style="font-size:12px;margin:8px 2px">Attendance, subject percentages and remarks save automatically. The Qur’an column reflects only <b>approved</b> monthly evaluations.</p>`;}
+  <p class="muted no-print" style="font-size:12px;margin:8px 2px">Attendance, subject percentages and remarks save automatically. Monthly score columns reflect only <b>approved</b> evaluations.</p>`;}
 function setTahTerm(sid,field,val){const k=tahTermKey(sid);DB.tahTerm=DB.tahTerm||{};DB.tahTerm[k]=DB.tahTerm[k]||{};val=(val==null?'':(''+val).trim());
   if(field==='att'){if(val==='')delete DB.tahTerm[k].att;else DB.tahTerm[k].att=Math.max(0,Math.min(tahAttMax(),Number(val)||0));}
   else{if(val==='')delete DB.tahTerm[k][field];else DB.tahTerm[k][field]=val;}
   if(!Object.keys(DB.tahTerm[k]).length)delete DB.tahTerm[k];
-  save();const tt=$('#tt_'+sid);if(tt){const ts=tahTermScore(sid);tt.innerHTML=`<b>${ts.total}/100</b> <span class="pill ${ts.grade.g==='E'?'red':'green'}" style="font-size:9px">${ts.grade.g}</span>`;}}
+  save();const ts=tahTermScore(sid);const tt=$('#tt_'+sid);if(tt)tt.innerHTML=`<b>${ts.total}/100</b>`;const tg=$('#tg_'+sid);if(tg)tg.innerHTML=tahGradeCell(ts);}
 function setTahSubject(sid,name,val){const k=tahTermKey(sid);DB.tahTerm=DB.tahTerm||{};DB.tahTerm[k]=DB.tahTerm[k]||{};DB.tahTerm[k].subjects=DB.tahTerm[k].subjects||{};
   val=(val==null?'':(''+val).trim());if(val==='')delete DB.tahTerm[k].subjects[name];else DB.tahTerm[k].subjects[name]=Math.max(0,Math.min(100,Number(val)||0));
   if(!Object.keys(DB.tahTerm[k].subjects).length)delete DB.tahTerm[k].subjects;if(!Object.keys(DB.tahTerm[k]).length)delete DB.tahTerm[k];save();}
