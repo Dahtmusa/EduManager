@@ -899,11 +899,42 @@ function photoField(cur){_photo=cur||'';return `<label>Photo</label><div class="
 function setPrev(){$('#phPrev').innerHTML=_photo?`<img src="${_photo}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`:'📷';}
 function clearPhoto(){_photo='';setPrev();}
 function pickPhoto(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>compress(e.target.result,d=>{_photo=d;setPrev();});r.readAsDataURL(f);}
-function compress(dataURL,cb,max=260,q=.6){const img=new Image();img.onload=()=>{let w=img.width,h=img.height;if(w>h){if(w>max){h=h*max/w;w=max;}}else{if(h>max){w=w*max/h;h=max;}}
-  const cv=document.createElement('canvas');cv.width=w;cv.height=h;cv.getContext('2d').drawImage(img,0,0,w,h);cb(cv.toDataURL('image/jpeg',q));};img.src=dataURL;}
+function compress(dataURL,cb,max=260,q=.6){const img=new Image();img.decoding='async';img.onload=()=>{let w=img.width,h=img.height;if(w>h){if(w>max){h=h*max/w;w=max;}}else{if(h>max){w=w*max/h;h=max;}}
+  const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(w));cv.height=Math.max(1,Math.round(h));cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);let out;try{out=cv.toDataURL('image/jpeg',q);}catch(e){out=dataURL;}cb(out);};img.onerror=()=>cb(dataURL);img.src=dataURL;}
+/* fast, reliable image compressor straight from a File (no FileReader) */
+function compressFile(file,cb,max=900,q=.72){let url;try{url=URL.createObjectURL(file);}catch(e){cb(null);return;}const img=new Image();img.decoding='async';
+  img.onload=()=>{let w=img.width,h=img.height;if(w>h){if(w>max){h=h*max/w;w=max;}}else{if(h>max){w=w*max/h;h=max;}}
+    const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(w));cv.height=Math.max(1,Math.round(h));cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+    let out=null;try{out=cv.toDataURL('image/jpeg',q);}catch(e){out=null;}URL.revokeObjectURL(url);cb(out);};
+  img.onerror=()=>{URL.revokeObjectURL(url);cb(null);};img.src=url;}
+/* process a list of picked files → each image (compressed) via eachCb, then doneCb(count) */
+function processImages(files,max,q,eachCb,doneCb){files=[...(files||[])].filter(f=>/^image\//.test(f.type||''));if(!files.length){doneCb(0);return;}let done=0,ok=0;
+  files.forEach(f=>{compressFile(f,d=>{if(d){eachCb(d);ok++;}if(++done===files.length)doneCb(ok);},max,q);});}
 async function openCam(){$('#camWrap').style.display='block';try{_camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});$('#camVid').srcObject=_camStream;}catch(e){toast('Camera needs the hosted https link. Use Upload.',true);$('#camWrap').style.display='none';}}
 function snap(){const v=$('#camVid');if(!v||!v.videoWidth)return;const cv=document.createElement('canvas');cv.width=v.videoWidth;cv.height=v.videoHeight;cv.getContext('2d').drawImage(v,0,0);compress(cv.toDataURL('image/jpeg',.8),d=>{_photo=d;setPrev();});stopCam();}
 function stopCam(){if(_camStream){_camStream.getTracks().forEach(t=>t.stop());_camStream=null;}const w=$('#camWrap');if(w)w.style.display='none';}
+/* ===================== SIGNATURE PAD ===================== */
+function sigImg(d,h){return d?`<img src="${d}" style="display:block;max-height:${h||26}px;max-width:100%;margin:0 auto -3px">`:'';}
+function staffByPosition(pos){return DB.users.find(u=>u.role==='teacher'&&(u.position||'')===pos)||null;}
+function directorUser(){return staffByPosition('Director')||DB.users.find(u=>u.role==='admin')||null;}
+function openSignPad(kind,id){
+  modal('✍️ Draw signature',`<p class="muted mb">Sign inside the box with your finger (phone) or mouse (laptop), then tap Save.</p>
+    <canvas id="sigCv" width="560" height="200" style="width:100%;height:200px;border:2px dashed #bbb;border-radius:10px;background:#fff;touch-action:none;display:block;cursor:crosshair"></canvas>
+    <div class="mt"><button class="btn sec sm" type="button" onclick="sigClear()">↺ Clear</button></div>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="sigSave('${kind}','${id}')">Save signature</button>`,true);
+  setTimeout(sigInit,80);}
+function sigInit(){const cv=$('#sigCv');if(!cv)return;const ctx=cv.getContext('2d');ctx.lineWidth=2.6;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#0b1f14';let drawing=false,last=null;cv._blank=true;
+  const pos=e=>{const r=cv.getBoundingClientRect();const t=(e.touches&&e.touches[0])||e;return {x:(t.clientX-r.left)*(cv.width/r.width),y:(t.clientY-r.top)*(cv.height/r.height)};};
+  const down=e=>{drawing=true;cv._blank=false;last=pos(e);e.preventDefault();};
+  const move=e=>{if(!drawing)return;const p=pos(e);ctx.beginPath();ctx.moveTo(last.x,last.y);ctx.lineTo(p.x,p.y);ctx.stroke();last=p;e.preventDefault();};
+  const up=()=>{drawing=false;};
+  cv.addEventListener('mousedown',down);cv.addEventListener('mousemove',move);document.addEventListener('mouseup',up);
+  cv.addEventListener('touchstart',down,{passive:false});cv.addEventListener('touchmove',move,{passive:false});cv.addEventListener('touchend',up);}
+function sigClear(){const cv=$('#sigCv');if(cv){cv.getContext('2d').clearRect(0,0,cv.width,cv.height);cv._blank=true;}}
+function sigSave(kind,id){const cv=$('#sigCv');if(!cv)return;if(cv._blank){toast('Please draw your signature first',true);return;}
+  let data;try{data=cv.toDataURL('image/png');}catch(e){toast('Could not save signature',true);return;}
+  if(kind==='student'){const s=DB.students.find(x=>x.id===id);if(s)s.signature=data;}else{const u=DB.users.find(x=>x.id===id);if(u)u.signature=data;}
+  save();closeModal();toast('Signature saved ✓');}
 
 /* ===================== QR & LOGO ===================== */
 function renderQRs(){if(!window.qrcode)return;document.querySelectorAll('img.qrimg[data-qr]').forEach(el=>{if(el.dataset.done)return;
@@ -1566,8 +1597,7 @@ function vWebsite(){const set=DB.settings;
     <hr><label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink);margin-top:8px"><input type="checkbox" id="wb_adm" style="width:auto" ${set.onlineAdmission?'checked':''} onchange="DB.settings.onlineAdmission=this.checked;save();toast(this.checked?'Online admissions ON':'Online admissions OFF')"> Enable <b>Apply for Admission Online</b> (connects the form to this school)</label>
     <p class="muted mt" style="font-size:12.5px">When ON, the homepage Admissions section + hero show the apply button, and submissions land in your <b>Admissions</b> list (marked “🌐 online”). When OFF, visitors are asked to contact the school instead.</p></div>`;
 }
-function addHero(){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;
-  inp.onchange=()=>{const files=[...inp.files];let done=0;files.forEach(f=>{const r=new FileReader();r.onload=e=>compress(e.target.result,d=>{DB.settings.heroImages=DB.settings.heroImages||[];DB.settings.heroImages.push(d);done++;if(done===files.length){save();vWebsite();toast('Hero image(s) added');}},1100,.6);r.readAsDataURL(f);});};inp.click();}
+function addHero(){_pickImages(files=>{DB.settings.heroImages=DB.settings.heroImages||[];toast('Adding image(s)…');processImages(files,1200,.72,d=>DB.settings.heroImages.push(d),cnt=>{save();vWebsite();toast(cnt?cnt+' image(s) added':'Could not read those images',!cnt);});});}
 function delHero(i){DB.settings.heroImages.splice(i,1);save();vWebsite();}
 function saveAbout(){DB.settings.about=$('#wb_about').value.trim();save();toast('About saved');}
 function saveFb(){DB.settings.facebookUrl=$('#wb_fb').value.trim();save();toast('Facebook page saved');}
@@ -1644,11 +1674,11 @@ function editAlbum(id){const a=id?DB.gallery.find(x=>x.id===id):{date:today()};c
       <div class="flex gap mt" style="flex-wrap:wrap"><button type="button" class="btn sm sec" onclick="albumAddPhoto('${id||''}')">⬆ Add photo(s)</button><button type="button" class="btn sm sec" onclick="albumAddVideo('${id||''}')">🎬 Add video link</button></div>
       ${id?`<div class="cards-row mt" style="grid-template-columns:repeat(auto-fill,minmax(110px,1fr))">${media.map((m,i)=>mediaTile(m,id,i,true)).join('')||'<p class="muted" style="font-size:12px">No media yet — add photos or a video link above.</p>'}</div>`:`<p class="muted mt" style="font-size:12px">Type a title, then tap <b>Add photo(s)</b> or <b>Add video link</b> — the activity is created and you can keep adding more.</p>`}</div>`,
     `<button class="btn sec" onclick="closeModal()">${id?'Close':'Cancel'}</button><button class="btn" onclick="saveAlbum('${id||''}')">Save</button>`,true);}
-function _ensureAlbumFromForm(){const t=($('#al_title')&&$('#al_title').value.trim())||'';const obj={id:uid('al'),title:t,date:($('#al_date')&&$('#al_date').value)||today(),desc:($('#al_desc')&&$('#al_desc').value.trim())||'',showHome:!!($('#al_home')&&$('#al_home').checked),media:[]};DB.gallery.push(obj);save();return obj.id;}
-function albumAddPhoto(id){if(!id){const t=$('#al_title')&&$('#al_title').value.trim();if(!t){toast('Enter a title first',true);return;}id=_ensureAlbumFromForm();}
-  const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;
-  inp.onchange=()=>{const files=[...inp.files];if(!files.length)return;let done=0;files.forEach(f=>{const r=new FileReader();r.onload=e=>compress(e.target.result,d=>{const a=DB.gallery.find(x=>x.id===id);a.media=a.media||[];a.media.push({type:'image',url:d});done++;if(done===files.length){save();editAlbum(id);toast(files.length+' photo(s) added');}},760,.6);r.readAsDataURL(f);});};inp.click();}
-function albumAddVideo(id){if(!id){const t=$('#al_title')&&$('#al_title').value.trim();if(!t){toast('Enter a title first',true);return;}id=_ensureAlbumFromForm();}
+function _ensureAlbumFromForm(){const t=($('#al_title')&&$('#al_title').value.trim())||'Untitled activity';const obj={id:uid('al'),title:t,date:($('#al_date')&&$('#al_date').value)||today(),desc:($('#al_desc')&&$('#al_desc').value.trim())||'',showHome:!!($('#al_home')&&$('#al_home').checked),media:[]};DB.gallery.push(obj);save();return obj.id;}
+function _pickImages(cb){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;inp.style.cssText='position:fixed;left:-9999px;top:0';document.body.appendChild(inp);
+  inp.onchange=()=>{const files=[...inp.files];cb(files);setTimeout(()=>{try{document.body.removeChild(inp);}catch(e){}},1000);};inp.click();}
+function albumAddPhoto(id){if(!id)id=_ensureAlbumFromForm();_pickImages(files=>{const a=DB.gallery.find(x=>x.id===id);if(!a)return;a.media=a.media||[];toast('Adding photo(s)…');processImages(files,900,.72,d=>a.media.push({type:'image',url:d}),cnt=>{save();editAlbum(id);toast(cnt?cnt+' photo(s) added':'Could not read those images',!cnt);});});}
+function albumAddVideo(id){if(!id)id=_ensureAlbumFromForm();
   modal('Add video link',`<div class="fld"><label>Video URL</label><input id="vid_url" placeholder="https://youtu.be/… or https://facebook.com/…"></div>
     <p class="muted" style="font-size:12px">Works with <b>YouTube</b>, <b>Facebook</b> and Vimeo links. Facebook videos must be <b>Public</b> to play. Paste a link (video files are too large to store).</p>`,
     `<button class="btn sec" onclick="editAlbum('${id}')">Cancel</button><button class="btn" onclick="albumSaveVideo('${id}')">Add</button>`);}
@@ -1662,9 +1692,7 @@ function openAlbum(id){const a=DB.gallery.find(x=>x.id===id);
     <div class="flex gap" style="flex-wrap:wrap"><button class="btn sm sec" onclick="addPhoto('${id}')">⬆ Add photo</button><button class="btn sm sec" onclick="addVideo('${id}')">🎬 Add video link</button><button class="btn sm ${a.showHome?'sec':'gold'}" onclick="toggleAlbumHome('${id}')">${a.showHome?'Remove from homepage':'Feature on homepage'}</button><button class="btn sm sec" onclick="editAlbum('${id}')">Edit</button><button class="btn icon" onclick="delAlbum('${id}')">🗑️</button></div></div>
     <div class="cards-row mt" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${(a.media||[]).map((m,i)=>mediaTile(m,id,i,true)).join('')||'<p class="muted">No media yet. Add photos or a video link.</p>'}</div>`,
     `<button class="btn sec" onclick="closeModal()">Close</button>`,true);}
-function addPhoto(id){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;
-  inp.onchange=()=>{const files=[...inp.files];let done=0;files.forEach(f=>{const r=new FileReader();r.onload=e=>compress(e.target.result,d=>{const a=DB.gallery.find(x=>x.id===id);a.media=a.media||[];a.media.push({type:'image',url:d});done++;if(done===files.length){save();openAlbum(id);toast(files.length+' photo(s) added');}},760,.6);r.readAsDataURL(f);});};
-  inp.click();}
+function addPhoto(id){_pickImages(files=>{const a=DB.gallery.find(x=>x.id===id);if(!a)return;a.media=a.media||[];toast('Adding photo(s)…');processImages(files,900,.72,d=>a.media.push({type:'image',url:d}),cnt=>{save();openAlbum(id);toast(cnt?cnt+' photo(s) added':'Could not read those images',!cnt);});});}
 function addVideo(id){modal('Add video link',`<div class="fld"><label>Video URL</label><input id="vid_url" placeholder="https://facebook.com/… or https://youtu.be/…"></div>
   <p class="muted" style="font-size:12px">Works with <b>Facebook</b>, YouTube and Vimeo links. ⚠ Facebook videos must be set to <b>Public</b> on Facebook to play here. Paste a link rather than uploading (video files are too large to store).</p>`,
   `<button class="btn sec" onclick="openAlbum('${id}')">Cancel</button><button class="btn" onclick="saveVideo('${id}')">Add</button>`);}
@@ -2766,7 +2794,7 @@ function vDashboard(){
   const t=today();let present=0,marked=0;DB.classes.forEach(c=>{const a=DB.attendance[t+'|'+c.id];if(a)Object.values(a).forEach(v=>{marked++;if(v==='P')present++;});});
   const att=marked?Math.round(present/marked*100):0;const collPct=fs.expected?Math.round(fs.collected/fs.expected*100):0;
   $('#view').innerHTML=`<div class="page-head"><div><h2>Dashboard</h2><p>${esc(DB.settings.schoolName)} — ${esc(DB.settings.term)}, ${esc(DB.settings.session)}</p></div>
-    <div class="flex gap"><button class="btn sec sm" onclick="exportSchool()">⬇ Export data</button><button class="btn sec sm" onclick="exportStudentsCSV()">⬇ Students CSV</button></div></div>
+    <div class="flex gap"><button class="btn sec sm" onclick="openSignPad('staff',USER.id)">✍️ My signature</button><button class="btn sec sm" onclick="exportSchool()">⬇ Export data</button><button class="btn sec sm" onclick="exportStudentsCSV()">⬇ Students CSV</button></div></div>
   <div class="cards-row">
     <div class="stat accent"><div class="lbl">Total Pupils</div><div class="num">${totalStu}</div><div class="meta">${secc.day} Day · ${secc.boarding} Boarding</div></div>
     <div class="stat"><div class="lbl">Teachers</div><div class="num">${totalTeach}</div><div class="meta">${DB.classes.length} classes</div></div>
@@ -2857,7 +2885,7 @@ function renderStuTable(){
 }
 function editStudent(id){const s=id?DB.students.find(x=>x.id===id):{};
   const adm=s.admissionNo||((DB.settings.admissionPrefix||'ADM')+'/'+((DB.settings.admissionSession||DB.settings.session||'').slice(0,4))+'/'+String(DB.students.length+1).padStart(3,'0'));
-  modal(id?'Edit Pupil':'Add Pupil',`${photoField(s.photo)}<div class="grid2">
+  modal(id?'Edit Pupil':'Add Pupil',`${photoField(s.photo)}${id?`<div class="mb" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-weight:600;font-size:13px">✍️ Signature ${s.signature?`<img src="${s.signature}" style="height:26px;vertical-align:middle;margin-left:6px">`:'<span class="muted" style="font-weight:400">— none yet</span>'}</span><button type="button" class="btn sm sec" onclick="openSignPad('student','${id}')">${s.signature?'Redraw':'Draw signature'}</button></div>`:''}<div class="grid2">
     <div class="fld full"><label>Full name *</label><input id="f_name" value="${esc(s.name||'')}" placeholder="Surname First Middle"></div>
     <div class="fld"><label>Admission No</label><input id="f_adm" value="${esc(adm)}"></div>
     <div class="fld"><label>Class *</label><select id="f_class">${DB.classes.map(c=>`<option value="${c.id}" ${s.classId===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
@@ -3017,7 +3045,7 @@ function editTeacher(id){const u=id?DB.users.find(x=>x.id===id):{classes:[]};con
   const base=(DB.settings.positions&&DB.settings.positions.length)?DB.settings.positions:['Teacher','Director','Assistant Director','School Supervisor'];
   const used=[...new Set(DB.users.filter(u=>u.role==='teacher').map(u=>u.position).filter(Boolean))];
   const POSITIONS=[...new Set([...base,...used])];const gcur=staffGroup(u);
-  modal(id?'Edit Staff':'Add Staff',`${photoField(u.photo)}<div class="grid2">
+  modal(id?'Edit Staff':'Add Staff',`${photoField(u.photo)}${id?`<div class="mb" style="border:1px solid var(--line);border-radius:10px;padding:8px 10px;display:flex;align-items:center;justify-content:space-between;gap:8px"><span style="font-weight:600;font-size:13px">✍️ Signature ${u.signature?`<img src="${u.signature}" style="height:26px;vertical-align:middle;margin-left:6px">`:'<span class="muted" style="font-weight:400">— none yet</span>'}</span><button type="button" class="btn sm sec" onclick="openSignPad('staff','${id}')">${u.signature?'Redraw':'Draw signature'}</button></div>`:''}<div class="grid2">
     <div class="fld"><label>Full name *</label><input id="t_name" value="${esc(u.name||'')}"></div>
     <div class="fld"><label>Position / Designation</label><input id="t_pos" list="posList" value="${esc(u.position||'Teacher')}" placeholder="e.g. Director"><datalist id="posList">${POSITIONS.map(p=>`<option value="${esc(p)}">`).join('')}</datalist></div>
     <div class="fld"><label>Phone number</label><input id="t_phone" value="${esc(u.phone||'')}" placeholder="080…"></div>
@@ -3073,7 +3101,7 @@ function vTdash(){const u=USER;const un=unreadMsgCount();
   <div class="card pad mb" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
     <div style="width:74px;height:74px;border-radius:50%;overflow:hidden;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:32px;flex:0 0 auto">${u.photo?`<img src="${u.photo}" style="width:100%;height:100%;object-fit:cover">`:'👩‍🏫'}</div>
     <div style="flex:1;min-width:180px"><h3 style="margin:0">${esc(u.name)}</h3><div class="muted">${esc(u.position||'Teacher')}${u.staffId?' · '+esc(u.staffId):''}</div><div style="font-size:13px;margin-top:2px">${u.phone?'☎ '+esc(u.phone):'<span style="color:var(--red)">No phone on file — ask the admin to add it</span>'}</div></div>
-    <div class="flex gap" style="flex-wrap:wrap">${hasModule('tahfiz')?`<button class="btn sec sm" onclick="go('tahfiz')">📖 Evaluation</button>`:`<button class="btn sec sm" onclick="go('results')">📝 Results</button>`}<button class="btn sec sm" onclick="go('attendance')">📅 Attendance</button><button class="btn sec sm" onclick="go('reports')">🏅 Reports</button><button class="btn sec sm" onclick="go('messages')">✉️ Messages${un?' ('+un+')':''}</button></div></div>
+    <div class="flex gap" style="flex-wrap:wrap">${hasModule('tahfiz')?`<button class="btn sec sm" onclick="go('tahfiz')">📖 Evaluation</button>`:`<button class="btn sec sm" onclick="go('results')">📝 Results</button>`}<button class="btn sec sm" onclick="go('attendance')">📅 Attendance</button><button class="btn sec sm" onclick="go('reports')">🏅 Reports</button><button class="btn sec sm" onclick="go('messages')">✉️ Messages${un?' ('+un+')':''}</button><button class="btn sec sm" onclick="openSignPad('staff','${u.id}')">✍️ ${u.signature?'Update':'Add'} my signature</button></div></div>
   <div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
     ${teacherClasses().map(c=>{const n=studentsIn(c.id).length;return `<div class="card pad"><div class="flex" style="justify-content:space-between;align-items:center"><b>${esc(c.name)}</b><span class="pill grey">${n} pupil(s)</span></div>
       <div class="flex gap mt" style="flex-wrap:wrap"><button class="btn sm sec" onclick="classAnalytics('${c.id}')">📊 Analytics</button><button class="btn sm sec" onclick="classPupils('${c.id}')">👦 Pupils</button></div></div>`;}).join('')||'<div class="card pad muted">No classes assigned yet. Ask the admin to assign your classes.</div>'}
@@ -3115,7 +3143,7 @@ function openStudentProfile(id){const s=DB.students.find(x=>x.id===id);if(!s)ret
     </table></div>
     ${ck.length?`<div style="font-weight:700;color:var(--green);margin:12px 0 4px">📋 Other details</div><div class="t-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--line)">${ck.map(k=>`<tr><td style="padding:5px 9px;background:#f5f8f6;font-weight:600;width:42%">${esc(k)}</td><td style="padding:5px 9px">${esc(custom[k])}${admin?` <button class="btn icon" style="float:right" onclick="delStudentDetail('${s.id}','${jq(k)}')">🗑️</button>`:''}</td></tr>`).join('')}</table></div>`:''}
     ${incs.length?`<div style="font-weight:700;color:var(--green);margin:12px 0 4px">🚩 Incidents</div>${incs.map(i=>`<div class="ev-item" style="display:block"><b>${esc(i.type)}</b> <span class="muted" style="font-size:11px">${esc(i.date||'')}</span><div style="font-size:12.5px">${esc(i.desc)}</div></div>`).join('')}`:''}`,
-    `<button class="btn sec" onclick="closeModal()">Close</button>${admin?`<button class="btn sec" onclick="addStudentDetail('${s.id}')">＋ Add detail</button><button class="btn" onclick="editStudent('${s.id}')">✏️ Edit</button>`:''}`,true);}
+    `<button class="btn sec" onclick="closeModal()">Close</button>${admin?`<button class="btn sec" onclick="openSignPad('student','${s.id}')">✍️ Signature</button><button class="btn sec" onclick="addStudentDetail('${s.id}')">＋ Add detail</button><button class="btn" onclick="editStudent('${s.id}')">✏️ Edit</button>`:''}`,true);}
 function addStudentDetail(id){modal('Add detail',`<p class="muted mb">Add any extra information to this pupil's profile.</p><div class="fld"><label>Detail label</label><input id="cd_k" placeholder="e.g. Previous school, NIN, State of origin, Hobby"></div><div class="fld"><label>Value</label><input id="cd_v"></div>`,
     `<button class="btn sec" onclick="openStudentProfile('${id}')">Cancel</button><button class="btn" onclick="saveStudentDetail('${id}')">Save</button>`);}
 function saveStudentDetail(id){const k=$('#cd_k').value.trim(),v=$('#cd_v').value.trim();if(!k){toast('Enter a label',true);return;}const s=DB.students.find(x=>x.id===id);s.custom=s.custom||{};s.custom[k]=v;save();closeModal();openStudentProfile(id);toast('Detail added');}
@@ -3126,7 +3154,7 @@ function openStaffProfile(id){const u=DB.users.find(x=>x.id===id);if(!u)return;c
     <div class="t-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--line)">
       ${_prow('Phone',esc(u.phone||''))}${_prow('Username',esc(u.username||''))}${_prow('Assigned classes',esc(cls))}${_prow('Bio',esc(u.bio||''))}
     </table></div>`,
-    `<button class="btn sec" onclick="closeModal()">Close</button>${admin?`<button class="btn" onclick="editTeacher('${u.id}')">✏️ Edit</button>`:''}`,true);}
+    `<button class="btn sec" onclick="closeModal()">Close</button>${admin?`<button class="btn sec" onclick="openSignPad('staff','${u.id}')">✍️ Signature</button><button class="btn" onclick="editTeacher('${u.id}')">✏️ Edit</button>`:''}`,true);}
 let searchQ='';
 function vSearch(){$('#view').innerHTML=`<div class="page-head"><div><h2>🔎 Search</h2><p>Find any pupil or staff and open their full profile</p></div></div>
   <div class="toolbar"><div class="grow"><input id="searchBox" placeholder="Name, admission no, phone, staff ID, position, blood group…" value="${esc(searchQ)}" oninput="searchQ=this.value;renderSearch()"></div></div>
@@ -3327,10 +3355,9 @@ function tahfizReportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid)
     ${sec('Teacher’s Comment')}
     <div style="border:1px solid #d9cba5;background:var(--cream);margin:0 16px;padding:9px;min-height:38px;font-size:12px">${esc(td.remark||rem.teacher||(ms.length?('Grade '+evG.g+' ('+evG.r+'). '+ts.total+'/100 this term.'):''))}</div>
 
-    <div style="display:flex;justify-content:space-between;gap:18px;margin-top:auto;padding:26px 16px 10px">
-      <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="border-top:1.5px solid var(--rg);padding-top:3px">Class Teacher</div></div>
-      <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="border-top:1.5px solid var(--rg);padding-top:3px">School Supervisor</div></div>
-      <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="border-top:1.5px solid var(--rg);padding-top:3px">Proprietor / Director</div></div>
+    <div style="display:flex;justify-content:space-around;gap:24px;margin-top:auto;padding:24px 24px 10px">
+      <div style="flex:0 1 220px;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="height:28px">${sigImg((classTeacher(s.classId)||{}).signature,28)}</div><div style="border-top:1.5px solid var(--rg);padding-top:3px">Class Teacher</div></div>
+      <div style="flex:0 1 220px;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="height:28px">${sigImg((directorUser()||{}).signature,28)}</div><div style="border-top:1.5px solid var(--rg);padding-top:3px">School Director</div></div>
     </div>
     <div style="background:linear-gradient(135deg,var(--rg),var(--rgd));color:var(--rgold);text-align:center;font-size:11px;font-weight:700;font-style:italic;padding:7px">${esc(DB.settings.motto||'Knowledge is Light')}</div>
   </div>`;}
@@ -3854,7 +3881,7 @@ function studentCardBack(s){return `<div class="idc"><div class="idc-back">
   <div class="r"><span>Session</span><b>${esc(DB.settings.session)}</b></div>
   <div class="qr" style="margin-top:8px"><img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}"><div class="muted" style="font-size:8.5px">Scan to verify</div></div>
   <div class="terms">This card remains the property of ${esc(DB.settings.schoolName)} and must be surrendered on request. If found, please return to the school address.</div>
-  <div class="sig"><div class="ln">Holder's Signature</div><div class="ln">Head Teacher</div></div></div>
+  <div class="sig"><div class="ln">${sigImg(s.signature,24)}Holder's Signature</div><div class="ln">${sigImg((headTeacher()||{}).signature,24)}Head Teacher</div></div></div>
   <div class="idc-foot">${esc(DB.settings.motto||'')}</div></div>`;}
 function teacherCardHTML(u){const code=u.staffId||u.id;return `<div class="idc staff">
   <div class="idc-band"></div><div class="idc-head"><div class="idc-logo">${idLogo()}</div><div class="idc-school">${esc(DB.settings.schoolName)}<small>STAFF IDENTITY CARD</small></div></div>
@@ -3872,7 +3899,7 @@ function teacherCardBack(u){return `<div class="idc staff"><div class="idc-back"
   <div class="r"><span>Session</span><b>${esc(DB.settings.session)}</b></div>
   <div class="qr" style="margin-top:8px"><img class="qrimg" data-qr="${esc(u.staffId||u.id)}"><div class="muted" style="font-size:8.5px">Scan to verify</div></div>
   <div class="terms">This card certifies the holder as authorised staff of ${esc(DB.settings.schoolName)}. It remains school property and must be returned on exit.</div>
-  <div class="sig"><div class="ln">Staff Signature</div><div class="ln">Head Teacher</div></div></div>
+  <div class="sig"><div class="ln">${sigImg(u.signature,24)}Staff Signature</div><div class="ln">${sigImg((headTeacher()||{}).signature,24)}Head Teacher</div></div></div>
   <div class="idc-foot">${esc(DB.settings.motto||'')}</div></div>`;}
 function renderBarcodes(){if(!window.JsBarcode)return;document.querySelectorAll('svg.bc[data-code]').forEach(el=>{if(el.dataset.done)return;
   try{JsBarcode(el,el.getAttribute('data-code'),{format:'CODE128',height:42,width:1.7,fontSize:12,margin:0,displayValue:true});if(el.childNodes.length)el.dataset.done='1';}catch(e){}});}
