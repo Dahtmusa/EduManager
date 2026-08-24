@@ -730,6 +730,10 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(d.settings.admissionPrefix==null)d.settings.admissionPrefix='ADM';
   if(!Array.isArray(d.messages))d.messages=[];
   if(!d.tahEvalOpen||typeof d.tahEvalOpen!=='object')d.tahEvalOpen={};
+  if(!d.tahTerm||typeof d.tahTerm!=='object')d.tahTerm={};
+  if(!Array.isArray(d.settings.otherSubjects))d.settings.otherSubjects=[];
+  if(d.settings.tahMonthMax==null)d.settings.tahMonthMax=30;
+  if(d.settings.tahAttMax==null)d.settings.tahAttMax=10;
   if(!Array.isArray(d.alumni))d.alumni=[];
   if(!Array.isArray(d.settings.leadership))d.settings.leadership=[];
   if(!Array.isArray(d.settings.activities))d.settings.activities=[];
@@ -800,25 +804,22 @@ function G(){return DB.settings.grade||{ca1:20,ca2:20,exam:60};}
 function gradeOf(t){if(t>=75)return{g:'A',r:'Distinction'};if(t>=65)return{g:'B',r:'Very Good'};if(t>=55)return{g:'C',r:'Credit'};if(t>=45)return{g:'D',r:'Pass'};if(t>=40)return{g:'E',r:'Fair'};return{g:'F',r:'Fail'};}
 /* Tahfiz (Qur'an memorization) grade bands, per Aliyu & Maimuna Centre */
 function tahfizGrade(t){t=+t||0;if(t>=80)return{g:'A',r:'Excellent'};if(t>=70)return{g:'B',r:'Very Good'};if(t>=60)return{g:'C',r:'Good'};if(t>=50)return{g:'D',r:'Pass'};return{g:'E',r:'Weak'};}
-function tahfizTarget(){return Number(DB.settings.tahfizTarget)||20;}
-function tahfizWeights(){const w=DB.settings.tahfizWeights||{};return {prog:+w.prog||0,acc:+w.acc||0,rev:+w.rev||0,cons:+w.cons||0};}
+function tahMonthMax(){return Number(DB.settings.tahMonthMax)||30;}
+function tahAttMax(){return Number(DB.settings.tahAttMax)||10;}
+function tahMemMax(){return tahMonthMax()*3;}
 function tKey(sid){return DB.settings.session+'|'+DB.settings.term+'|'+tahMonth+'|'+sid;}
 function tGetM(sid){return (DB.tahfiz&&DB.tahfiz[tKey(sid)])||{};}
 function monthLabel(m){if(!m||!/^\d{4}-\d{2}$/.test(m))return m||'';const d=new Date(m+'-01');return d.toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
-function tahPrevPg(sid,curMonth){let best='',pg=0;const suf='|'+sid;Object.keys(DB.tahfiz||{}).forEach(k=>{if(!k.endsWith(suf))return;const p=k.split('|');if(p.length!==4||p[3]!==sid)return;if(p[2]<curMonth&&p[2]>best){best=p[2];pg=Number(DB.tahfiz[k].pg)||0;}});return pg;}
-function tahEntryScore(e,prevPg){const target=tahfizTarget();const newP=Math.max(0,(Number(e.pg)||0)-(Number(prevPg)||0));
-  const prog=target?Math.min(100,newP/target*100):0;
-  const acc=(e.acc!=null&&e.acc!=='')?Number(e.acc):0,rev=(e.rev!=null&&e.rev!=='')?Number(e.rev):0,cons=(e.cons!=null&&e.cons!=='')?Number(e.cons):100;
-  const w=tahfizWeights();const sum=(w.prog+w.acc+w.rev+w.cons)||1;
-  const score=Math.round((prog*w.prog+acc*w.acc+rev*w.rev+cons*w.cons)/sum);
-  return {newP,prog:Math.round(prog),acc,rev,cons,score,grade:tahfizGrade(score)};}
-function tahTermEntries(sid,sess,term,anyStatus){sess=sess||DB.settings.session;term=term||DB.settings.term;const out=[];
-  Object.keys(DB.tahfiz||{}).forEach(k=>{const p=k.split('|');if(p.length!==4||p[0]!==sess||p[1]!==term||p[3]!==sid)return;const e=DB.tahfiz[k];if(!anyStatus&&e.status!=='approved')return;out.push(Object.assign({month:p[2]},e));});
+function tahTermKey(sid,sess,term){return (sess||DB.settings.session)+'|'+(term||DB.settings.term)+'|'+sid;}
+function tahTermData(sid,sess,term){return (DB.tahTerm&&DB.tahTerm[tahTermKey(sid,sess,term)])||{};}
+function tahMonthlyMarks(sid,sess,term){sess=sess||DB.settings.session;term=term||DB.settings.term;const out=[];
+  Object.keys(DB.tahfiz||{}).forEach(k=>{const p=k.split('|');if(p.length!==4||p[0]!==sess||p[1]!==term||p[3]!==sid)return;const e=DB.tahfiz[k];if(e.status!=='approved')return;
+    out.push({month:p[2],mark:Number(e.mark)||0,ss:e.ss,as:e.as,sc:e.sc,ac:e.ac,pg:e.pg,hz:e.hz});});
   out.sort((a,b)=>a.month<b.month?-1:1);return out;}
-function tahTermSummary(sid,sess,term){const es=tahTermEntries(sid,sess,term);if(!es.length)return null;
-  let total=0;const rows=es.map(e=>{const sc=tahEntryScore(e,tahPrevPg(sid,e.month));total+=sc.score;return {month:e.month,e,sc};});
-  const first=es[0],last=es[es.length-1];const score=Math.round(total/es.length);
-  return {score,grade:tahfizGrade(score),ss:first.ss,as:first.as,sc:last.sc,ac:last.ac,pg:last.pg,hz:last.hz,rows,months:es.length};}
+function tahTermScore(sid,sess,term){const ms=tahMonthlyMarks(sid,sess,term);const mm=tahMonthMax();
+  let mem=ms.reduce((a,m)=>a+Math.max(0,Math.min(mm,Number(m.mark)||0)),0);mem=Math.min(tahMemMax(),mem);
+  const att=Math.max(0,Math.min(tahAttMax(),Number(tahTermData(sid,sess,term).att)||0));const total=Math.round(mem+att);
+  return {months:ms,mem,att,total,grade:tahfizGrade(total)};}
 const THEMES={green:{n:'Green & Gold',rg:'#0b5e3a',rgd:'#08482c',gold:'#caa64e'},blue:{n:'Royal Blue & Gold',rg:'#15366e',rgd:'#0f2750',gold:'#d4af37'},maroon:{n:'Maroon & Gold',rg:'#6e1f2a',rgd:'#54141d',gold:'#d4af37'},teal:{n:'Teal & Gold',rg:'#0c5b56',rgd:'#084540',gold:'#c9a24b'},purple:{n:'Purple & Gold',rg:'#4a2a6e',rgd:'#371f52',gold:'#d4af37'}};
 function theme(){return THEMES[(DB&&DB.settings&&DB.settings.theme)||'green']||THEMES.green;}
 function themeVars(){const t=theme();return `--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}`;}
@@ -3050,17 +3051,15 @@ function renderRepList(){const list=studentsIn(repClass);
   </tbody></table></div>`;}
 function tahfizReportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid);if(!s)return '';
   sess=sess||DB.settings.session;term=term||DB.settings.term;
-  const {rows}=computeClassResults(s.classId,sess,term);const row=rows.find(r=>r.s.id===sid)||{marks:[],count:0,total:0,avg:0,pos:null};
-  const g=G();const subsList=DB.subjects[s.classId]||[];const rem=DB.remarks[rkey(sid,sess,term)]||{};const sum=tahTermSummary(sid,sess,term)||{};
+  const rem=DB.remarks[rkey(sid,sess,term)]||{};
+  const ts=tahTermScore(sid,sess,term);const td=tahTermData(sid,sess,term);
+  const ms=ts.months;const first=ms[0]||{},last=ms[ms.length-1]||{};
+  const otherSubs=DB.settings.otherSubjects||[];const subjPcts=td.subjects||{};
+  const hasOther=otherSubs.some(n=>subjPcts[n]!=null&&subjPcts[n]!=='');
   const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'📖';
   let daysOpen=0;Object.keys(DB.attendance).forEach(k=>{const p=k.split('|');if(p[1]===s.classId){const rec=DB.attendance[k];if(rec&&Object.keys(rec).length)daysOpen++;}});
-  const classList=studentsIn(s.classId),subPos={};
-  subsList.forEach(sub=>{const arr=classList.map(st=>{const r=(DB.results[rkey(st.id,sess,term)]||{})[sub]||{};const has=r.ca1!=null||r.ca2!=null||r.exam!=null;return{id:st.id,tt:(+r.ca1||0)+(+r.ca2||0)+(+r.exam||0),has};}).filter(x=>x.has).sort((a,b)=>b.tt-a.tt);const m={};arr.forEach((x,i)=>m[x.id]=i+1);subPos[sub]=m;});
-  const ev=(sum.score!=null)?sum.score:null;const evG=sum.grade||null;
-  const overall=ev!=null?ev:(row.count?Math.round(row.avg):null);
-  const overallG=overall!=null?(ev!=null?tahfizGrade(overall):gradeOf(overall)):null;
+  const overall=ts.total;const overallG=ts.grade;const evG=ts.grade;
   const feesNote=(DB.settings.nextTermFeesNote||'').trim()||naira(Number((DB.fees[rkey(sid,sess,term)]||{}).due)||0);
-  const hasSubjects=subsList.length>0&&row.marks.some(m=>m.has);
   const tbl='width:100%;border-collapse:collapse;font-size:12px';
   const thc='background:var(--rg);color:#fff;padding:5px 8px;border:1px solid var(--rgd);font-size:10.5px;text-align:center';
   const cell='border:1px solid #d9cba5;padding:5px 9px';
@@ -3095,33 +3094,34 @@ function tahfizReportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid)
     </div>
     <div style="background:var(--rg);color:#fff;font-size:10.5px;padding:4px 16px;text-align:center">Result Status: <b style="color:var(--rgold)">${overallG?esc(overallG.r):'—'}</b> &nbsp;·&nbsp; Next Term Fees: <b style="color:var(--rgold)">${esc(feesNote)}</b></div>
 
-    ${sec('Qur’an Memorization Performance')}
+    ${sec('Qur’an Memorization')}
     <table style="${tbl}"><tbody>
-      <tr><td style="${cellL};width:42%">Surah / Ayah at Commencement</td><td style="${cell}">${esc(surahLabel(sum.ss))}${sum.as?', Ayah '+esc(sum.as):''}</td></tr>
-      <tr><td style="${cellL}">Current Surah / Ayah</td><td style="${cell};background:#fdfaf0">${esc(surahLabel(sum.sc))}${sum.ac?', Ayah '+esc(sum.ac):''}</td></tr>
-      <tr><td style="${cellL}">Pages Memorized</td><td style="${cell}">${(sum.pg!=null&&sum.pg!=='')?esc(sum.pg)+' pages':'—'}</td></tr>
-      <tr><td style="${cellL}">Hizb Memorized</td><td style="${cell};background:#fdfaf0">${(sum.hz!=null&&sum.hz!=='')?esc(sum.hz)+' Hizb':'—'}</td></tr>
-      <tr><td style="${cellL}">Term Evaluation${sum.months?' (avg of '+sum.months+' month'+(sum.months===1?'':'s')+')':''}</td><td style="${cell}">${ev!=null?'<b style="color:var(--rg)">'+ev+'%</b> — '+evG.r:'—'}</td></tr>
+      <tr><td style="${cellL};width:42%">Surah / Ayah at Commencement</td><td style="${cell}">${first.ss?esc(surahLabel(first.ss))+(first.as?', Ayah '+esc(first.as):''):'—'}</td></tr>
+      <tr><td style="${cellL}">Current Surah / Ayah</td><td style="${cell};background:#fdfaf0">${last.sc?esc(surahLabel(last.sc))+(last.ac?', Ayah '+esc(last.ac):''):'—'}</td></tr>
+      <tr><td style="${cellL}">Pages Memorized</td><td style="${cell}">${(last.pg!=null&&last.pg!=='')?esc(last.pg)+' pages':'—'}</td></tr>
+      <tr><td style="${cellL}">Hizb Memorized</td><td style="${cell};background:#fdfaf0">${(last.hz!=null&&last.hz!=='')?esc(last.hz)+' Hizb':'—'}</td></tr>
     </tbody></table>
-    ${(sum.rows&&sum.rows.length)?`${sec('Monthly Evaluations')}
-    <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Month</th><th style="${thc}">New pages</th><th style="${thc}">Accuracy</th><th style="${thc}">Revision</th><th style="${thc}">Score</th><th style="${thc}">Grade</th></tr></thead><tbody>
-      ${sum.rows.map((r,ix)=>{const bg=ix%2?'#fbf6ea':'#fff';return `<tr><td style="${cell};background:${bg}">${esc(monthLabel(r.month))}</td><td style="${cell};text-align:center;background:${bg}">${r.sc.newP}</td><td style="${cell};text-align:center;background:${bg}">${r.sc.acc}%</td><td style="${cell};text-align:center;background:${bg}">${r.sc.rev}%</td><td style="${cell};text-align:center;font-weight:800;color:var(--rg);background:${bg}">${r.sc.score}%</td><td style="${cell};text-align:center;background:${bg}">${r.sc.grade.g}</td></tr>`;}).join('')}
+    ${sec('Monthly Evaluations')}
+    <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Month</th><th style="${thc}">Current position</th><th style="${thc}">Pages</th><th style="${thc}">Score (/${tahMonthMax()})</th></tr></thead><tbody>
+      ${ms.length?ms.map((m,ix)=>{const bg=ix%2?'#fbf6ea':'#fff';return `<tr><td style="${cell};background:${bg}">${esc(monthLabel(m.month))}</td><td style="${cell};background:${bg}">${m.sc?esc(surahLabel(m.sc))+(m.ac?':'+esc(m.ac):''):'—'}</td><td style="${cell};text-align:center;background:${bg}">${m.pg!=null&&m.pg!==''?esc(m.pg):'–'}</td><td style="${cell};text-align:center;font-weight:800;color:var(--rg);background:${bg}">${m.mark}</td></tr>`;}).join(''):`<tr><td colspan="4" style="${cell};text-align:center;color:#8a7a45">No approved monthly evaluations yet.</td></tr>`}
+      <tr style="background:#f0ede0;font-weight:800"><td style="${cell}" colspan="3">Memorization subtotal</td><td style="${cell};text-align:center;color:var(--rg)">${ts.mem} / ${tahMemMax()}</td></tr>
+    </tbody></table>
+
+    ${hasOther?`${sec('Other Subjects')}
+    <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Subject</th><th style="${thc}">Performance</th></tr></thead><tbody>
+      ${otherSubs.filter(n=>subjPcts[n]!=null&&subjPcts[n]!=='').map((n,ix)=>{const bg=ix%2?'#fbf6ea':'#fff';return `<tr><td style="${cell};background:${bg}">${esc(n)}</td><td style="${cell};text-align:center;background:${bg}">${esc(subjPcts[n])}%</td></tr>`;}).join('')}
     </tbody></table>`:''}
 
-    ${hasSubjects?`${sec('Other Subjects')}
-    <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Subject</th><th style="${thc}">1st CA (${g.ca1})</th><th style="${thc}">2nd CA (${g.ca2})</th><th style="${thc}">Exam (${g.exam})</th><th style="${thc}">Total</th><th style="${thc}">Grade</th><th style="${thc};text-align:left">Remark</th></tr></thead><tbody>
-      ${row.marks.map((m,ix)=>{const gr=gradeOf(m.total||0);const bg=ix%2?'#fbf6ea':'#fff';return `<tr><td style="${cell};background:${bg}">${esc(m.sub)}</td><td style="${cell};text-align:center;background:${bg}">${m.ca1??'–'}</td><td style="${cell};text-align:center;background:${bg}">${m.ca2??'–'}</td><td style="${cell};text-align:center;background:${bg}">${m.exam??'–'}</td><td style="${cell};text-align:center;font-weight:800;color:var(--rg);background:${bg}">${m.has?m.total:'–'}</td><td style="${cell};text-align:center;background:${bg}">${m.has?gr.g:'–'}</td><td style="${cell};background:${bg}">${m.has?gr.r:'–'}</td></tr>`;}).join('')}
-    </tbody></table>`:''}
-
-    ${sec('Performance Grading')}
-    <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Component</th><th style="${thc}">Score</th><th style="${thc}">Grade</th><th style="${thc};text-align:left">Remark</th></tr></thead><tbody>
-      <tr><td style="${cell}">Qur'anic Memorization</td><td style="${cell};text-align:center">${ev!=null?ev+'%':'—'}</td><td style="${cell};text-align:center;font-weight:800;color:var(--rg)">${evG?evG.g:'—'}</td><td style="${cell}">${evG?evG.r:'—'}</td></tr>
-      ${hasSubjects?`<tr style="background:#fbf6ea"><td style="${cell}">Subjects Average</td><td style="${cell};text-align:center">${row.count?row.avg.toFixed(1)+'%':'—'}</td><td style="${cell};text-align:center;font-weight:800;color:var(--rg)">${row.count?gradeOf(row.avg).g:'—'}</td><td style="${cell}">${row.count?gradeOf(row.avg).r:'—'}</td></tr>`:''}
+    ${sec('Term Result')}
+    <table style="${tbl}"><thead><tr><th style="${thc};text-align:left">Component</th><th style="${thc}">Score</th><th style="${thc}">Out of</th></tr></thead><tbody>
+      <tr><td style="${cell}">Qur’an Memorization (monthly)</td><td style="${cell};text-align:center;font-weight:700">${ts.mem}</td><td style="${cell};text-align:center">${tahMemMax()}</td></tr>
+      <tr style="background:#fbf6ea"><td style="${cell}">Attendance &amp; Conduct</td><td style="${cell};text-align:center;font-weight:700">${ts.att}</td><td style="${cell};text-align:center">${tahAttMax()}</td></tr>
+      <tr style="background:var(--rg);color:#fff;font-weight:800"><td style="${cell};border-color:var(--rgd)">TOTAL</td><td style="${cell};text-align:center;border-color:var(--rgd);color:var(--rgold)">${ts.total}</td><td style="${cell};text-align:center;border-color:var(--rgd)">100</td></tr>
     </tbody></table>
     <div style="font-size:10.5px;margin:6px 16px 0;text-align:center"><b style="color:var(--rg)">Grade guide:</b> <span style="background:var(--cream);border:1px solid var(--rgold);border-radius:10px;padding:1px 7px;margin:0 2px">80–100 A</span><span style="background:var(--cream);border:1px solid var(--rgold);border-radius:10px;padding:1px 7px;margin:0 2px">70–79 B</span><span style="background:var(--cream);border:1px solid var(--rgold);border-radius:10px;padding:1px 7px;margin:0 2px">60–69 C</span><span style="background:var(--cream);border:1px solid var(--rgold);border-radius:10px;padding:1px 7px;margin:0 2px">50–59 D</span></div>
 
     ${sec('Teacher’s Comment')}
-    <div style="border:1px solid #d9cba5;background:var(--cream);margin:0 16px;padding:9px;min-height:38px;font-size:12px">${esc(rem.teacher||(ev!=null?('Grade '+evG.g+'. '+evG.r+' performance in Qur’an memorization this term.'):''))}</div>
+    <div style="border:1px solid #d9cba5;background:var(--cream);margin:0 16px;padding:9px;min-height:38px;font-size:12px">${esc(td.remark||rem.teacher||(ms.length?('Grade '+evG.g+' ('+evG.r+'). '+ts.total+'/100 this term.'):''))}</div>
 
     <div style="display:flex;justify-content:space-between;gap:18px;margin-top:auto;padding:26px 16px 10px">
       <div style="flex:1;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="border-top:1.5px solid var(--rg);padding-top:3px">Class Teacher</div></div>
@@ -3199,20 +3199,22 @@ function tahStudents(cid){return studentsIn(cid).slice().sort((a,b)=>admOrder(a)
 function curMonth(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');}
 function tahMonthKey(m){return DB.settings.session+'|'+DB.settings.term+'|'+(m||tahMonth);}
 function tahIsOpen(m){const r=DB.tahEvalOpen&&DB.tahEvalOpen[tahMonthKey(m)];return !!(r&&r.open);}
-let tahClass='', tahDirty={}, tahMonth='';
+let tahClass='', tahDirty={}, tahMonth='', tahView='month';
 function tahStatusOf(cid){const list=studentsIn(cid);let sub=false;for(const s of list){const e=tGetM(s.id);if(e.status==='approved')return 'approved';if(e.status==='submitted')sub=true;}return sub?'submitted':'draft';}
 function tahLocked(cid){return tahStatusOf(cid)!=='draft';}
 function tahEditable(cid){return tahIsOpen(tahMonth)&&tahStatusOf(cid)==='draft';}
 function tahHasData(e){return Object.keys(e||{}).filter(x=>x!=='status'&&x!=='by').length>0;}
-function tahIncomplete(cid){const req=['sc','ac','pg','acc','rev'];const bad=[];tahStudents(cid).forEach(s=>{const e=tGetM(s.id);if(req.some(f=>e[f]==null||e[f]===''))bad.push(s.name);});return bad;}
+function tahIncomplete(cid){const req=['sc','ac','mark'];const bad=[];tahStudents(cid).forEach(s=>{const e=tGetM(s.id);if(req.some(f=>e[f]==null||e[f]===''))bad.push(s.name);});return bad;}
 function vTahfiz(){const cls=teacherClasses();if(!tahClass||!cls.find(c=>c.id===tahClass))tahClass=cls[0]?cls[0].id:'';
   if(!tahMonth)tahMonth=curMonth();
   const admin=USER.role==='admin';
-  $('#view').innerHTML=`<div class="page-head"><div><h2>📖 Qur’an Monthly Evaluation</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)} — one line per pupil, in admission-number order</p></div>${admin?`<button class="btn sec no-print" onclick="tahGradingSetup()">⚙️ Grading setup</button>`:''}</div>
+  $('#view').innerHTML=`<div class="page-head"><div><h2>📖 Qur’an Evaluation</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)} — sorted by admission number</p></div>${admin?`<button class="btn sec no-print" onclick="tahMarksSetup()">⚙️ Setup</button>`:''}</div>
+  <div class="subtabs"><button class="subtab${tahView==='month'?' active':''}" onclick="tahView='month';vTahfiz()">Monthly evaluation</button><button class="subtab${tahView==='term'?' active':''}" onclick="tahView='term';vTahfiz()">Term marks &amp; remarks</button></div>
   <div class="toolbar"><div><label>Class</label><select onchange="switchTahClass(this.value)">${cls.map(c=>`<option value="${c.id}" ${tahClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
-    <div><label>Evaluation month</label><input type="month" value="${esc(tahMonth)}" onchange="tahMonth=this.value;renderTah()"></div></div>
-  <div id="tahSaveBar"></div><div id="tahArea"></div>`;renderTah();}
-function switchTahClass(cid){if(tahDirty[tahClass]&&!confirm('You have unsaved entries in this class. Switch anyway? Unsaved typing is not in the cloud until you Save & submit.')){vTahfiz();return;}tahClass=cid;renderTah();}
+    ${tahView==='month'?`<div><label>Evaluation month</label><input type="month" value="${esc(tahMonth)}" onchange="tahMonth=this.value;renderTah()"></div>`:''}</div>
+  ${tahView==='month'?`<div id="tahSaveBar"></div><div id="tahArea"></div>`:`<div id="tahTermArea"></div>`}`;
+  if(tahView==='month')renderTah();else renderTerm();}
+function switchTahClass(cid){if(tahDirty[tahClass]&&!confirm('You have unsaved entries in this class. Switch anyway? Unsaved typing is not in the cloud until you Save & submit.')){vTahfiz();return;}tahClass=cid;if(tahView==='month')renderTah();else renderTerm();}
 function renderTahSaveBar(){const bar=$('#tahSaveBar');if(!bar)return;const cid=tahClass,st=tahStatusOf(cid),admin=USER.role==='admin',open=tahIsOpen(tahMonth);let html='';
   if(st==='draft'){
     if(admin){html=`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 15px;border-left:4px solid ${open?'#0b8a45':'#c0392b'}">
@@ -3237,7 +3239,8 @@ function renderTah(){renderTahSaveBar();const list=tahStudents(tahClass);
   if(!list.length){$('#tahArea').innerHTML=`<div class="card"><div class="empty"><div class="big">📖</div>No pupils in this class.</div></div>`;return;}
   const st=tahStatusOf(tahClass),open=tahIsOpen(tahMonth),ed=tahEditable(tahClass),d=ed?'':'disabled';
   if(!ed&&st==='draft'&&USER.role!=='admin'&&!open){$('#tahArea').innerHTML='';return;}
-  const rows=list.map((s,i)=>{const e=tGetM(s.id);const has=tahHasData(e);const sc=tahEntryScore(e,tahPrevPg(s.id,tahMonth));
+  const mm=tahMonthMax();
+  const rows=list.map((s,i)=>{const e=tGetM(s.id);
     return `<tr>
       <td class="center muted">${i+1}</td>
       <td style="white-space:nowrap"><b>${esc(s.name)}</b> ${sectionBadge(s)}<br><span class="muted" style="font-size:10.5px;font-family:monospace">${esc(s.admissionNo||'—')}</span></td>
@@ -3248,10 +3251,7 @@ function renderTah(){renderTahSaveBar();const list=tahStudents(tahClass);
       <td style="min-width:150px;max-width:230px"><span id="tar_${s.id}" style="font-size:17px;line-height:1.9"></span></td>
       <td><input id="pg_${s.id}" ${d} type="number" value="${esc(e.pg??'')}" onchange="setTah('${s.id}','pg',this.value)" style="width:64px"></td>
       <td><input ${d} type="number" step="0.1" value="${esc(e.hz??'')}" onchange="setTah('${s.id}','hz',this.value)" style="width:56px"></td>
-      <td><input ${d} type="number" min="0" max="100" value="${esc(e.acc??'')}" onchange="setTah('${s.id}','acc',this.value)" style="width:56px"></td>
-      <td><input ${d} type="number" min="0" max="100" value="${esc(e.rev??'')}" onchange="setTah('${s.id}','rev',this.value)" style="width:56px"></td>
-      <td><input ${d} type="number" min="0" max="100" value="${esc(e.cons??'')}" onchange="setTah('${s.id}','cons',this.value)" style="width:56px" placeholder="100"></td>
-      <td class="center"><span id="tsc_${s.id}" class="pill ${has?(sc.grade.g==='E'?'red':'green'):'grey'}" title="New pages ${sc.newP} · progress ${sc.prog}%">${has?sc.score+'% '+sc.grade.g:'—'}</span></td>
+      <td class="center"><input id="mk_${s.id}" ${d} type="number" min="0" max="${mm}" value="${esc(e.mark??'')}" onchange="setTah('${s.id}','mark',this.value)" style="width:66px;text-align:center;font-weight:700"></td>
     </tr>`;}).join('');
   $('#tahArea').innerHTML=`<div class="card no-print" style="padding:0;overflow:auto"><table class="tah-tbl" style="width:100%;border-collapse:collapse;font-size:12.5px">
     <thead><tr style="background:#f3f7f4;text-align:left">
@@ -3259,21 +3259,18 @@ function renderTah(){renderTahSaveBar();const list=tahStudents(tahClass);
       <th style="padding:8px 6px">Commenced at<br><span class="muted" style="font-weight:400">Surah · Ayah</span></th>
       <th style="padding:8px 6px">Current position<br><span class="muted" style="font-weight:400">Surah · Ayah</span></th>
       <th style="padding:8px 6px">Current ayah (Arabic)</th>
-      <th style="padding:8px 6px">Pages</th><th style="padding:8px 6px">Hizb</th><th style="padding:8px 6px">Acc%</th><th style="padding:8px 6px">Rev%</th><th style="padding:8px 6px">Cons%</th><th class="center" style="padding:8px 6px">Score</th>
+      <th style="padding:8px 6px">Pages</th><th style="padding:8px 6px">Hizb</th><th class="center" style="padding:8px 6px">Month score<br><span class="muted" style="font-weight:400">/ ${mm}</span></th>
     </tr></thead><tbody>${rows}</tbody></table></div>
-    <p class="muted no-print" style="font-size:12px;margin:8px 2px">Pick a Surah then its Ayah. The Arabic of the <b>current</b> ayah appears once selected (loads from the internet the first time, then works offline). ${ed?'All pupils must have a current position, pages, accuracy and revision before you can submit.':''}</p>`;
+    <p class="muted no-print" style="font-size:12px;margin:8px 2px">Pick a Surah then its Ayah — the Arabic of the <b>current</b> ayah appears once selected. The teacher gives one overall <b>month score out of ${mm}</b> for each pupil. ${ed?'Every pupil needs a current position and a month score before you can submit.':''}</p>`;
   list.forEach(s=>{const e=tGetM(s.id);if(e.sc&&e.ac)qFillVerse(s.id);});}
 function setSurah(sid,field){const el=$('#'+field+'_'+sid);if(!el)return;const v=el.value;setTah(sid,field,v,true);
   const ayField=field==='ss'?'as':'ac';const aEl=$('#'+ayField+'_'+sid);if(aEl){aEl.innerHTML=ayahOpts(surahCount(v),'');}
-  setTah(sid,ayField,'',true);if(field==='sc'){const box=$('#tar_'+sid);if(box){box.textContent='';box.removeAttribute('dir');}}
-  refreshTahScore(sid);}
-function setAyah(sid,field){const el=$('#'+field+'_'+sid);if(!el)return;setTah(sid,field,el.value,true);if(field==='ac')qFillVerse(sid);refreshTahScore(sid);}
-function refreshTahScore(sid){const e=tGetM(sid);const has=tahHasData(e);const sc=tahEntryScore(e,tahPrevPg(sid,tahMonth));const pill=$('#tsc_'+sid);if(pill){pill.className='pill '+(has?(sc.grade.g==='E'?'red':'green'):'grey');pill.textContent=has?sc.score+'% '+sc.grade.g:'—';pill.title='New pages '+sc.newP+' · progress '+sc.prog+'%';}}
+  setTah(sid,ayField,'',true);if(field==='sc'){const box=$('#tar_'+sid);if(box){box.textContent='';box.removeAttribute('dir');}}}
+function setAyah(sid,field){const el=$('#'+field+'_'+sid);if(!el)return;setTah(sid,field,el.value,true);if(field==='ac')qFillVerse(sid);}
 function setTah(sid,field,val,quiet){if(!tahEditable(tahClass))return;const k=tKey(sid);DB.tahfiz[k]=DB.tahfiz[k]||{};val=(val==null?'':(''+val).trim());
   if(val==='')delete DB.tahfiz[k][field];else DB.tahfiz[k][field]=val;
   if(!tahHasData(DB.tahfiz[k])&&!DB.tahfiz[k].status)delete DB.tahfiz[k];
-  saveStoreLocal();tahDirty[tahClass]=true;renderTahSaveBar();
-  if(!quiet)refreshTahScore(sid);}
+  saveStoreLocal();tahDirty[tahClass]=true;renderTahSaveBar();}
 async function tahCommit(cid,mutate,msg){
   if(!navigator.onLine){toast('⚠ No internet — not saved. Connect and try again.',true);return;}
   if(!supa){toast('⚠ Cloud not connected — not saved.',true);return;}
@@ -3298,16 +3295,49 @@ function tahOpenMonth(){DB.tahEvalOpen=DB.tahEvalOpen||{};DB.tahEvalOpen[tahMont
 function tahCloseMonth(){if(!confirm('Close evaluation for '+monthLabel(tahMonth)+'? Teachers will no longer be able to record for this month.'))return;
   DB.tahEvalOpen=DB.tahEvalOpen||{};if(DB.tahEvalOpen[tahMonthKey()])DB.tahEvalOpen[tahMonthKey()].open=false;else DB.tahEvalOpen[tahMonthKey()]={open:false};
   save();renderTahSaveBar();renderTah();toast('Evaluation closed');}
-function tahGradingSetup(){const w=tahfizWeights();modal('Grading setup',`<p class="muted mb">Set the monthly page target and how much each part counts. Weights are relative and need not total 100.</p>
-    <div class="fld"><label>Monthly page target (full marks for progress)</label><input id="tg_target" type="number" value="${tahfizTarget()}"></div>
-    <div class="grid2"><div class="fld"><label>Progress weight</label><input id="tg_prog" type="number" value="${w.prog}"></div>
-      <div class="fld"><label>Accuracy weight</label><input id="tg_acc" type="number" value="${w.acc}"></div>
-      <div class="fld"><label>Revision weight</label><input id="tg_rev" type="number" value="${w.rev}"></div>
-      <div class="fld"><label>Consistency weight</label><input id="tg_cons" type="number" value="${w.cons}"></div></div>`,
-    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveTahGrading()">Save</button>`);}
-function saveTahGrading(){DB.settings.tahfizTarget=Number($('#tg_target').value)||20;
-  DB.settings.tahfizWeights={prog:Number($('#tg_prog').value)||0,acc:Number($('#tg_acc').value)||0,rev:Number($('#tg_rev').value)||0,cons:Number($('#tg_cons').value)||0};
-  save();closeModal();if(CURRENT==='tahfiz')renderTah();toast('Grading settings saved');}
+function tahMarksSetup(){modal('Marks setup',`<p class="muted mb">Set the maximum marks. Default: each month is out of 30 (3 months = 90) and attendance &amp; conduct is out of 10, giving 100 for the term.</p>
+    <div class="grid2"><div class="fld"><label>Max per monthly evaluation</label><input id="ms_mm" type="number" value="${tahMonthMax()}"></div>
+      <div class="fld"><label>Max for attendance &amp; conduct</label><input id="ms_att" type="number" value="${tahAttMax()}"></div></div>
+    <p class="muted" style="font-size:12px">Term total = (monthly max × 3) + attendance max. With the defaults that is 90 + 10 = 100.</p>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveTahMarks()">Save</button>`);}
+function saveTahMarks(){DB.settings.tahMonthMax=Number($('#ms_mm').value)||30;DB.settings.tahAttMax=Number($('#ms_att').value)||10;save();closeModal();if(CURRENT==='tahfiz')vTahfiz();toast('Marks setup saved');}
+/* ---- Term marks & remarks tab ---- */
+function renderTerm(){const el=$('#tahTermArea');if(!el)return;const list=tahStudents(tahClass);const subs=DB.settings.otherSubjects||[];const attMax=tahAttMax();
+  if(!list.length){el.innerHTML=`<div class="card"><div class="empty"><div class="big">📋</div>No pupils in this class.</div></div>`;return;}
+  const rows=list.map((s,i)=>{const td=tahTermData(s.id);const ts=tahTermScore(s.id);const subj=td.subjects||{};
+    return `<tr>
+      <td class="center muted">${i+1}</td>
+      <td style="white-space:nowrap"><b>${esc(s.name)}</b> ${sectionBadge(s)}<br><span class="muted" style="font-size:10.5px;font-family:monospace">${esc(s.admissionNo||'—')}</span></td>
+      <td class="center muted">${ts.mem}/${tahMemMax()}</td>
+      <td class="center"><input type="number" min="0" max="${attMax}" value="${esc(td.att??'')}" onchange="setTahTerm('${s.id}','att',this.value)" style="width:56px;text-align:center"></td>
+      ${subs.map(name=>`<td class="center"><input type="number" min="0" max="100" value="${esc(subj[name]??'')}" onchange="setTahSubject('${s.id}','${jq(name)}',this.value)" style="width:56px;text-align:center"></td>`).join('')}
+      <td><input value="${esc(td.remark||'')}" onchange="setTahTerm('${s.id}','remark',this.value)" placeholder="Final remark" style="min-width:180px"></td>
+      <td class="center" id="tt_${s.id}"><b>${ts.total}/100</b> <span class="pill ${ts.grade.g==='E'?'red':'green'}" style="font-size:9px">${ts.grade.g}</span></td>
+    </tr>`;}).join('');
+  el.innerHTML=`<div class="card no-print" style="background:#fff8e6;border:1px solid #f0d089;border-left:4px solid #caa64e;padding:10px 14px;margin-bottom:12px;font-size:13px">📌 Term total = the approved monthly scores (max ${tahMemMax()}) + attendance &amp; conduct (max ${attMax}) = 100. Other-subject percentages are shown on the report for information and do <b>not</b> affect the 100.</div>
+  <div class="flex" style="justify-content:flex-end;margin-bottom:8px"><button class="btn sm sec" onclick="manageOtherSubjects()">＋ Manage other subjects</button></div>
+  <div class="card no-print" style="padding:0;overflow:auto"><table style="width:100%;border-collapse:collapse;font-size:12.5px">
+    <thead><tr style="background:#f3f7f4;text-align:left"><th class="center" style="padding:8px 6px">#</th><th style="padding:8px 6px">Pupil / Adm No</th><th class="center" style="padding:8px 6px">Qur’an<br><span class="muted" style="font-weight:400">/ ${tahMemMax()}</span></th><th class="center" style="padding:8px 6px">Attend.<br><span class="muted" style="font-weight:400">/ ${attMax}</span></th>${subs.map(n=>`<th class="center" style="padding:8px 6px">${esc(n)}<br><span class="muted" style="font-weight:400">%</span></th>`).join('')}<th style="padding:8px 6px">Final remark</th><th class="center" style="padding:8px 6px">Total</th></tr></thead>
+    <tbody>${rows}</tbody></table></div>
+  <p class="muted no-print" style="font-size:12px;margin:8px 2px">Attendance, subject percentages and remarks save automatically. The Qur’an column reflects only <b>approved</b> monthly evaluations.</p>`;}
+function setTahTerm(sid,field,val){const k=tahTermKey(sid);DB.tahTerm=DB.tahTerm||{};DB.tahTerm[k]=DB.tahTerm[k]||{};val=(val==null?'':(''+val).trim());
+  if(field==='att'){if(val==='')delete DB.tahTerm[k].att;else DB.tahTerm[k].att=Math.max(0,Math.min(tahAttMax(),Number(val)||0));}
+  else{if(val==='')delete DB.tahTerm[k][field];else DB.tahTerm[k][field]=val;}
+  if(!Object.keys(DB.tahTerm[k]).length)delete DB.tahTerm[k];
+  save();const tt=$('#tt_'+sid);if(tt){const ts=tahTermScore(sid);tt.innerHTML=`<b>${ts.total}/100</b> <span class="pill ${ts.grade.g==='E'?'red':'green'}" style="font-size:9px">${ts.grade.g}</span>`;}}
+function setTahSubject(sid,name,val){const k=tahTermKey(sid);DB.tahTerm=DB.tahTerm||{};DB.tahTerm[k]=DB.tahTerm[k]||{};DB.tahTerm[k].subjects=DB.tahTerm[k].subjects||{};
+  val=(val==null?'':(''+val).trim());if(val==='')delete DB.tahTerm[k].subjects[name];else DB.tahTerm[k].subjects[name]=Math.max(0,Math.min(100,Number(val)||0));
+  if(!Object.keys(DB.tahTerm[k].subjects).length)delete DB.tahTerm[k].subjects;if(!Object.keys(DB.tahTerm[k]).length)delete DB.tahTerm[k];save();}
+function addOtherSubjectRow(name){const wrap=document.getElementById('osList');if(!wrap)return;const d=document.createElement('div');d.className='flex';d.style.cssText='gap:6px;margin-bottom:6px';
+  const inp=document.createElement('input');inp.className='osIn';inp.style.flex='1';inp.placeholder='Subject name';inp.value=name||'';
+  const b=document.createElement('button');b.className='btn icon';b.type='button';b.textContent='🗑️';b.onclick=()=>d.remove();
+  d.appendChild(inp);d.appendChild(b);wrap.appendChild(d);}
+function manageOtherSubjects(){const subs=DB.settings.otherSubjects||[];
+  modal('Other subjects',`<p class="muted mb">Non-Qur’an subjects (Arabic, English, etc.) shown on the report as percentages, for information only. They do not affect the /100 term score.</p>
+    <div id="osList"></div><button class="btn sm sec" type="button" onclick="addOtherSubjectRow()">＋ Add subject</button>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveOtherSubjects()">Save</button>`);
+  subs.forEach(n=>addOtherSubjectRow(n));}
+function saveOtherSubjects(){const names=[...document.querySelectorAll('.osIn')].map(i=>i.value.trim()).filter(Boolean);DB.settings.otherSubjects=names;save();closeModal();if(CURRENT==='tahfiz'&&tahView==='term')renderTerm();toast('Subjects saved');}
 /* ===================== STAFF MESSAGES (admin ⇄ teachers) ===================== */
 function userName(id){const u=(DB.users||[]).find(x=>x.id===id);return u?u.name:'';}
 function fmtWhen(ts){if(!ts)return '';const d=new Date(ts);return d.toLocaleDateString('en-GB',{day:'2-digit',month:'short'})+' '+d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});}
