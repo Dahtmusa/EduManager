@@ -7,7 +7,7 @@
      after the first online visit.
    - Supabase API calls are never cached (always go to the network).
    Bump CACHE below if you ever need to force-clear caches for everyone. */
-const CACHE = 'emc-cache-v8';
+const CACHE = 'emc-cache-v9';
 const CORE = ['./', './index.html', './manifest.json', './icon.svg'];
 
 self.addEventListener('install', e => {
