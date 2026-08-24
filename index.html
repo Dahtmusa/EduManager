@@ -2298,7 +2298,7 @@ function buildNav(){
     return;
   }
   if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['stores','💊','Pharmacies'],['autostores','🔧','Auto Parts'],['families','👪','Families'],['posagents','🏧','POS Agents'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
-  else if(USER.role==='admin'){items=[['dashboard','📊','Dashboard'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👩‍🏫','Teachers'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['calendar','🗓️','Calendar'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
+  else if(USER.role==='admin'){items=[['dashboard','📊','Dashboard'],['search','🔎','Search'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👩‍🏫','Teachers'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['calendar','🗓️','Calendar'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
     if(hasModule('staffAttendance'))items.splice(7,0,['staffatt','👔','Staff Att.']);
     if(hasModule('houses'))items.push(['houses','🏠','Houses']);
     if(hasModule('quran'))items.push(['quran','☪','Qur’an']);
@@ -2332,7 +2332,7 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
     customers:vStoreCustomers,quotes:vStoreQuotes,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
-    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:vTahfiz,messages:vMessages,alumni:vAlumni,incidents:vIncidents,tdash:vTdash};
+    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:vTahfiz,messages:vMessages,alumni:vAlumni,incidents:vIncidents,tdash:vTdash,search:vSearch};
   (map[p]||vDashboard)();}
 
 /* ===================== OWNER: DASHBOARD ===================== */
@@ -2804,7 +2804,7 @@ function renderStuTable(){
   el.innerHTML=`<div class="t-wrap"><table><thead><tr><th></th><th>Adm. No</th><th>Name</th><th>Class</th><th>Section</th><th>Gender</th><th>Guardian</th><th>Phone</th><th></th></tr></thead><tbody>
   ${list.map(s=>`<tr><td>${avatar(s.photo,'👧')}</td><td class="muted">${esc(s.admissionNo||'—')}</td><td><b>${esc(s.name)}</b></td>
     <td><span class="pill grey">${esc(className(s.classId))}</span></td><td>${sectionBadge(s)}</td><td>${esc(s.gender||'—')}</td><td>${esc(s.guardianName||'—')}</td><td>${esc(s.guardianPhone||'—')}</td>
-    <td class="right" style="white-space:nowrap"><button class="btn icon" title="Admission letter" onclick="admissionLetter('${s.id}')">📜</button><button class="btn icon" title="ID card" onclick="showStudentId('${s.id}')">🪪</button>
+    <td class="right" style="white-space:nowrap"><button class="btn sm sec" onclick="openStudentProfile('${s.id}')">Profile</button><button class="btn icon" title="Admission letter" onclick="admissionLetter('${s.id}')">📜</button><button class="btn icon" title="ID card" onclick="showStudentId('${s.id}')">🪪</button>
       <button class="btn icon" onclick="editStudent('${s.id}')">✏️</button><button class="btn icon" onclick="delStudent('${s.id}')">🗑️</button></td></tr>`).join('')}
   </tbody></table></div>`;
 }
@@ -3012,7 +3012,7 @@ function vTdash(){const u=USER;const un=unreadMsgCount();
     <div class="flex gap" style="flex-wrap:wrap">${hasModule('tahfiz')?`<button class="btn sec sm" onclick="go('tahfiz')">📖 Evaluation</button>`:`<button class="btn sec sm" onclick="go('results')">📝 Results</button>`}<button class="btn sec sm" onclick="go('attendance')">📅 Attendance</button><button class="btn sec sm" onclick="go('reports')">🏅 Reports</button><button class="btn sec sm" onclick="go('messages')">✉️ Messages${un?' ('+un+')':''}</button></div></div>
   <div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
     ${teacherClasses().map(c=>{const n=studentsIn(c.id).length;return `<div class="card pad"><div class="flex" style="justify-content:space-between;align-items:center"><b>${esc(c.name)}</b><span class="pill grey">${n} pupil(s)</span></div>
-      <div class="flex gap mt" style="flex-wrap:wrap"><button class="btn sm sec" onclick="classAnalytics('${c.id}')">📊 Analytics</button><button class="btn sm sec" onclick="classHealthSheet('${c.id}')">🩺 Health</button></div></div>`;}).join('')||'<div class="card pad muted">No classes assigned yet. Ask the admin to assign your classes.</div>'}
+      <div class="flex gap mt" style="flex-wrap:wrap"><button class="btn sm sec" onclick="classAnalytics('${c.id}')">📊 Analytics</button><button class="btn sm sec" onclick="classPupils('${c.id}')">👦 Pupils</button></div></div>`;}).join('')||'<div class="card pad muted">No classes assigned yet. Ask the admin to assign your classes.</div>'}
   </div>`;}
 function classScoreList(cid){const list=studentsIn(cid);if(hasModule('tahfiz'))return list.map(s=>({s,score:tahTermScore(s.id).total})).filter(x=>x.score>0);
   const {rows}=computeClassResults(cid);return rows.filter(r=>r.count).map(r=>({s:r.s,score:Math.round(r.avg)}));}
@@ -3027,6 +3027,57 @@ function classHealthSheet(cid){const list=studentsIn(cid).slice().sort((a,b)=>ad
   modal('Class health & emergency — '+className(cid),`<div class="t-wrap"><table><thead><tr><th>Pupil</th><th>Blood</th><th>Geno</th><th>Allergies</th><th>Medications</th><th>Emergency contact</th></tr></thead><tbody>
     ${list.map(s=>`<tr><td><b>${esc(s.name)}</b></td><td>${esc(s.blood||'–')}</td><td>${esc(s.geno||'–')}</td><td>${esc(s.allergies||'–')}</td><td>${esc(s.meds||'–')}</td><td>${s.emName?esc(s.emName)+(s.emPhone?' · '+esc(s.emPhone):''):(s.guardianPhone?esc(s.guardianPhone):'–')}</td></tr>`).join('')||'<tr><td colspan="6" class="muted center">No pupils.</td></tr>'}
   </tbody></table></div><p class="muted mt" style="font-size:12px">Update these details on each pupil's profile (Students page).</p>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);}
+function classPupils(cid){const list=studentsIn(cid).slice().sort((a,b)=>admOrder(a)-admOrder(b));
+  modal('Pupils — '+className(cid),`<div class="t-wrap"><table><tbody>${list.map(s=>`<tr style="cursor:pointer" onclick="openStudentProfile('${s.id}')"><td>${avatar(s.photo,'👧')}</td><td><b>${esc(s.name)}</b> ${sectionBadge(s)}<br><span class="muted" style="font-size:11px;font-family:monospace">${esc(s.admissionNo||'')}</span></td><td class="right"><button class="btn sm sec" onclick="event.stopPropagation();openStudentProfile('${s.id}')">Profile</button></td></tr>`).join('')||'<tr><td class="muted">No pupils.</td></tr>'}</tbody></table></div>`,`<button class="btn" onclick="closeModal()">Close</button>`,true);}
+/* ===================== FULL PROFILES + SEARCH ===================== */
+function stuAge(dob){if(!dob)return '';const d=new Date(dob);if(isNaN(d))return '';const n=new Date();let a=n.getFullYear()-d.getFullYear();if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;return (a>=0&&a<130)?a+' yrs':'';}
+function _prow(l,v){return `<tr><td style="padding:5px 9px;background:#f5f8f6;font-weight:600;width:42%">${l}</td><td style="padding:5px 9px">${v||'—'}</td></tr>`;}
+function openStudentProfile(id){const s=DB.students.find(x=>x.id===id);if(!s)return;const admin=USER.role==='admin';
+  const due=Number((DB.fees[rkey(s.id)]||{}).due)||0,paid=approvedPaid(s.id),bal=due-paid;
+  let pres=0,tot=0;Object.keys(DB.attendance).forEach(k=>{const cid=k.split('|')[1];if(cid===s.classId){const v=DB.attendance[k][s.id];if(v!==undefined){tot++;if(v==='P')pres++;}}});
+  let acad;if(hasModule('tahfiz')){const ts=tahTermScore(s.id);acad=ts.total?`<b>${ts.total}/100</b> — ${ts.grade.g} (${ts.grade.r})`:'No approved evaluation yet';}
+  else{const {rows}=computeClassResults(s.classId);const r=rows.find(x=>x.s.id===s.id);acad=(r&&r.count)?`Average <b>${r.avg.toFixed(1)}%</b> · Position ${r.pos?ord(r.pos):'—'}`:'No results yet';}
+  const incs=(DB.incidents||[]).filter(i=>i.studentId===s.id).slice().reverse();
+  const custom=s.custom||{};const ck=Object.keys(custom);
+  modal('Pupil Profile',`<div class="flex gap mb" style="align-items:center">${s.photo?`<img src="${s.photo}" style="width:70px;height:70px;border-radius:12px;object-fit:cover">`:'<div style="width:70px;height:70px;border-radius:12px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:32px">👧</div>'}
+      <div><div style="font-size:18px;font-weight:800">${esc(s.name)}</div><div class="muted">${esc(className(s.classId))} · ${sectionBadge(s)} · ${esc(s.gender||'')}${stuAge(s.dob)?' · '+stuAge(s.dob):''}</div><div class="muted" style="font-size:12px;font-family:monospace">${esc(s.admissionNo||'—')}</div></div></div>
+    <div class="t-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--line)">
+      ${_prow('Date of birth',esc(s.dob||''))}${_prow('Guardian',esc(s.guardianName||''))}${_prow('Guardian phone',esc(s.guardianPhone||''))}${_prow('Address',esc(s.address||''))}
+      ${_prow('Academic (this term)',acad)}${_prow('Fees',naira(paid)+' paid · <b style="color:'+(bal>0?'var(--red)':'var(--green)')+'">'+naira(bal)+' balance</b>')}${_prow('Attendance',tot?Math.round(pres/tot*100)+'% ('+pres+'/'+tot+')':'—')}
+    </table></div>
+    <div style="font-weight:700;color:var(--green);margin:12px 0 4px">🩺 Health &amp; emergency</div>
+    <div class="t-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--line)">
+      ${_prow('Emergency contact',esc(s.emName||'')+(s.emPhone?' · '+esc(s.emPhone):''))}${_prow('Blood group',esc(s.blood||''))}${_prow('Genotype',esc(s.geno||''))}${_prow('Allergies',esc(s.allergies||''))}${_prow('Health history',esc(s.health||''))}${_prow('Medications',esc(s.meds||''))}${_prow('Special / spiritual notes',esc(s.special||''))}
+    </table></div>
+    ${ck.length?`<div style="font-weight:700;color:var(--green);margin:12px 0 4px">📋 Other details</div><div class="t-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--line)">${ck.map(k=>`<tr><td style="padding:5px 9px;background:#f5f8f6;font-weight:600;width:42%">${esc(k)}</td><td style="padding:5px 9px">${esc(custom[k])}${admin?` <button class="btn icon" style="float:right" onclick="delStudentDetail('${s.id}','${jq(k)}')">🗑️</button>`:''}</td></tr>`).join('')}</table></div>`:''}
+    ${incs.length?`<div style="font-weight:700;color:var(--green);margin:12px 0 4px">🚩 Incidents</div>${incs.map(i=>`<div class="ev-item" style="display:block"><b>${esc(i.type)}</b> <span class="muted" style="font-size:11px">${esc(i.date||'')}</span><div style="font-size:12.5px">${esc(i.desc)}</div></div>`).join('')}`:''}`,
+    `<button class="btn sec" onclick="closeModal()">Close</button>${admin?`<button class="btn sec" onclick="addStudentDetail('${s.id}')">＋ Add detail</button><button class="btn" onclick="editStudent('${s.id}')">✏️ Edit</button>`:''}`,true);}
+function addStudentDetail(id){modal('Add detail',`<p class="muted mb">Add any extra information to this pupil's profile.</p><div class="fld"><label>Detail label</label><input id="cd_k" placeholder="e.g. Previous school, NIN, State of origin, Hobby"></div><div class="fld"><label>Value</label><input id="cd_v"></div>`,
+    `<button class="btn sec" onclick="openStudentProfile('${id}')">Cancel</button><button class="btn" onclick="saveStudentDetail('${id}')">Save</button>`);}
+function saveStudentDetail(id){const k=$('#cd_k').value.trim(),v=$('#cd_v').value.trim();if(!k){toast('Enter a label',true);return;}const s=DB.students.find(x=>x.id===id);s.custom=s.custom||{};s.custom[k]=v;save();closeModal();openStudentProfile(id);toast('Detail added');}
+function delStudentDetail(id,k){const s=DB.students.find(x=>x.id===id);if(s&&s.custom){delete s.custom[k];if(!Object.keys(s.custom).length)delete s.custom;save();openStudentProfile(id);}}
+function openStaffProfile(id){const u=DB.users.find(x=>x.id===id);if(!u)return;const admin=USER.role==='admin';const cls=(u.classes||[]).map(cid=>className(cid)).join(', ')||'—';
+  modal('Staff Profile',`<div class="flex gap mb" style="align-items:center">${u.photo?`<img src="${u.photo}" style="width:70px;height:70px;border-radius:12px;object-fit:cover">`:'<div style="width:70px;height:70px;border-radius:12px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:32px">👩‍🏫</div>'}
+      <div><div style="font-size:18px;font-weight:800">${esc(u.name)}</div><div class="muted">${esc(u.position||'Teacher')}${u.staffId?' · '+esc(u.staffId):''}</div></div></div>
+    <div class="t-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--line)">
+      ${_prow('Phone',esc(u.phone||''))}${_prow('Username',esc(u.username||''))}${_prow('Assigned classes',esc(cls))}${_prow('Bio',esc(u.bio||''))}
+    </table></div>`,
+    `<button class="btn sec" onclick="closeModal()">Close</button>${admin?`<button class="btn" onclick="editTeacher('${u.id}')">✏️ Edit</button>`:''}`,true);}
+let searchQ='';
+function vSearch(){$('#view').innerHTML=`<div class="page-head"><div><h2>🔎 Search</h2><p>Find any pupil or staff and open their full profile</p></div></div>
+  <div class="toolbar"><div class="grow"><input id="searchBox" placeholder="Name, admission no, phone, staff ID, position, blood group…" value="${esc(searchQ)}" oninput="searchQ=this.value;renderSearch()"></div></div>
+  <div id="searchRes"></div>`;setTimeout(()=>{const b=$('#searchBox');if(b)b.focus();},60);renderSearch();}
+function renderSearch(){const q=searchQ.trim().toLowerCase();const el=$('#searchRes');if(!el)return;
+  if(!q){el.innerHTML=`<div class="card"><div class="empty"><div class="big">🔎</div>Start typing to search pupils and staff.</div></div>`;return;}
+  const stu=DB.students.filter(s=>[s.name,s.admissionNo,s.guardianName,s.guardianPhone,s.emName,s.emPhone,s.blood,s.geno,s.allergies,className(s.classId),s.section].some(v=>(v||'').toLowerCase().includes(q)));
+  const staff=DB.users.filter(u=>u.role==='teacher'&&[u.name,u.username,u.staffId,u.position,u.phone].some(v=>(v||'').toLowerCase().includes(q)));
+  el.innerHTML=`${stu.length?`<div class="card pad mb"><h3 class="mb">Pupils (${stu.length})</h3><div class="t-wrap"><table><tbody>
+    ${stu.slice(0,60).map(s=>`<tr style="cursor:pointer" onclick="openStudentProfile('${s.id}')"><td>${avatar(s.photo,'👧')}</td><td><b>${esc(s.name)}</b> ${sectionBadge(s)}<br><span class="muted" style="font-size:11.5px">${esc(className(s.classId))} · ${esc(s.admissionNo||'')}</span></td><td class="muted">${esc(s.guardianPhone||'')}</td><td class="right"><button class="btn sm sec" onclick="event.stopPropagation();openStudentProfile('${s.id}')">Open</button></td></tr>`).join('')}
+  </tbody></table></div></div>`:''}
+  ${staff.length?`<div class="card pad mb"><h3 class="mb">Staff (${staff.length})</h3><div class="t-wrap"><table><tbody>
+    ${staff.map(u=>`<tr style="cursor:pointer" onclick="openStaffProfile('${u.id}')"><td>${avatar(u.photo,'👩‍🏫')}</td><td><b>${esc(u.name)}</b><br><span class="muted" style="font-size:11.5px">${esc(u.position||'Teacher')} · ${esc(u.staffId||'')}</span></td><td class="muted">${esc(u.phone||'')}</td><td class="right"><button class="btn sm sec" onclick="event.stopPropagation();openStaffProfile('${u.id}')">Open</button></td></tr>`).join('')}
+  </tbody></table></div></div>`:''}
+  ${!stu.length&&!staff.length?`<div class="card"><div class="empty"><div class="big">🤷</div>No matches for “${esc(searchQ)}”.</div></div>`:''}`;}
 
 /* ===================== SCHOOL: ATTENDANCE ===================== */
 let attDate=today(),attClass='';
