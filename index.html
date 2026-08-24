@@ -69,6 +69,8 @@ label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bot
 .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:700}
 .pill.green{background:var(--green-light);color:var(--green-dark)}.pill.red{background:var(--red-bg);color:var(--red)}
 .pill.amber{background:#fdf3d7;color:var(--amber)}.pill.blue{background:#e3eefb;color:var(--blue)}
+.pw-wrap{position:relative;display:block}.pw-wrap input{width:100%;padding-right:40px}
+.pw-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:none;border:0;cursor:pointer;font-size:17px;line-height:1;opacity:.6;padding:4px}.pw-eye:hover{opacity:1}
 .pill.purple{background:var(--purple-light);color:var(--purple)}.pill.grey{background:#eef2ef;color:var(--muted)}
 .pill.gold{background:#fdf3d7;color:#9a6b00}
 
@@ -862,6 +864,7 @@ function schoolDomain(code){const reg=MASTER&&MASTER.schools&&MASTER.schools.fin
 function schoolLink(code){const dom=schoolDomain(code);if(dom)return 'https://'+dom+'/';return prettyOK()?location.origin+'/'+code.toLowerCase():appUrl()+'?s='+encodeURIComponent(code);}
 function checkLink(code){const dom=schoolDomain(code);if(dom)return 'https://'+dom+'/check';return prettyOK()?location.origin+'/'+code.toLowerCase()+'/check':appUrl()+'?s='+encodeURIComponent(code)+'&check=1';}
 function copyText(t){navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>toast('Link copied'),()=>toast('Copy failed',true));}
+function togglePw(btn){const i=btn.parentNode.querySelector('input');if(!i)return;const show=i.type==='password';i.type=show?'text':'password';btn.textContent=show?'🙈':'👁';i.focus();}
 
 /* ===================== MODAL & PHOTO ===================== */
 function modal(title,body,foot,big){$('#modal').className='modal'+(big?' lg':'');
@@ -1375,7 +1378,7 @@ function renderParent(){$('#app').style.display='none';$('#screen').style.displa
     <h1>${esc(DB.settings.schoolName)}</h1><div class="sub">Parent Portal</div>
     <div class="auth-err" id="pperr"></div>
     <div class="field"><label>Pupil Admission Number</label><input id="pp_adm" placeholder="ADM/2025/001"></div>
-    <div class="field"><label>Password</label><input id="pp_pw" type="password" placeholder="Guardian phone number" onkeydown="if(event.key==='Enter')parentLogin()"></div>
+    <div class="field"><label>Password</label><span class="pw-wrap"><input id="pp_pw" type="password" placeholder="Guardian phone number" onkeydown="if(event.key==='Enter')parentLogin()"><button type="button" class="pw-eye" onclick="togglePw(this)">👁</button></span></div>
     <button class="btn" style="width:100%;justify-content:center;background:${t.rg}" onclick="parentLogin()">Sign in</button>
     <div class="swlink"><a onclick="MODE='school';renderAuth()">← Back to homepage</a></div>
     <div class="hint">Use your child's admission number and the guardian phone number on record.</div></div></div>`;}
@@ -2088,7 +2091,7 @@ function renderAuth(){
       <h1>${esc((MASTER&&MASTER.platform.name)||'EduManager Cloud')}</h1><div class="sub">Owner Console</div>
       <div class="auth-err" id="aerr"></div>
       <div class="field"><label>Owner username</label><input id="ou" placeholder="owner"></div>
-      <div class="field"><label>Password</label><input id="op" type="password"></div>
+      <div class="field"><label>Password</label><span class="pw-wrap"><input id="op" type="password" onkeydown="if(event.key==='Enter')ownerLogin()"><button type="button" class="pw-eye" onclick="togglePw(this)">👁</button></span></div>
       <button class="btn purple" style="width:100%;justify-content:center" onclick="ownerLogin()">Sign in</button>
       <div class="hint"><b>Demo:</b> owner / owner123. Change it in Owner → Settings.</div></div></div>`;
     $('#op').addEventListener('keydown',e=>{if(e.key==='Enter')ownerLogin();});return;
@@ -2215,7 +2218,7 @@ function staffLoginModal(){const set=DB.settings;
   modal('Staff Login — '+set.schoolName,`${set.islamic?`<div class="bismillah" style="font-size:15px;margin-bottom:8px">${BISMILLAH.a}</div>`:''}
     <div class="auth-err" id="aerr"></div>
     <div class="fld"><label>Username</label><input id="su" placeholder="admin"></div>
-    <div class="fld"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>
+    <div class="fld"><label>Password</label><span class="pw-wrap"><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"><button type="button" class="pw-eye" onclick="togglePw(this)">👁</button></span></div>
     <p class="muted" style="font-size:12px">Use the login details provided by your school's administrator.</p>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="schoolLogin()">Sign in</button>`);
   setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);
@@ -3869,7 +3872,7 @@ function renderPharmacyAuth(){const sc=$('#screen');sc.style.display='';$('#app'
     <h1>${esc(set.storeName)}</h1>${set.slogan?`<div class="muted" style="font-style:italic;margin-bottom:4px">“${esc(set.slogan)}”</div>`:''}<div class="sub">Pharmacy — Staff Login</div>
     <div class="auth-err" id="aerr"></div>
     <div class="field"><label>Username</label><input id="su" placeholder="admin"></div>
-    <div class="field"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>
+    <div class="field"><label>Password</label><span class="pw-wrap"><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"><button type="button" class="pw-eye" onclick="togglePw(this)">👁</button></span></div>
     <button class="btn" style="width:100%;justify-content:center;background:#0c5b56" onclick="schoolLogin()">Sign in</button>
     <div class="hint">Use the login your provider gave you.</div></div></div>`;
   setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);}
@@ -4516,7 +4519,7 @@ function renderAutoAuth(){const sc=$('#screen');sc.style.display='';$('#app').st
       <h1>${esc(set.storeName)}</h1>${set.slogan?`<div class="muted" style="font-style:italic;margin-bottom:4px">“${esc(set.slogan)}”</div>`:''}<div class="sub">Staff Login</div>
       <div class="auth-err" id="aerr"></div>
       <div class="field"><label>Username</label><input id="su" placeholder="admin"></div>
-      <div class="field"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>
+      <div class="field"><label>Password</label><span class="pw-wrap"><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"><button type="button" class="pw-eye" onclick="togglePw(this)">👁</button></span></div>
       <button class="btn" style="width:100%;justify-content:center;background:#15366e" onclick="schoolLogin()">Sign in</button>
       <div class="hint">Use the login your provider gave you.</div></div></div>`;
     setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);return;
@@ -4538,7 +4541,7 @@ function renderAutoAuth(){const sc=$('#screen');sc.style.display='';$('#app').st
   </div>`;}
 function autoLoginModal(){const set=DB.settings;modal('Staff Login — '+set.storeName,`<div class="auth-err" id="aerr"></div>
   <div class="fld"><label>Username</label><input id="su" placeholder="admin"></div>
-  <div class="fld"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>`,
+  <div class="fld"><label>Password</label><span class="pw-wrap"><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"><button type="button" class="pw-eye" onclick="togglePw(this)">👁</button></span></div>`,
   `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" style="background:#15366e" onclick="schoolLogin()">Sign in</button>`);
   setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);}
 function enterAuto(){const set=DB.settings;
@@ -5485,7 +5488,7 @@ function renderFamilyAuth(){const sc=$('#screen');sc.style.display='';$('#app').
     <h1>${esc(set.familyName)}</h1>${set.slogan?`<div class="muted" style="font-style:italic;margin-bottom:4px">“${esc(set.slogan)}”</div>`:''}<div class="sub">Family Contributions — Login</div>
     <div class="auth-err" id="aerr"></div>
     <div class="field"><label>Username</label><input id="su" placeholder="admin"></div>
-    <div class="field"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>
+    <div class="field"><label>Password</label><span class="pw-wrap"><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"><button type="button" class="pw-eye" onclick="togglePw(this)">👁</button></span></div>
     <button class="btn" style="width:100%;justify-content:center;background:${FAM_AC}" onclick="schoolLogin()">Sign in</button>
     <div class="hint">Use the login your provider gave you.</div></div></div>`;
   setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);}
@@ -5896,7 +5899,7 @@ function renderPosAuth(){const sc=$('#screen');sc.style.display='';$('#app').sty
     <h1>${esc(set.storeName)}</h1>${set.slogan?`<div class="muted" style="font-style:italic;margin-bottom:4px">“${esc(set.slogan)}”</div>`:''}<div class="sub">POS Agent — Login</div>
     <div class="auth-err" id="aerr"></div>
     <div class="field"><label>Username</label><input id="su" placeholder="admin"></div>
-    <div class="field"><label>Password</label><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"></div>
+    <div class="field"><label>Password</label><span class="pw-wrap"><input id="sp" type="password" onkeydown="if(event.key==='Enter')schoolLogin()"><button type="button" class="pw-eye" onclick="togglePw(this)">👁</button></span></div>
     <button class="btn" style="width:100%;justify-content:center;background:${PA_AC}" onclick="schoolLogin()">Sign in</button>
     <div class="hint">Use the login your provider gave you.</div></div></div>`;
   setTimeout(()=>{const su=$('#su');if(su)su.focus();},50);}
