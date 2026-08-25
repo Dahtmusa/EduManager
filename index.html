@@ -3218,36 +3218,47 @@ function classPupils(cid){const list=studentsIn(cid).slice().sort((a,b)=>admOrde
 /* ===================== FULL PROFILES + SEARCH ===================== */
 function stuAge(dob){if(!dob)return '';const d=new Date(dob);if(isNaN(d))return '';const n=new Date();let a=n.getFullYear()-d.getFullYear();if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;return (a>=0&&a<130)?a+' yrs':'';}
 function _prow(l,v){return `<tr><td style="padding:5px 9px;background:#f5f8f6;font-weight:600;width:42%">${l}</td><td style="padding:5px 9px">${v||'—'}</td></tr>`;}
+function _pfHead(photo,fallback,name,sub,idline,right){return `<div style="background:linear-gradient(135deg,var(--green),var(--green-dark));margin:-20px -20px 0;padding:22px 20px;color:#fff;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+  <div style="width:78px;height:78px;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.18);border:2px solid rgba(255,255,255,.55);display:flex;align-items:center;justify-content:center;font-size:34px;flex:0 0 auto">${photo?`<img src="${photo}" style="width:100%;height:100%;object-fit:cover">`:fallback}</div>
+  <div style="flex:1;min-width:0"><div style="font-size:21px;font-weight:800;line-height:1.15">${esc(name)}</div><div style="opacity:.92;font-size:13px;margin-top:3px">${sub}</div>${idline?`<div style="opacity:.82;font-size:11.5px;font-family:monospace;margin-top:3px">${esc(idline)}</div>`:''}</div>
+  ${right||''}</div>`;}
+function _pfSection(t){return `<div style="font-weight:800;color:var(--green);font-size:11.5px;letter-spacing:.09em;text-transform:uppercase;margin:18px 0 8px;padding-bottom:5px;border-bottom:2px solid var(--green-light)">${t}</div>`;}
+function _pfGrid(pairs){return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 20px">${pairs.filter(Boolean).map(p=>`<div><div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">${esc(p[0])}</div><div style="font-weight:600;font-size:13.5px;color:var(--ink);word-break:break-word;margin-top:1px">${(p[1]!=null&&p[1]!=='')?p[1]:'—'}</div></div>`).join('')}</div>`;}
+function _pfStat(l,v,color){return `<div style="flex:1;min-width:110px;background:#f5f8f6;border-radius:12px;padding:11px 14px"><div style="font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)">${esc(l)}</div><div style="font-weight:800;font-size:16px;margin-top:2px${color?';color:'+color:''}">${v}</div></div>`;}
 function openStudentProfile(id){const s=DB.students.find(x=>x.id===id);if(!s)return;const admin=USER.role==='admin';
   const due=studentDue(s),paid=approvedPaid(s.id),bal=due-paid;
   let pres=0,tot=0;Object.keys(DB.attendance).forEach(k=>{const cid=k.split('|')[1];if(cid===s.classId){const v=DB.attendance[k][s.id];if(v!==undefined){tot++;if(v==='P')pres++;}}});
-  let acad;if(hasModule('tahfiz')){const ts=tahTermScore(s.id);acad=ts.total?`<b>${ts.total}/100</b> — ${ts.grade.g} (${ts.grade.r})`:'No approved evaluation yet';}
-  else{const {rows}=computeClassResults(s.classId);const r=rows.find(x=>x.s.id===s.id);acad=(r&&r.count)?`Average <b>${r.avg.toFixed(1)}%</b> · Position ${r.pos?ord(r.pos):'—'}`:'No results yet';}
+  let acadShort='—';if(hasModule('tahfiz')){const ts=tahTermScore(s.id);acadShort=ts.total?ts.total+'/100 · '+ts.grade.g:'—';}
+  else{const {rows}=computeClassResults(s.classId);const r=rows.find(x=>x.s.id===s.id);acadShort=(r&&r.count)?r.avg.toFixed(0)+'% · '+(r.pos?ord(r.pos):'—'):'—';}
+  const attPct=tot?Math.round(pres/tot*100):null;
   const incs=(DB.incidents||[]).filter(i=>i.studentId===s.id).slice().reverse();
   const custom=s.custom||{};const ck=Object.keys(custom);
-  modal('Pupil Profile',`<div class="flex gap mb" style="align-items:center">${s.photo?`<img src="${s.photo}" style="width:70px;height:70px;border-radius:12px;object-fit:cover">`:'<div style="width:70px;height:70px;border-radius:12px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:32px">👧</div>'}
-      <div><div style="font-size:18px;font-weight:800">${esc(s.name)}</div><div class="muted">${esc(className(s.classId))} · ${sectionBadge(s)} · ${esc(s.gender||'')}${stuAge(s.dob)?' · '+stuAge(s.dob):''}</div><div class="muted" style="font-size:12px;font-family:monospace">${esc(s.admissionNo||'—')}</div></div></div>
-    <div class="t-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--line)">
-      ${_prow('Date of birth',esc(s.dob||''))}${_prow('Guardian',esc(s.guardianName||''))}${_prow('Guardian phone',esc(s.guardianPhone||''))}${_prow('Address',esc(s.address||''))}
-      ${_prow('Academic (this term)',acad)}${_prow('Fees',naira(paid)+' paid · <b style="color:'+(bal>0?'var(--red)':'var(--green)')+'">'+naira(bal)+' balance</b>')}${_prow('Attendance',tot?Math.round(pres/tot*100)+'% ('+pres+'/'+tot+')':'—')}
-    </table></div>
-    <div style="font-weight:700;color:var(--green);margin:12px 0 4px">🩺 Health &amp; emergency</div>
-    <div class="t-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--line)">
-      ${_prow('Emergency contact',esc(s.emName||'')+(s.emPhone?' · '+esc(s.emPhone):''))}${_prow('Blood group',esc(s.blood||''))}${_prow('Genotype',esc(s.geno||''))}${_prow('Allergies',esc(s.allergies||''))}${_prow('Health history',esc(s.health||''))}${_prow('Medications',esc(s.meds||''))}${_prow('Special / spiritual notes',esc(s.special||''))}
-    </table></div>
-    ${ck.length?`<div style="font-weight:700;color:var(--green);margin:12px 0 4px">📋 Other details</div><div class="t-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--line)">${ck.map(k=>`<tr><td style="padding:5px 9px;background:#f5f8f6;font-weight:600;width:42%">${esc(k)}</td><td style="padding:5px 9px">${esc(custom[k])}${admin?` <button class="btn icon" style="float:right" onclick="delStudentDetail('${s.id}','${jq(k)}')">🗑️</button>`:''}</td></tr>`).join('')}</table></div>`:''}
-    ${incs.length?`<div style="font-weight:700;color:var(--green);margin:12px 0 4px">🚩 Incidents</div>${incs.map(i=>`<div class="ev-item" style="display:block"><b>${esc(i.type)}</b> <span class="muted" style="font-size:11px">${esc(i.date||'')}</span><div style="font-size:12.5px">${esc(i.desc)}</div></div>`).join('')}`:''}`,
+  const rightChip=`<div style="text-align:center;background:rgba(255,255,255,.16);border-radius:12px;padding:8px 13px;flex:0 0 auto"><div style="font-size:9px;opacity:.85;text-transform:uppercase;letter-spacing:.04em">Balance</div><div style="font-weight:800;font-size:15px;color:${bal>0?'#ffd3ce':'#c9f7d8'}">${naira(bal)}</div></div>`;
+  modal('Pupil Profile',
+    _pfHead(s.photo,'👧',s.name,`${esc(className(s.classId))} · ${esc(sectionOf(s))}${s.gender?' · '+esc(s.gender):''}${stuAge(s.dob)?' · '+stuAge(s.dob):''}`,s.admissionNo||'',rightChip)
+    +`<div style="padding-top:14px">`
+    +`<div class="flex gap" style="flex-wrap:wrap">${_pfStat('Academic',acadShort)}${_pfStat('Attendance',attPct!=null?attPct+'%':'—')}${_pfStat('Fees paid',naira(paid),'var(--green)')}</div>`
+    +_pfSection('Personal')
+    +_pfGrid([['Full name',esc(s.name)],['Admission No',esc(s.admissionNo||'')],['Class',esc(className(s.classId))],['Section',sectionBadge(s)],['Gender',esc(s.gender||'')],['Date of birth',esc(s.dob||'')],['Guardian',esc(s.guardianName||'')],['Guardian phone',esc(s.guardianPhone||'')],['Address',esc(s.address||'')]])
+    +_pfSection('🩺 Health &amp; emergency')
+    +_pfGrid([['Emergency contact',esc(s.emName||'')+(s.emPhone?' · '+esc(s.emPhone):'')],['Blood group',esc(s.blood||'')],['Genotype',esc(s.geno||'')],['Allergies',esc(s.allergies||'')],['Medications',esc(s.meds||'')],['Health history',esc(s.health||'')],['Special / spiritual notes',esc(s.special||'')]])
+    +(ck.length?_pfSection('📋 Other details')+_pfGrid(ck.map(k=>[k,esc(custom[k])+(admin?` <button class="btn icon" style="padding:0 5px;vertical-align:middle" onclick="delStudentDetail('${s.id}','${jq(k)}')">🗑️</button>`:'')])):'')
+    +(incs.length?_pfSection('🚩 Incidents')+incs.map(i=>`<div class="ev-item" style="display:block"><b>${esc(i.type)}</b> <span class="muted" style="font-size:11px">${esc(i.date||'')}</span><div style="font-size:12.5px">${esc(i.desc)}</div></div>`).join(''):'')
+    +`</div>`,
     `<button class="btn sec" onclick="closeModal()">Close</button>${admin?`<button class="btn sec" onclick="openSignPad('student','${s.id}')">✍️ Signature</button><button class="btn sec" onclick="addStudentDetail('${s.id}')">＋ Add detail</button><button class="btn" onclick="editStudent('${s.id}')">✏️ Edit</button>`:''}`,true);}
 function addStudentDetail(id){modal('Add detail',`<p class="muted mb">Add any extra information to this pupil's profile.</p><div class="fld"><label>Detail label</label><input id="cd_k" placeholder="e.g. Previous school, NIN, State of origin, Hobby"></div><div class="fld"><label>Value</label><input id="cd_v"></div>`,
     `<button class="btn sec" onclick="openStudentProfile('${id}')">Cancel</button><button class="btn" onclick="saveStudentDetail('${id}')">Save</button>`);}
 function saveStudentDetail(id){const k=$('#cd_k').value.trim(),v=$('#cd_v').value.trim();if(!k){toast('Enter a label',true);return;}const s=DB.students.find(x=>x.id===id);s.custom=s.custom||{};s.custom[k]=v;save();closeModal();openStudentProfile(id);toast('Detail added');}
 function delStudentDetail(id,k){const s=DB.students.find(x=>x.id===id);if(s&&s.custom){delete s.custom[k];if(!Object.keys(s.custom).length)delete s.custom;save();openStudentProfile(id);}}
 function openStaffProfile(id){const u=DB.users.find(x=>x.id===id);if(!u)return;const admin=USER.role==='admin';const cls=(u.classes||[]).map(cid=>className(cid)).join(', ')||'—';
-  modal('Staff Profile',`<div class="flex gap mb" style="align-items:center">${u.photo?`<img src="${u.photo}" style="width:70px;height:70px;border-radius:12px;object-fit:cover">`:'<div style="width:70px;height:70px;border-radius:12px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:32px">👩‍🏫</div>'}
-      <div><div style="font-size:18px;font-weight:800">${esc(u.name)}</div><div class="muted">${esc(u.position||'Teacher')}${u.staffId?' · '+esc(u.staffId):''}</div></div></div>
-    <div class="t-wrap"><table style="width:100%;border-collapse:collapse;font-size:12.5px;border:1px solid var(--line)">
-      ${_prow('Phone',esc(u.phone||''))}${_prow('Username',esc(u.username||''))}${_prow('Assigned classes',esc(cls))}${_prow('Bio',esc(u.bio||''))}
-    </table></div>`,
+  const rightChip=u.signature?`<div style="background:#fff;border-radius:10px;padding:6px 10px;flex:0 0 auto"><img src="${u.signature}" style="height:26px;display:block"></div>`:'';
+  modal('Staff Profile',
+    _pfHead(u.photo,'👩‍🏫',u.name,`${esc(u.position||'Teacher')}`,u.staffId||'',rightChip)
+    +`<div style="padding-top:14px">`
+    +_pfSection('Details')
+    +_pfGrid([['Full name',esc(u.name)],['Position',esc(u.position||'Teacher')],['Staff ID',esc(u.staffId||'')],['Phone',esc(u.phone||'')],['Username',esc(u.username||'')],['Assigned classes',esc(cls)]])
+    +(u.bio?_pfSection('Bio')+`<div style="font-size:13.5px;line-height:1.75;color:var(--ink)">${esc(u.bio)}</div>`:'')
+    +`</div>`,
     `<button class="btn sec" onclick="closeModal()">Close</button>${admin?`<button class="btn sec" onclick="openSignPad('staff','${u.id}')">✍️ Signature</button><button class="btn" onclick="editTeacher('${u.id}')">✏️ Edit</button>`:''}`,true);}
 let searchQ='';
 function vSearch(){$('#view').innerHTML=`<div class="page-head"><div><h2>🔎 Search</h2><p>Find any pupil or staff and open their full profile</p></div></div>
