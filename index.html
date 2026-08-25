@@ -951,8 +951,19 @@ function compressFile(file,cb,max=900,q=.72){let url;try{url=URL.createObjectURL
     let out=null;try{out=cv.toDataURL('image/jpeg',q);}catch(e){out=null;}URL.revokeObjectURL(url);cb(out);};
   img.onerror=()=>{URL.revokeObjectURL(url);cb(null);};img.src=url;}
 /* process a list of picked files → each image (compressed) via eachCb, then doneCb(count) */
-function processImages(files,max,q,eachCb,doneCb){files=[...(files||[])].filter(f=>f&&(!f.type||/^image\//.test(f.type)));if(!files.length){doneCb(0);return;}let done=0,ok=0;
-  files.forEach(f=>{compressFile(f,d=>{if(d){eachCb(d);ok++;}if(++done===files.length)doneCb(ok);},max,q);});}
+function _showUp(total){let o=document.getElementById('upProg');if(!o){o=document.createElement('div');o.id='upProg';o.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:99998;background:#0b1f14;color:#fff;padding:12px 16px;box-shadow:0 -4px 20px rgba(0,0,0,.35)';document.body.appendChild(o);}
+  o.innerHTML='<div style="max-width:520px;margin:0 auto"><div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span id="upTxt">Preparing '+total+' image(s)…</span><span id="upPct">0%</span></div><div style="height:9px;background:rgba(255,255,255,.2);border-radius:20px;overflow:hidden"><div id="upBar" style="height:100%;width:0;background:linear-gradient(90deg,#12b158,#caa64e);transition:width .25s ease"></div></div></div>';o.style.display='block';}
+function _setUp(done,total){const bar=document.getElementById('upBar'),txt=document.getElementById('upTxt'),pct=document.getElementById('upPct');const p=total?Math.round(done/total*100):100;if(bar)bar.style.width=p+'%';if(pct)pct.textContent=p+'%';if(txt)txt.textContent=done>=total?'Saving…':('Uploading '+done+' of '+total+'…');}
+function _hideUp(){const o=document.getElementById('upProg');if(o)setTimeout(()=>{if(o)o.style.display='none';},700);}
+function processImages(files,max,q,eachCb,doneCb){files=[...(files||[])].filter(f=>f&&(!f.type||/^image\//.test(f.type)));if(!files.length){doneCb(0);return;}let done=0,ok=0;const total=files.length;_showUp(total);
+  const step=()=>{done++;_setUp(done,total);if(done>=total){_hideUp();doneCb(ok);}};
+  files.forEach(f=>{const r=new FileReader();
+    r.onerror=()=>step();
+    r.onload=e=>{const raw=e.target.result;if(!raw){step();return;}let settled=false;
+      const finish=d=>{if(settled)return;settled=true;if(d){eachCb(d);ok++;}step();};
+      const to=setTimeout(()=>finish(raw),8000); // if compression stalls, store the original so it never hangs
+      try{compress(raw,d=>{clearTimeout(to);finish(d||raw);},max,q);}catch(err){clearTimeout(to);finish(raw);}};
+    try{r.readAsDataURL(f);}catch(err){step();}});}
 async function openCam(){$('#camWrap').style.display='block';try{_camStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'user'}});$('#camVid').srcObject=_camStream;}catch(e){toast('Camera needs the hosted https link. Use Upload.',true);$('#camWrap').style.display='none';}}
 function snap(){const v=$('#camVid');if(!v||!v.videoWidth)return;const cv=document.createElement('canvas');cv.width=v.videoWidth;cv.height=v.videoHeight;cv.getContext('2d').drawImage(v,0,0);compress(cv.toDataURL('image/jpeg',.8),d=>{_photo=d;setPrev();});stopCam();}
 function stopCam(){if(_camStream){_camStream.getTracks().forEach(t=>t.stop());_camStream=null;}const w=$('#camWrap');if(w)w.style.display='none';}
@@ -6510,7 +6521,7 @@ window.addEventListener('appinstalled',()=>{const b=document.getElementById('ins
 function doInstall(){if(!deferredPrompt){toast('On iPhone: tap Share → Add to Home Screen',true);return;}deferredPrompt.prompt();deferredPrompt.userChoice.finally(()=>{deferredPrompt=null;const b=document.getElementById('installBtn');if(b)b.style.display='none';});}
 // service worker (offline + update)
 if('serviceWorker' in navigator){window.addEventListener('load',()=>{
-  navigator.serviceWorker.register('/sw.js').then(reg=>{
+  navigator.serviceWorker.register('sw.js').then(reg=>{
     if(reg.waiting&&navigator.serviceWorker.controller){const ub=document.getElementById('updateBar');if(ub)ub.style.display='flex';}
     reg.addEventListener('updatefound',()=>{const nw=reg.installing;if(nw)nw.addEventListener('statechange',()=>{if(nw.state==='installed'&&navigator.serviceWorker.controller){const ub=document.getElementById('updateBar');if(ub)ub.style.display='flex';}});});
   }).catch(()=>{});
