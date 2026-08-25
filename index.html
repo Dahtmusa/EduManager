@@ -546,6 +546,27 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green,#0
 .empty{padding:30px 16px;color:var(--muted,#6b7280)}.empty .big{opacity:.5}
 .linkbox{border-radius:12px}
 @media(max-width:760px){.cards-row{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat .num{font-size:22px}.page-head h2{font-size:20px}.card.pad{padding:15px}}
+/* ===== extra mobile polish (Android + iPhone) ===== */
+html{-webkit-text-size-adjust:100%}
+img,video,svg{max-width:100%}
+@supports(padding:max(0px)){.wa-fab{bottom:max(84px,calc(70px + env(safe-area-inset-bottom)))}.home-top{padding-top:max(8px,env(safe-area-inset-top))}}
+@media(max-width:600px){
+  input,select,textarea{font-size:16px}
+  .btn{min-height:42px}.btn.sm,.btn.icon{min-height:36px}
+  .home-hero h1{font-size:26px}.home-hero .desc{font-size:14px}
+  .home-hero .acts{flex-direction:column}.home-hero .acts .btn{width:100%}
+  .sec-h h2{font-size:22px}.home-sec{padding:34px 15px}
+  .mv-card{padding:20px 18px}.mv-card h3{font-size:17px}.mv-card p{font-size:14px}
+  .about-collage{gap:11px}.about-collage .tile img,.about-collage .tile video{height:112px}
+  .about-collage .tile.vid video,.about-collage .tile.vid>div{height:172px!important}
+  .page-head{flex-wrap:wrap;gap:8px}.page-head .flex{flex-wrap:wrap}
+  .modal-body{max-height:82vh}
+  table{font-size:12.5px}
+  .teachers-grid{grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:14px}
+  .toolbar{flex-wrap:wrap}.toolbar>div{min-width:0}
+  .subtabs{overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}.subtabs .subtab{white-space:nowrap}
+}
+@media(max-width:400px){.cv-grid{grid-template-columns:1fr 1fr}.home-hero h1{font-size:23px}}
 </style>
 </head>
 <body>
