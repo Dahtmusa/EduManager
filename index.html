@@ -433,6 +433,20 @@ tbody tr:hover{background:#fafbfa}
 .about2{display:grid;grid-template-columns:1fr 1fr;gap:38px;align-items:center;max-width:1040px;margin:0 auto}
 .about2 .txt{font-size:15.5px;line-height:1.95;color:#39433d;white-space:pre-line}
 .about2 img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;border-radius:18px;box-shadow:0 18px 44px rgba(0,0,0,.20)}
+.about-collage{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.about-collage .tile{border-radius:16px;overflow:hidden;box-shadow:0 14px 32px rgba(0,0,0,.18);animation:floaty 6s ease-in-out infinite;background:#0d1b12}
+.about-collage .tile:nth-child(2){animation-delay:1.4s}.about-collage .tile:nth-child(3){animation-delay:.7s}.about-collage .tile:nth-child(4){animation-delay:2.1s}.about-collage .tile:nth-child(5){animation-delay:1s}
+.about-collage .tile img,.about-collage .tile video{display:block;width:100%;height:150px;object-fit:cover;transition:transform .4s ease}
+.about-collage .tile:hover img{transform:scale(1.06)}
+.about-collage .tile.vid{grid-column:1/-1}
+@keyframes floaty{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@media(prefers-reduced-motion:reduce){.about-collage .tile{animation:none}}
+.vtile{position:relative;cursor:pointer}.vtile .vplay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center}
+.vtile .vplay span{width:56px;height:56px;border-radius:50%;background:rgba(0,0,0,.55);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;padding-left:4px;box-shadow:0 4px 14px rgba(0,0,0,.4)}
+.mv-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;max-width:960px;margin:0 auto}
+.mv-card{background:#fff;border-radius:18px;padding:26px 24px;box-shadow:0 12px 30px rgba(0,0,0,.10);border-top:4px solid var(--rgold,#caa64e)}
+.mv-card .mv-ic{font-size:34px;margin-bottom:8px}.mv-card h3{color:var(--rg,#0a5e3a);font-size:19px;margin:0 0 8px}.mv-card p{font-size:14.5px;line-height:1.85;color:#39433d;margin:0;white-space:pre-line}
+@media(max-width:720px){.mv-grid{grid-template-columns:1fr}}
 .cv-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:22px;max-width:980px;margin:0 auto}
 .cv{text-align:center}.cv .i{font-size:42px;margin-bottom:8px;line-height:1}.cv h4{color:var(--rgold,#caa64e);font-size:16px;margin-bottom:5px}.cv p{font-size:12.5px;opacity:.92}
 .house-car{position:relative;border-radius:12px;overflow:hidden;height:300px;max-width:1000px;margin:0 auto;box-shadow:0 10px 30px rgba(0,0,0,.18)}
@@ -725,6 +739,10 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(!Array.isArray(d.announcements))d.announcements=[];
   if(!Array.isArray(d.settings.heroImages))d.settings.heroImages=[];
   if(d.settings.about==null)d.settings.about='';
+  if(d.settings.mission==null)d.settings.mission='';
+  if(d.settings.vision==null)d.settings.vision='';
+  if(!Array.isArray(d.settings.aboutImages))d.settings.aboutImages=[];
+  if(d.settings.aboutVideo==null)d.settings.aboutVideo='';
   if(d.settings.onlineAdmission==null)d.settings.onlineAdmission=false;
   if(d.settings.admissionsOpen==null)d.settings.admissionsOpen=true;
   if(d.settings.admissionFee==null)d.settings.admissionFee=5000;
@@ -1583,7 +1601,18 @@ function vWebsite(){const set=DB.settings;
     <button class="btn mt" onclick="saveHeroDesc()">Save tagline</button></div>
   <div class="card pad mb" style="max-width:760px"><h3 class="mb">About the school</h3>
     <textarea id="wb_about" rows="4" placeholder="A short welcome / about paragraph for your homepage…">${esc(set.about||'')}</textarea>
-    <button class="btn mt" onclick="saveAbout()">Save about</button></div>
+    <div class="grid2 mt"><div class="fld"><label>Our Mission</label><textarea id="wb_mission" rows="3" placeholder="Your mission statement…">${esc(set.mission||'')}</textarea></div>
+      <div class="fld"><label>Our Vision</label><textarea id="wb_vision" rows="3" placeholder="Your vision statement…">${esc(set.vision||'')}</textarea></div></div>
+    <button class="btn mt" onclick="saveAbout()">Save about / mission / vision</button>
+    <hr style="margin:16px 0;border:none;border-top:1px solid var(--line)">
+    <h4 style="margin:0 0 6px">About section images (shown as a floating collage)</h4>
+    <div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(120px,1fr))">${(set.aboutImages||[]).map((u,i)=>`<div class="card" style="overflow:hidden;position:relative"><img src="${u}" style="width:100%;height:80px;object-fit:cover"><button class="btn icon" style="position:absolute;top:4px;right:4px;background:#fff" onclick="delAboutImg(${i})">✕</button></div>`).join('')||'<p class="muted" style="font-size:12.5px">No images yet — add 3–5 for a nice collage.</p>'}</div>
+    <button class="btn sec mt" onclick="addAboutImg()">⬆ Add about image(s)</button>
+    <hr style="margin:16px 0;border:none;border-top:1px solid var(--line)">
+    <h4 style="margin:0 0 6px">About section video</h4>
+    <p class="muted" style="font-size:12px;margin-bottom:6px">Paste a <b>YouTube/Facebook/Vimeo</b> link (plays on click) or a direct <b>.mp4</b> link (plays on hover).</p>
+    <div class="fld"><input id="wb_avid" value="${esc(set.aboutVideo||'')}" placeholder="https://youtu.be/… or https://…/clip.mp4"></div>
+    <button class="btn" onclick="saveAboutVideo()">Save video</button></div>
   <div class="card pad mb" style="max-width:760px"><h3 class="mb">Core values (4 shown on homepage)</h3>
     ${(set.coreValues||[]).map((v,i)=>`<div class="grid3 mb" style="grid-template-columns:60px 1fr 2fr"><div><label>Icon</label><input class="cvI" value="${esc(v.i||'')}"></div><div><label>Title</label><input class="cvT" value="${esc(v.t||'')}"></div><div><label>Description</label><input class="cvD" value="${esc(v.d||'')}"></div></div>`).join('')}
     <button class="btn" onclick="saveCoreValues()">Save core values</button></div>
@@ -1615,7 +1644,10 @@ function vWebsite(){const set=DB.settings;
 }
 function addHero(){_pickImages(files=>{DB.settings.heroImages=DB.settings.heroImages||[];toast('Adding image(s)…');processImages(files,1200,.72,d=>DB.settings.heroImages.push(d),cnt=>{save();vWebsite();toast(cnt?cnt+' image(s) added':'Could not read those images',!cnt);});});}
 function delHero(i){DB.settings.heroImages.splice(i,1);save();vWebsite();}
-function saveAbout(){DB.settings.about=$('#wb_about').value.trim();save();toast('About saved');}
+function saveAbout(){DB.settings.about=$('#wb_about').value.trim();if($('#wb_mission'))DB.settings.mission=$('#wb_mission').value.trim();if($('#wb_vision'))DB.settings.vision=$('#wb_vision').value.trim();save();toast('Saved');}
+function saveAboutVideo(){DB.settings.aboutVideo=$('#wb_avid').value.trim();save();toast('About video saved');}
+function addAboutImg(){_pickImages(files=>{DB.settings.aboutImages=DB.settings.aboutImages||[];toast('Adding image(s)…');processImages(files,1000,.72,d=>DB.settings.aboutImages.push(d),cnt=>{save();vWebsite();toast(cnt?cnt+' image(s) added':'Could not read those images',!cnt);});});}
+function delAboutImg(i){DB.settings.aboutImages.splice(i,1);save();vWebsite();}
 function saveFb(){DB.settings.facebookUrl=$('#wb_fb').value.trim();save();toast('Facebook page saved');}
 function saveSocials(){const s=DB.settings;s.facebookUrl=$('#sm_fb').value.trim();s.instagramUrl=$('#sm_ig').value.trim();s.tiktokUrl=$('#sm_tt').value.trim();s.youtubeUrl=$('#sm_yt').value.trim();s.twitterUrl=$('#sm_tw').value.trim();save();toast('Social links saved');}
 function saveHeroDesc(){DB.settings.heroDesc=$('#wb_hdesc').value.trim();save();toast('Tagline saved');}
@@ -2215,6 +2247,7 @@ function renderSchoolHome(){
   const lead=(set.showLeadership===false)?[]:leadStaff.map(u=>({name:u.name,role:u.position,photo:u.photo,bio:u.bio})).concat(_coreRoles.filter(r=>!_filled.has(r)).map(r=>({name:'To be announced',role:r,photo:'',bio:'',ph:true})));
   const alumBy={};alum.forEach(a=>{const y=(a.year||'').match(/(\d{4})/);const k=y?y[1]:'Other';(alumBy[k]=alumBy[k]||[]).push(a);});const alumYears=Object.keys(alumBy).sort().reverse();
   const aboutImg=heroes[1]||heroes[0]||((DB.gallery||[]).flatMap(a=>a.media||[]).find(m=>m.type==='image')||{}).url||'';
+  const aImgs=(set.aboutImages&&set.aboutImages.length)?set.aboutImages:(aboutImg?[aboutImg]:[]);const aVid=(set.aboutVideo||'').trim();
   sc.innerHTML=`<div class="home" style="--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}">
     <div class="home-top"><div class="b"><div class="lg">${logoTop}</div><span class="nm">${esc(set.shortName||set.schoolName)}</span></div>
       <div class="nav"><a class="active" onclick="hgo('home')">🏠 Home</a><a onclick="hgo('about')">ℹ️ About</a>${lead.length?`<a onclick="hgo('leadership')">👤 Leadership</a>`:''}${acts.length?`<a onclick="hgo('activities')">🎯 Activities</a>`:''}<a onclick="hgo('admission')">📥 Admission</a>${(hasModule('gallery')&&(DB.gallery||[]).length)?`<a onclick="MODE='gallery';renderPublicGallery()">🖼️ Gallery</a>`:''}<a onclick="hgo('alumni')">🎓 Alumni</a><a onclick="hgo('contact')">📞 Contact</a>${hasModule('parentPortal')?`<a onclick="MODE='parent';renderParent()">👪 Parents</a>`:''}<a class="login" onclick="staffLoginModal()">🔐 Login</a></div></div>
@@ -2224,7 +2257,11 @@ function renderSchoolHome(){
         <div class="desc">${esc(set.heroDesc||'')}</div>
         <div class="acts">${set.onlineAdmission?`<button class="btn gold" onclick="applyOnline()">Apply for Admission</button>`:''}<button class="btn btn-ghost" onclick="hgo('about')">Learn More</button></div></div></div>
     ${set.about?`<div id="about" class="home-sec"><div class="sec-h"><h2>About Our Institution</h2><div class="u"></div><p>A balanced approach to education${set.islamic?' — Islamic and modern':''}</p></div>
-      ${aboutImg?`<div class="about2"><div class="txt">${esc(set.about)}</div><img src="${aboutImg}" alt="About our school"></div>`:`<div style="max-width:760px;margin:0 auto;text-align:center;font-size:15.5px;line-height:1.95;color:#39433d;white-space:pre-line">${esc(set.about)}</div>`}</div>`:''}
+      ${(aImgs.length||aVid)?`<div class="about2"><div class="txt">${esc(set.about)}</div><div class="about-collage">${aVid?aboutVideoTile(aVid):''}${aImgs.slice(0,aVid?4:6).map(u=>`<div class="tile"><img src="${u}" alt="School photo"></div>`).join('')}</div></div>`:`<div style="max-width:760px;margin:0 auto;text-align:center;font-size:15.5px;line-height:1.95;color:#39433d;white-space:pre-line">${esc(set.about)}</div>`}</div>`:''}
+    ${(set.mission||set.vision)?`<div class="home-sec"><div class="mv-grid">
+      ${set.mission?`<div class="mv-card"><div class="mv-ic">🎯</div><h3>Our Mission</h3><p>${esc(set.mission)}</p></div>`:''}
+      ${set.vision?`<div class="mv-card"><div class="mv-ic">🌟</div><h3>Our Vision</h3><p>${esc(set.vision)}</p></div>`:''}
+    </div></div>`:''}
     ${cv.length?`<div class="sec-dark" style="background:${t.rg}"><div class="home-sec"><div class="sec-h"><h2>Our Core Values</h2><div class="u"></div><p>The principles guiding our institution</p></div>
       <div class="cv-grid">${cv.map(v=>`<div class="cv"><div class="i">${esc(v.i||'⭐')}</div><h4>${esc(v.t)}</h4><p>${esc(v.d)}</p></div>`).join('')}</div></div></div>`:''}
     <div id="admission" class="home-sec"><div class="sec-h"><h2>Admissions</h2><div class="u"></div><p>Join our school community</p></div>
@@ -2262,6 +2299,10 @@ function renderSchoolHome(){
   clearInterval(window._houseT);if(houses.length>1){let ci=0;window._houseT=setInterval(()=>{const sl=document.querySelectorAll('#houseCar .house-slide');if(!sl.length){clearInterval(window._houseT);return;}sl[ci].classList.remove('on');ci=(ci+1)%sl.length;sl[ci].classList.add('on');},4000);}
 }
 function hgo(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth'});}
+function aboutVideoTile(url){if(!url)return '';
+  if(/\.(mp4|webm|ogg)(\?|#|$)/i.test(url))return `<div class="tile vid"><video src="${esc(url)}" muted loop playsinline preload="metadata" controls onmouseenter="try{this.play()}catch(e){}" onmouseleave="try{this.pause()}catch(e){}" style="display:block;width:100%;height:220px;object-fit:cover;background:#000"></video></div>`;
+  const th=(typeof videoThumb==='function')?videoThumb(url):'';
+  return `<div class="tile vid vtile" onclick="playVideo('${jq(url)}')"><div style="height:220px;background:#000;display:flex;align-items:center;justify-content:center">${th?`<img src="${th}" style="width:100%;height:100%;object-fit:cover">`:'<span style="color:#fff;font-size:42px">🎬</span>'}</div><div class="vplay"><span>▶</span></div></div>`;}
 function applyOnline(){const set=DB.settings;
   if(set.admissionsOpen===false){modal('Admissions closed',`<div class="center" style="padding:14px"><div style="font-size:46px">🔒</div><h3 style="margin:6px 0">Applications are currently closed</h3>
     <p class="muted">${esc(set.schoolName)} is not accepting online applications at the moment.${set.admissionScreening?' Next intake: <b>'+esc(set.admissionScreening)+'</b>.':''}${set.phone?' For enquiries call <b>'+esc(set.phone)+'</b>.':''}</p></div>`,
@@ -4018,13 +4059,13 @@ async function cloudPull(id){if(!supa)return{ok:false,net:false};
   try{const{data,error}=await supa.from('school_data').select('data').eq('id',id).maybeSingle();if(error)throw error;
     if(data&&data.data){STORE[id]=data.data;BASE[id]=_clone(data.data);saveStoreLocal();saveBase();return{ok:true,found:true};}
     return{ok:true,found:false};
-  }catch(e){console.warn('cloudPull',e);return{ok:false,net:true};}}
+  }catch(e){console.warn('cloudPull',e);return{ok:false,net:true,err:(e&&e.message)||''+e};}}
 async function pullAllStrict(){if(!supa)return false;try{const{data,error}=await supa.from('school_data').select('id,data');if(error)throw error;
   if(data){data.forEach(r=>{STORE[r.id]=r.data;BASE[r.id]=_clone(r.data);});saveStoreLocal();saveBase();}return true;}catch(e){console.warn(e);return false;}}
 function renderOffline(msg){window._offline=1;const app=$('#app');if(app)app.style.display='none';const sc=$('#screen');if(!sc)return;sc.style.display='';
   sc.innerHTML=`<div class="auth"><div class="acard"><div class="crest" style="background:#64748b">📡</div><h1>You're offline</h1>
     <div class="sub">${esc(msg||'This app loads your data live from the cloud, so it needs an internet connection. Please connect and try again.')}</div>
-    <button class="btn" style="width:100%;justify-content:center;margin-top:16px" onclick="location.reload()">🔄 Retry</button></div></div>`;}
+    <button class="btn" style="width:100%;justify-content:center;margin-top:16px" onclick="forceUpdate()">🔄 Retry</button></div></div>`;}
 /* ---- Fully-online enforcement: lock the app whenever the connection drops ---- */
 function showConnLock(){let o=document.getElementById('connLock');
   if(!o){o=document.createElement('div');o.id='connLock';o.style.cssText='position:fixed;inset:0;z-index:99999;background:rgba(15,23,20,.9);display:flex;align-items:center;justify-content:center;padding:22px';
@@ -4032,7 +4073,7 @@ function showConnLock(){let o=document.getElementById('connLock');
     document.body.appendChild(o);}
   o.style.display='flex';}
 function hideConnLock(){const o=document.getElementById('connLock');if(o)o.style.display='none';}
-window.addEventListener('offline',()=>{setSync('err','Offline');if(window._offline)return;if(USER||MODE==='owner')showConnLock();});
+window.addEventListener('offline',()=>{setSync('err','Offline');});
 window.addEventListener('online',async()=>{hideConnLock();if(window._offline){location.reload();return;}
   setSync('saving','Reconnecting…');
   try{if(MODE==='owner'){await flushPush('__master__');}else if(SCHOOL_CODE){await flushPush(SCHOOL_CODE);await flushPush('__master__');}}catch(e){}
@@ -4055,10 +4096,11 @@ async function boot(){
   SCHOOL_CODE=code.toUpperCase();
   initSupa();
   if(!supa){renderOffline('This app is not configured for cloud sync. Please contact the provider.');return;}
-  if(!navigator.onLine){renderOffline();return;}
-  // MASTER (required, live)
-  const mp=await cloudPull('__master__');
-  if(!mp.ok){renderOffline();return;}
+  // MASTER (required, live). Don't trust navigator.onLine (often wrong) — actually try the cloud, with retries.
+  let mp=await cloudPull('__master__');
+  if(!mp.ok){await new Promise(r=>setTimeout(r,1200));mp=await cloudPull('__master__');}
+  if(!mp.ok){await new Promise(r=>setTimeout(r,2500));mp=await cloudPull('__master__');}
+  if(!mp.ok){const hint=/fetch|network|load failed/i.test(mp.err||'')?'Check your internet connection and try again.':('The cloud database did not respond — if the school’s Supabase project is paused (free projects pause after inactivity), open the Supabase dashboard and resume it. Details: '+(mp.err||'unknown'));renderOffline(hint);return;}
   MASTER=STORE['__master__'];
   if(!MASTER){ // first run only
     MASTER=seedMaster();STORE['__master__']=MASTER;if(!STORE['DEMO'])STORE['DEMO']=seedSchool('DEMO','Demo Nursery & Primary');
