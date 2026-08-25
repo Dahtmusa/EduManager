@@ -905,7 +905,7 @@ function approvedPaid(sid){return DB.payments.filter(p=>p.studentId===sid&&p.sta
 function sectionOf(s){return (s&&s.section)==='Boarding'?'Boarding':'Day';}
 function sectionBadge(s){const b=sectionOf(s)==='Boarding';return `<span class="pill ${b?'amber':'blue'}" style="font-size:9px">${b?'Boarding':'Day'}</span>`;}
 function feeSummary(){const list=DB.students.filter(s=>!s.graduated);let expected=0,collected=0,paid=0,part=0,unpaid=0,withFee=0;
-  list.forEach(s=>{const due=Number((DB.fees[rkey(s.id)]||{}).due)||0;const p=approvedPaid(s.id);expected+=due;collected+=p;if(due>0){withFee++;if(p>=due)paid++;else if(p>0)part++;else unpaid++;}});
+  list.forEach(s=>{const due=studentDue(s);const p=approvedPaid(s.id);expected+=due;collected+=p;if(due>0){withFee++;if(p>=due)paid++;else if(p>0)part++;else unpaid++;}});
   return{n:list.length,expected,collected,outstanding:Math.max(0,expected-collected),paid,part,unpaid,withFee};}
 function sectionCounts(){const list=DB.students.filter(s=>!s.graduated);return{day:list.filter(s=>sectionOf(s)==='Day').length,boarding:list.filter(s=>sectionOf(s)==='Boarding').length};}
 function appUrl(){return location.origin+location.pathname;}
@@ -1504,7 +1504,7 @@ function parentLogin(){const adm=$('#pp_adm').value.trim(),pw=$('#pp_pw').value.
   const ok=(s.parentPin&&s.parentPin===pw)||(gp&&gp.length>=7&&gp===pwd);
   if(!ok){err.style.display='block';err.textContent=gp?'Wrong password. Use the guardian phone number on file.':'No password on file — please contact the school.';return;}
   renderParentDash(s);}
-function renderParentDash(s){const t=theme();const due=Number((DB.fees[rkey(s.id)]||{}).due)||0,paid=approvedPaid(s.id),bal=due-paid;const bk=DB.settings.bank||{};
+function renderParentDash(s){const t=theme();const due=studentDue(s),paid=approvedPaid(s.id),bal=due-paid;const bk=DB.settings.bank||{};
   let pres=0,tot=0;Object.keys(DB.attendance).forEach(k=>{const cid=k.split('|')[1];if(cid===s.classId){const v=DB.attendance[k][s.id];if(v!==undefined){tot++;if(v==='P')pres++;}}});
   const tah=hasModule('tahfiz');let comp;
   if(tah){comp=studentsIn(s.classId).map(x=>({s:x,score:tahTermScore(x.id).total})).sort((a,b)=>b.score-a.score);}
@@ -2206,11 +2206,11 @@ function vInvoices(){ // opened from Fees tab
   const list=studentsIn(invClass);
   if(!list.length){$('#invTbl').innerHTML=`<div class="card"><div class="empty"><div class="big">🧾</div>No pupils in this class.</div></div>`;return;}
   $('#invTbl').innerHTML=`<div class="t-wrap"><table><thead><tr><th>Pupil</th><th class="right">Fee</th><th class="right">Paid</th><th class="right">Balance</th><th></th></tr></thead><tbody>
-  ${list.map(s=>{const due=Number((DB.fees[rkey(s.id)]||{}).due)||0,paid=approvedPaid(s.id),bal=due-paid;return `<tr><td><b>${esc(s.name)}</b></td><td class="right">${naira(due)}</td><td class="right">${naira(paid)}</td>
+  ${list.map(s=>{const due=studentDue(s),paid=approvedPaid(s.id),bal=due-paid;return `<tr><td><b>${esc(s.name)}</b></td><td class="right">${naira(due)}</td><td class="right">${naira(paid)}</td>
     <td class="right" style="color:${bal>0?'var(--red)':'var(--green)'}"><b>${naira(bal)}</b></td><td class="right"><button class="btn sm" onclick="openInvoice('${s.id}')">Invoice</button></td></tr>`;}).join('')}
   </tbody></table></div>`;
 }
-function invoiceHTML(sid){const s=DB.students.find(x=>x.id===sid);const due=Number((DB.fees[rkey(sid)]||{}).due)||0,paid=approvedPaid(sid),bal=due-paid;
+function invoiceHTML(sid){const s=DB.students.find(x=>x.id===sid);const due=studentDue(sid),paid=approvedPaid(sid),bal=due-paid;
   const lines=studentFeeLines(s).filter(l=>l.amt>0);const lineTotal=lines.reduce((a,l)=>a+l.amt,0);const itemized=lines.length&&Math.abs(lineTotal-due)<1;
   const bk=DB.settings.bank||{};const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';const dueDate=(DB.settings.dates&&DB.settings.dates.resumption)||'';
   const invNo='INV/'+DB.settings.session.slice(0,4)+'/'+(s.admissionNo||s.id).replace(/[^0-9]/g,'').slice(-4);
@@ -3218,7 +3218,7 @@ function classPupils(cid){const list=studentsIn(cid).slice().sort((a,b)=>admOrde
 function stuAge(dob){if(!dob)return '';const d=new Date(dob);if(isNaN(d))return '';const n=new Date();let a=n.getFullYear()-d.getFullYear();if(n.getMonth()<d.getMonth()||(n.getMonth()===d.getMonth()&&n.getDate()<d.getDate()))a--;return (a>=0&&a<130)?a+' yrs':'';}
 function _prow(l,v){return `<tr><td style="padding:5px 9px;background:#f5f8f6;font-weight:600;width:42%">${l}</td><td style="padding:5px 9px">${v||'—'}</td></tr>`;}
 function openStudentProfile(id){const s=DB.students.find(x=>x.id===id);if(!s)return;const admin=USER.role==='admin';
-  const due=Number((DB.fees[rkey(s.id)]||{}).due)||0,paid=approvedPaid(s.id),bal=due-paid;
+  const due=studentDue(s),paid=approvedPaid(s.id),bal=due-paid;
   let pres=0,tot=0;Object.keys(DB.attendance).forEach(k=>{const cid=k.split('|')[1];if(cid===s.classId){const v=DB.attendance[k][s.id];if(v!==undefined){tot++;if(v==='P')pres++;}}});
   let acad;if(hasModule('tahfiz')){const ts=tahTermScore(s.id);acad=ts.total?`<b>${ts.total}/100</b> — ${ts.grade.g} (${ts.grade.r})`:'No approved evaluation yet';}
   else{const {rows}=computeClassResults(s.classId);const r=rows.find(x=>x.s.id===s.id);acad=(r&&r.count)?`Average <b>${r.avg.toFixed(1)}%</b> · Position ${r.pos?ord(r.pos):'—'}`:'No results yet';}
@@ -3383,7 +3383,7 @@ function tahfizReportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid)
   const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'📖';
   let daysOpen=0;Object.keys(DB.attendance).forEach(k=>{const p=k.split('|');if(p[1]===s.classId){const rec=DB.attendance[k];if(rec&&Object.keys(rec).length)daysOpen++;}});
   const overall=ts.total;const overallG=ts.grade;const evG=ts.grade;
-  const feesNote=(DB.settings.nextTermFeesNote||'').trim()||naira(Number((DB.fees[rkey(sid,sess,term)]||{}).due)||0);
+  const feesNote=(DB.settings.nextTermFeesNote||'').trim()||naira(studentDue(sid,sess,term));
   const tbl='width:100%;border-collapse:collapse;font-size:12px';
   const thc='background:var(--rg);color:#fff;padding:5px 8px;border:1px solid var(--rgd);font-size:10.5px;text-align:center';
   const cell='border:1px solid #d9cba5;padding:5px 9px';
@@ -3494,7 +3494,7 @@ function reportHTML(sid,sess,term){if(hasModule('tahfiz'))return tahfizReportHTM
     <div class="rc-comments">
       <div class="c"><b>Class Teacher's Comment</b><div class="box">${esc(rem.teacher||autoRemark(row.avg,row.marks))}</div></div>
       <div class="c"><b>Principal's Recommendation</b><div class="box">${esc(rem.head||autoHead(row.avg))}</div></div></div>
-    <div class="rc-meta2"><div><span>Next Term Begins:</span> ${esc(DB.settings.nextResumption||'—')}</div><div><span>School Fees:</span> ${naira(Number((DB.fees[rkey(sid,sess,term)]||{}).due)||0)}</div><div><span>Date of Issue:</span> ${issue}</div></div>
+    <div class="rc-meta2"><div><span>Next Term Begins:</span> ${esc(DB.settings.nextResumption||'—')}</div><div><span>School Fees:</span> ${naira(studentDue(sid,sess,term))}</div><div><span>Date of Issue:</span> ${issue}</div></div>
     <div class="rc-sign">${signCell((classTeacher(s.classId)||{}).name,"Class Teacher's Signature")}${signCell('','Date')}${(()=>{const h=headTeacher();return signCell(h?h.name:'',(h&&/principal/i.test(h.position||''))?"Principal's Signature":"Head Teacher's Signature");})()}${signCell('','School Stamp')}</div>
     <div class="rc-foot">${isl?`✦ “${esc(q.t)}” — ${esc(q.s)} ✦`:esc(DB.settings.motto||'')}</div>
   </div>`;}
@@ -3795,9 +3795,9 @@ function vFees(){if(!feeClass)feeClass=DB.classes[0]?DB.classes[0].id:'';
 function renderFees(){$('#feeArea').innerHTML=`<div class="toolbar"><div><label>Class</label><select onchange="feeClass=this.value;renderFees()">${DB.classes.map(c=>`<option value="${c.id}" ${feeClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
     <div><button class="btn sec" onclick="setClassFee()">Set fee for whole class</button></div></div><div id="feeTbl"></div>`;
   const list=studentsIn(feeClass);if(!list.length){$('#feeTbl').innerHTML=`<div class="card"><div class="empty"><div class="big">💰</div>No pupils in this class.</div></div>`;return;}
-  let tDue=0,tPaid=0;const rows=list.map(s=>{const f=DB.fees[rkey(s.id)]||{};const due=Number(f.due)||0,paid=approvedPaid(s.id),bal=due-paid;tDue+=due;tPaid+=paid;
-    const st=due===0?['grey','Not set']:bal<=0?['green','Paid']:paid>0?['amber','Part']:['red','Owing'];
-    return `<tr><td>${avatar(s.photo,'👧')}</td><td><b>${esc(s.name)}</b> ${sectionBadge(s)}</td><td><input class="score-in" style="width:110px;text-align:right" type="number" value="${f.due??''}" onchange="setFeeDue('${s.id}',this.value)"></td>
+  let tDue=0,tPaid=0;const rows=list.map(s=>{const due=studentDue(s),paid=approvedPaid(s.id),bal=due-paid;tDue+=due;tPaid+=paid;
+    const st=due===0?['grey','No fee set']:bal<=0?['green','Paid']:paid>0?['amber','Part']:['red','Owing'];
+    return `<tr><td>${avatar(s.photo,'👧')}</td><td><b>${esc(s.name)}</b> ${sectionBadge(s)}</td><td><input class="score-in" style="width:110px;text-align:right" type="number" value="${due||''}" onchange="setFeeDue('${s.id}',this.value)"></td>
       <td class="right">${naira(paid)}</td><td class="right" style="color:${bal>0?'var(--red)':'var(--green)'}"><b>${naira(bal)}</b></td>
       <td class="center"><span class="pill ${st[0]}">${st[1]}</span></td><td class="right" style="white-space:nowrap"><button class="btn sm" onclick="recordPayment('${s.id}')">＋ Pay</button><button class="btn icon" title="View / edit payments" onclick="managePayments('${s.id}')">📋</button></td></tr>`;}).join('');
   $('#feeTbl').innerHTML=`<div class="cards-row" style="margin-bottom:16px"><div class="stat"><div class="lbl">Expected</div><div class="num">${naira(tDue)}</div></div>
@@ -3813,6 +3813,8 @@ function studentFeeLines(s){const sec=sectionOf(s)==='Boarding'?'boarding':'day'
   const sf=Number((DB.settings.schoolFee||{})[sec])||0;if(sf>0)lines.push({name:'School Fees ('+sectionOf(s)+')',amt:sf});
   (DB.settings.feeItems||[]).forEach(it=>{const amt=Number(it[sec])||0;if(amt>0)lines.push({name:it.name,amt});});return lines;}
 function studentFeeTotal(s){return studentFeeLines(s).reduce((a,l)=>a+l.amt,0);}
+/* A pupil's fee for the term: the explicit amount if one was set, else auto from their section's school fee. */
+function studentDue(sOrId,sess,term){const s=(typeof sOrId==='string')?DB.students.find(x=>x.id===sOrId):sOrId;if(!s)return 0;const f=DB.fees[rkey(s.id,sess,term)];if(f&&f.due!=null&&f.due!=='')return Number(f.due)||0;return studentFeeTotal(s);}
 function renderFeeSetup(){const bk=DB.settings.bank||{};const simple=DB.settings.feeMode==='simple';const sf=DB.settings.schoolFee||{};const items=DB.settings.feeItems||[];
   const bankCard=`<div class="card pad mb" style="background:#f7faf8;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <div style="font-size:13px">🏦 <b>School account (shown on invoices &amp; receipts):</b> ${bk.number?esc(bk.name||'—')+' · '+esc(bk.number)+' · '+esc(bk.bank||''):'<span style="color:var(--red)">not set yet</span>'}</div>
@@ -3863,7 +3865,7 @@ function generateLevy(){const sf=DB.settings.schoolFee||{};const hasFee=(Number(
     <p class="muted" style="font-size:12.5px">Any pupil without a section is treated as Day. You can still adjust an individual pupil's fee afterwards.</p>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn gold" onclick="doGenerateLevy()">Generate for all pupils</button>`);}
 function doGenerateLevy(){let n=0;DB.students.filter(s=>!s.graduated).forEach(s=>{const k=rkey(s.id);DB.fees[k]=DB.fees[k]||{};DB.fees[k].due=studentFeeTotal(s);n++;});save();closeModal();toast('Levy generated for '+n+' pupil(s)');feeTab='invoices';if(CURRENT==='fees')vFees();}
-function recordPayment(sid){const s=DB.students.find(x=>x.id===sid);const due=Number((DB.fees[rkey(sid)]||{}).due)||0;const bal=due-approvedPaid(sid);
+function recordPayment(sid){const s=DB.students.find(x=>x.id===sid);const due=studentDue(sid);const bal=due-approvedPaid(sid);
   modal('Record Payment — '+s.name,`<p class="muted mb">Outstanding (school fees): <b style="color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</b>. A receipt is generated once the payment is approved.</p>
     <div class="grid2"><div class="fld"><label>Payment for *</label><select id="p_purpose" onchange="document.getElementById('p_descWrap').style.display=this.value==='Other'?'block':'none'"><option>School Fees</option><option>Examination Fee</option><option>Uniform</option><option>Books / Stationery</option><option>PTA Levy</option><option>Development Levy</option><option>Excursion</option><option>Other</option></select></div>
     <div class="fld"><label>Amount (₦) *</label><input id="p_amt" type="number"></div>
@@ -3899,7 +3901,7 @@ function renderPayHistory(){const list=DB.payments.filter(p=>p.session===DB.sett
     <td class="right" style="white-space:nowrap">${p.status==='approved'?`<button class="btn icon" title="Receipt" onclick="openReceipt('${p.id}')">🧾</button>`:''}<button class="btn icon" title="Edit" onclick="editPayment('${p.id}')">✏️</button><button class="btn icon" title="Delete" onclick="delPayment('${p.id}')">🗑️</button></td></tr>`;}).join('')}
   </tbody></table></div><p class="muted mt" style="font-size:12px">✏️ correct a mistake · 🗑️ remove a wrong entry. Balances update automatically.</p>`;}
 function managePayments(sid){const s=DB.students.find(x=>x.id===sid);const list=DB.payments.filter(p=>p.studentId===sid).slice().reverse();
-  const due=Number((DB.fees[rkey(sid)]||{}).due)||0,paid=approvedPaid(sid),bal=due-paid;
+  const due=studentDue(sid),paid=approvedPaid(sid),bal=due-paid;
   modal('Payments — '+s.name,`<p class="muted mb">Fee due (this term): <b>${naira(due)}</b> · Paid: <b style="color:var(--green)">${naira(paid)}</b> · Balance: <b style="color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</b></p>
     <div class="mb"><label>Fix the term fee total (₦) — if it was entered wrong</label><div class="flex gap"><input id="mp_due" type="number" value="${due}" style="max-width:170px"><button class="btn sec sm" onclick="fixFeeDue('${sid}')">Save fee</button></div></div>
     ${list.length?`<div class="t-wrap"><table><thead><tr><th>Date</th><th>For</th><th>Term</th><th class="right">Amount</th><th>Status</th><th></th></tr></thead><tbody>
@@ -3926,7 +3928,7 @@ function delPayment(id){const p=DB.payments.find(x=>x.id===id);const s=DB.studen
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn danger" onclick="confirmDelPayment('${id}')">Delete</button>`);}
 function confirmDelPayment(id){DB.payments=DB.payments.filter(x=>x.id!==id);save();closeModal();buildNav();vFees();toast('Payment deleted');}
 function openReceipt(id){const p=DB.payments.find(x=>x.id===id);const s=DB.students.find(x=>x.id===p.studentId)||{name:'(deleted)'};
-  const due=Number((DB.fees[rkey(p.studentId)]||{}).due)||0;const bal=due-approvedPaid(p.studentId);const logo=DB.settings.logo?`<img src="${DB.settings.logo}" style="width:100%;height:100%;object-fit:cover">`:'🎓';
+  const due=studentDue(p.studentId);const bal=due-approvedPaid(p.studentId);const logo=DB.settings.logo?`<img src="${DB.settings.logo}" style="width:100%;height:100%;object-fit:cover">`:'🎓';
   modal('Receipt — '+(p.receiptNo||''),`<div class="receipt"><div class="rh"><div class="seal">${logo}</div><div><h2>${esc(DB.settings.schoolName)}</h2><div class="muted" style="font-size:11px">${addrTel()}</div></div>
     <div class="no">OFFICIAL RECEIPT<br><b>${esc(p.receiptNo||'—')}</b><br>${esc(p.date)}</div></div>
     <div style="display:flex;gap:14px;align-items:center;margin:6px 0 4px">
@@ -4015,7 +4017,7 @@ function handleScan(code){code=(code||'').trim();if(!code)return;
   const s=DB.students.find(x=>(x.admissionNo||'').toLowerCase()===code.toLowerCase()||x.id===code);
   const u=!s&&DB.users.find(x=>(x.staffId||'').toLowerCase()===code.toLowerCase()||x.id===code);stopScan();
   if(s)showScanStudent(s);else if(u)showScanTeacher(u);else{const r=$('#scanResult');if(r)r.innerHTML=`<div class="scan-result"><div class="card pad center"><div style="font-size:34px">❌</div><b>No match for “${esc(code)}”.</b></div></div>`;toast('No match',true);}}
-function showScanStudent(s){const due=Number((DB.fees[rkey(s.id)]||{}).due)||0,paid=approvedPaid(s.id),bal=due-paid;const t=today();const mark=(DB.attendance[t+'|'+s.classId]||{})[s.id];const r=$('#scanResult');
+function showScanStudent(s){const due=studentDue(s),paid=approvedPaid(s.id),bal=due-paid;const t=today();const mark=(DB.attendance[t+'|'+s.classId]||{})[s.id];const r=$('#scanResult');
   r.innerHTML=`<div class="scan-result"><div class="card pad"><div class="flex gap mb">${s.photo?`<img src="${s.photo}" style="width:64px;height:64px;border-radius:10px;object-fit:cover">`:'<div style="width:64px;height:64px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:30px">👧</div>'}
     <div><span class="pill green">PUPIL VERIFIED</span><div style="font-size:18px;font-weight:800;margin-top:4px">${esc(s.name)}</div><div class="muted">${esc(className(s.classId))} · Adm ${esc(s.admissionNo||'—')}</div></div></div>
     <div class="cards-row" style="margin-bottom:14px"><div class="stat"><div class="lbl">Fee due</div><div class="num" style="font-size:20px">${naira(due)}</div></div>
