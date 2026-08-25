@@ -607,7 +607,7 @@ let STORE={}, BASE={}, pushTimers={};
 
 /* ===================== STORAGE ===================== */
 function loadStore(){try{STORE=JSON.parse(localStorage.getItem('sms_store'))||{};}catch(e){STORE={};}}
-function saveStoreLocal(){localStorage.setItem('sms_store',JSON.stringify(STORE));}
+function saveStoreLocal(){try{localStorage.setItem('sms_store',JSON.stringify(STORE));}catch(e){console.warn('local cache full — relying on cloud',e);}}
 function initSupa(){
   let url=SUPABASE_URL,key=SUPABASE_KEY;
   if(!url||!key){try{const c=JSON.parse(localStorage.getItem('sms_cfg'));if(c){url=c.url;key=c.key;}}catch(e){}}
@@ -1677,11 +1677,11 @@ function vWebsite(){const set=DB.settings;
     <hr><label style="display:flex;align-items:center;gap:8px;text-transform:none;font-weight:500;color:var(--ink);margin-top:8px"><input type="checkbox" id="wb_adm" style="width:auto" ${set.onlineAdmission?'checked':''} onchange="DB.settings.onlineAdmission=this.checked;save();toast(this.checked?'Online admissions ON':'Online admissions OFF')"> Enable <b>Apply for Admission Online</b> (connects the form to this school)</label>
     <p class="muted mt" style="font-size:12.5px">When ON, the homepage Admissions section + hero show the apply button, and submissions land in your <b>Admissions</b> list (marked “🌐 online”). When OFF, visitors are asked to contact the school instead.</p></div>`;
 }
-function addHero(){_pickImages(files=>{DB.settings.heroImages=DB.settings.heroImages||[];toast('Adding image(s)…');processImages(files,1200,.72,d=>DB.settings.heroImages.push(d),cnt=>{save();vWebsite();toast(cnt?cnt+' image(s) added':'Could not read those images',!cnt);});});}
+function addHero(){_pickImages(files=>{DB.settings.heroImages=DB.settings.heroImages||[];processImages(files,1100,.6,d=>DB.settings.heroImages.push(d),cnt=>{save();vWebsite();toast(cnt?cnt+' image(s) added':'Could not read those images',!cnt);});});}
 function delHero(i){DB.settings.heroImages.splice(i,1);save();vWebsite();}
 function saveAbout(){DB.settings.about=$('#wb_about').value.trim();if($('#wb_mission'))DB.settings.mission=$('#wb_mission').value.trim();if($('#wb_vision'))DB.settings.vision=$('#wb_vision').value.trim();save();toast('Saved');}
 function saveAboutVideo(){DB.settings.aboutVideo=$('#wb_avid').value.trim();save();toast('About video saved');}
-function addAboutImg(){_pickImages(files=>{DB.settings.aboutImages=DB.settings.aboutImages||[];toast('Adding image(s)…');processImages(files,1000,.72,d=>DB.settings.aboutImages.push(d),cnt=>{save();vWebsite();toast(cnt?cnt+' image(s) added':'Could not read those images',!cnt);});});}
+function addAboutImg(){_pickImages(files=>{DB.settings.aboutImages=DB.settings.aboutImages||[];processImages(files,900,.6,d=>DB.settings.aboutImages.push(d),cnt=>{save();vWebsite();toast(cnt?cnt+' image(s) added':'Could not read those images',!cnt);});});}
 function delAboutImg(i){DB.settings.aboutImages.splice(i,1);save();vWebsite();}
 function saveFb(){DB.settings.facebookUrl=$('#wb_fb').value.trim();save();toast('Facebook page saved');}
 function saveSocials(){const s=DB.settings;s.facebookUrl=$('#sm_fb').value.trim();s.instagramUrl=$('#sm_ig').value.trim();s.tiktokUrl=$('#sm_tt').value.trim();s.youtubeUrl=$('#sm_yt').value.trim();s.twitterUrl=$('#sm_tw').value.trim();save();toast('Social links saved');}
@@ -1760,7 +1760,7 @@ function editAlbum(id){const a=id?DB.gallery.find(x=>x.id===id):{date:today()};c
 function _ensureAlbumFromForm(){const t=($('#al_title')&&$('#al_title').value.trim())||'Untitled activity';const obj={id:uid('al'),title:t,date:($('#al_date')&&$('#al_date').value)||today(),desc:($('#al_desc')&&$('#al_desc').value.trim())||'',showHome:!!($('#al_home')&&$('#al_home').checked),media:[]};DB.gallery.push(obj);save();return obj.id;}
 function _pickImages(cb){const inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.multiple=true;inp.style.cssText='position:fixed;left:-9999px;top:0';document.body.appendChild(inp);
   inp.onchange=()=>{const files=[...inp.files];cb(files);setTimeout(()=>{try{document.body.removeChild(inp);}catch(e){}},1000);};inp.click();}
-function albumAddPhoto(id){if(!id)id=_ensureAlbumFromForm();_pickImages(files=>{const a=DB.gallery.find(x=>x.id===id);if(!a)return;a.media=a.media||[];toast('Adding photo(s)…');processImages(files,900,.72,d=>a.media.push({type:'image',url:d}),cnt=>{save();editAlbum(id);toast(cnt?cnt+' photo(s) added':'Could not read those images',!cnt);});});}
+function albumAddPhoto(id){if(!id)id=_ensureAlbumFromForm();_pickImages(files=>{const a=DB.gallery.find(x=>x.id===id);if(!a)return;a.media=a.media||[];processImages(files,850,.6,d=>a.media.push({type:'image',url:d}),cnt=>{save();editAlbum(id);toast(cnt?cnt+' photo(s) added':'Could not read those images',!cnt);});});}
 function albumAddVideo(id){if(!id)id=_ensureAlbumFromForm();
   modal('Add video link',`<div class="fld"><label>Video URL</label><input id="vid_url" placeholder="https://youtu.be/… or https://facebook.com/…"></div>
     <p class="muted" style="font-size:12px">Works with <b>YouTube</b>, <b>Facebook</b> and Vimeo links. Facebook videos must be <b>Public</b> to play. Paste a link (video files are too large to store).</p>`,
@@ -1775,7 +1775,7 @@ function openAlbum(id){const a=DB.gallery.find(x=>x.id===id);
     <div class="flex gap" style="flex-wrap:wrap"><button class="btn sm sec" onclick="addPhoto('${id}')">⬆ Add photo</button><button class="btn sm sec" onclick="addVideo('${id}')">🎬 Add video link</button><button class="btn sm ${a.showHome?'sec':'gold'}" onclick="toggleAlbumHome('${id}')">${a.showHome?'Remove from homepage':'Feature on homepage'}</button><button class="btn sm sec" onclick="editAlbum('${id}')">Edit</button><button class="btn icon" onclick="delAlbum('${id}')">🗑️</button></div></div>
     <div class="cards-row mt" style="grid-template-columns:repeat(auto-fill,minmax(150px,1fr))">${(a.media||[]).map((m,i)=>mediaTile(m,id,i,true)).join('')||'<p class="muted">No media yet. Add photos or a video link.</p>'}</div>`,
     `<button class="btn sec" onclick="closeModal()">Close</button>`,true);}
-function addPhoto(id){_pickImages(files=>{const a=DB.gallery.find(x=>x.id===id);if(!a)return;a.media=a.media||[];toast('Adding photo(s)…');processImages(files,900,.72,d=>a.media.push({type:'image',url:d}),cnt=>{save();openAlbum(id);toast(cnt?cnt+' photo(s) added':'Could not read those images',!cnt);});});}
+function addPhoto(id){_pickImages(files=>{const a=DB.gallery.find(x=>x.id===id);if(!a)return;a.media=a.media||[];processImages(files,850,.6,d=>a.media.push({type:'image',url:d}),cnt=>{save();openAlbum(id);toast(cnt?cnt+' photo(s) added':'Could not read those images',!cnt);});});}
 function addVideo(id){modal('Add video link',`<div class="fld"><label>Video URL</label><input id="vid_url" placeholder="https://facebook.com/… or https://youtu.be/…"></div>
   <p class="muted" style="font-size:12px">Works with <b>Facebook</b>, YouTube and Vimeo links. ⚠ Facebook videos must be set to <b>Public</b> on Facebook to play here. Paste a link rather than uploading (video files are too large to store).</p>`,
   `<button class="btn sec" onclick="openAlbum('${id}')">Cancel</button><button class="btn" onclick="saveVideo('${id}')">Add</button>`);}
