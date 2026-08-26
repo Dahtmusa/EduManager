@@ -781,6 +781,29 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(!Array.isArray(d.settings.positions))d.settings.positions=['Teacher','Director','Assistant Director','School Supervisor'];
   if(!Array.isArray(d.settings.otherSubjects))d.settings.otherSubjects=[];
   if(d.settings.tahMonthMax==null)d.settings.tahMonthMax=30;
+  /* ---- Hifz system (new 100-point) — additive; old tahfiz kept read-only ---- */
+  if(!d.hifzProfiles||typeof d.hifzProfiles!=='object')d.hifzProfiles={};
+  if(!Array.isArray(d.hifzCal))d.hifzCal=[];
+  if(!Array.isArray(d.hifzEvals))d.hifzEvals=[];
+  if(!d.settings.hifz||typeof d.settings.hifz!=='object')d.settings.hifz={};
+  {const H=d.settings.hifz;
+   if(H.mushafPages==null)H.mushafPages=604;
+   if(H.pagesPerDay==null)H.pagesPerDay=1;
+   if(H.pagesPerMonth==null)H.pagesPerMonth=30;
+   if(!H.weights)H.weights={prog:20,acc:25,mur:25,flu:15,taj:15};
+   if(!Array.isArray(H.termWeights))H.termWeights=[25,30,45];
+   if(!Array.isArray(H.bands))H.bands=[{min:90,label:'Outstanding'},{min:80,label:'Very Good'},{min:70,label:'Good'},{min:60,label:'Satisfactory'},{min:0,label:'Needs Improvement'}];
+   if(!H.componentFloors)H.componentFloors={prog:0.6,acc:0.6,mur:0.6,flu:0.6,taj:0.6};
+   if(!H.errWeights)H.errWeights={major:1,forgotten:1.2,prompt:0.4,minor:0.2};
+   if(H.sensitivity==null)H.sensitivity=1;
+   if(!H.fluencyMap)H.fluencyMap={1:3,2:6,3:9,4:12,5:15};
+   if(!H.tajweedMap)H.tajweedMap={1:3,2:6,3:9,4:12,5:15};
+   if(!H.trackThresholds)H.trackThresholds={ahead:5,behind:-5,sigBehind:-15};
+   if(H.evalsPerTerm==null)H.evalsPerTerm=3;
+   if(!Array.isArray(H.weekend))H.weekend=[0,6];   // 0=Sun … 6=Sat (non-instructional fallback)
+   if(!Array.isArray(H.holidays))H.holidays=[];    // ['YYYY-MM-DD',…] non-instructional days
+   if(!Array.isArray(H.instructionalDays))H.instructionalDays=[]; // optional explicit school calendar
+  }
   if(d.settings.tahAttMax==null)d.settings.tahAttMax=10;
   if(!Array.isArray(d.alumni))d.alumni=[];
   if(!Array.isArray(d.settings.leadership))d.settings.leadership=[];
@@ -2467,7 +2490,7 @@ function buildNav(){
     return;
   }
   if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['stores','💊','Pharmacies'],['autostores','🔧','Auto Parts'],['families','👪','Families'],['posagents','🏧','POS Agents'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
-  else if(USER.role==='admin'){items=[['dashboard','📊','Dashboard'],['search','🔎','Search'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👩‍🏫','Teachers'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['calendar','🗓️','Calendar'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
+  else if(USER.role==='admin'){items=[['dashboard','📊','Dashboard'],['search','🔎','Search'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👥','Staff'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['calendar','🗓️','Calendar'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
     if(hasModule('staffAttendance'))items.splice(7,0,['staffatt','👔','Staff Att.']);
     if(hasModule('houses'))items.push(['houses','🏠','Houses']);
     if(hasModule('quran'))items.push(['quran','☪','Qur’an']);
@@ -2629,7 +2652,7 @@ function manageSchool(code){
   modal('Manage — '+reg.name,`
     <div class="cards-row" style="margin-bottom:14px">
       <div class="stat"><div class="lbl">Pupils</div><div class="num">${d.students.length}</div></div>
-      <div class="stat"><div class="lbl">Teachers</div><div class="num">${d.users.filter(u=>u.role==='teacher').length}</div></div>
+      <div class="stat"><div class="lbl">Staff</div><div class="num">${d.users.filter(u=>u.role==='teacher').length}</div></div>
       <div class="stat"><div class="lbl">PINs</div><div class="num">${pins.length}</div></div>
     </div>
     <label>Staff login link (give to the school admin)</label>
@@ -2891,7 +2914,7 @@ function vDashboard(){
     <div class="flex gap"><button class="btn sec sm" onclick="editAdminProfile()">👤 My profile (Director)</button><button class="btn sec sm" onclick="exportSchool()">⬇ Export data</button><button class="btn sec sm" onclick="exportStudentsCSV()">⬇ Students CSV</button></div></div>
   <div class="cards-row">
     <div class="stat accent"><div class="lbl">Total Pupils</div><div class="num">${totalStu}</div><div class="meta">${secc.day} Day · ${secc.boarding} Boarding</div></div>
-    <div class="stat"><div class="lbl">Teachers</div><div class="num">${totalTeach}</div><div class="meta">${DB.classes.length} classes</div></div>
+    <div class="stat"><div class="lbl">Staff</div><div class="num">${totalTeach}</div><div class="meta">${DB.classes.length} classes</div></div>
     <div class="stat"><div class="lbl">Attendance Today</div><div class="num">${att}%</div><div class="meta">${present}/${marked} present</div></div>
     <div class="stat"><div class="lbl">Fees Collected</div><div class="num" style="color:var(--green)">${collPct}%</div><div class="meta">${naira(fs.collected)} of ${naira(fs.expected)}</div></div>
     ${hasModule('weeks')?`<div class="stat"><div class="lbl">School Week</div><div class="num">${currentWeek()}<span style="font-size:14px;color:var(--muted)"> / ${termWeeks()}</span></div><div class="meta"><div class="bar" style="width:${Math.round(currentWeek()/termWeeks()*100)}%;height:6px"></div></div></div>`:''}</div>
@@ -3242,6 +3265,7 @@ function openStudentProfile(id){const s=DB.students.find(x=>x.id===id);if(!s)ret
     +_pfGrid([['Full name',esc(s.name)],['Admission No',esc(s.admissionNo||'')],['Class',esc(className(s.classId))],['Section',sectionBadge(s)],['Gender',esc(s.gender||'')],['Date of birth',esc(s.dob||'')],['Guardian',esc(s.guardianName||'')],['Guardian phone',esc(s.guardianPhone||'')],['Address',esc(s.address||'')]])
     +_pfSection('🩺 Health &amp; emergency')
     +_pfGrid([['Emergency contact',esc(s.emName||'')+(s.emPhone?' · '+esc(s.emPhone):'')],['Blood group',esc(s.blood||'')],['Genotype',esc(s.geno||'')],['Allergies',esc(s.allergies||'')],['Medications',esc(s.meds||'')],['Health history',esc(s.health||'')],['Special / spiritual notes',esc(s.special||'')]])
+    +_hifzProfileSection(s,admin)
     +(ck.length?_pfSection('📋 Other details')+_pfGrid(ck.map(k=>[k,esc(custom[k])+(admin?` <button class="btn icon" style="padding:0 5px;vertical-align:middle" onclick="delStudentDetail('${s.id}','${jq(k)}')">🗑️</button>`:'')])):'')
     +(incs.length?_pfSection('🚩 Incidents')+incs.map(i=>`<div class="ev-item" style="display:block"><b>${esc(i.type)}</b> <span class="muted" style="font-size:11px">${esc(i.date||'')}</span><div style="font-size:12.5px">${esc(i.desc)}</div></div>`).join(''):'')
     +`</div>`,
@@ -3526,6 +3550,88 @@ function surahCount(n){n=+n;return (n>=1&&n<=114)?SURAHS[n-1][1]:0;}
 function surahLabel(v){if(v==null||v==='')return '—';const n=+v;return (n>=1&&n<=114)?(n+'. '+SURAHS[n-1][0]):(''+v);}
 function surahOpts(sel){return '<option value="">— Surah —</option>'+SURAHS.map((s,i)=>`<option value="${i+1}" ${String(sel)===String(i+1)?'selected':''}>${i+1}. ${s[0]}</option>`).join('');}
 function ayahOpts(cnt,sel){let o='<option value="">—</option>';for(let i=1;i<=cnt;i++)o+=`<option value="${i}" ${String(sel)===String(i)?'selected':''}>${i}</option>`;return o;}
+/* ============================================================
+   HIFZ SYSTEM — PHASE 1 FOUNDATION (data + coverage + profiles)
+   Qur'an reference: STANDARD 604-page MADINAH MUSHAF (15 lines).
+   SURAH_PAGE[i] = the page on which surah (i+1) begins. This is the
+   widely published, fixed Madinah start-page table. Within-surah page
+   is interpolated by ayah proportion (surah-accurate; an exact per-ayah
+   604-page index can replace pageOf() later without changing callers).
+   ============================================================ */
+const SURAH_PAGE=[1,2,50,77,106,128,151,177,187,208,221,235,249,255,262,267,282,293,305,312,322,332,342,350,359,367,377,385,396,404,411,415,418,428,434,440,446,453,458,467,477,483,489,496,499,502,507,511,515,518,520,523,526,528,531,534,537,542,545,549,551,553,554,556,558,560,562,564,566,568,570,572,574,575,577,578,580,582,583,585,586,587,587,589,590,591,591,592,593,594,595,595,596,596,597,597,598,598,599,599,600,600,601,601,601,602,602,602,603,603,603,604,604,604];
+function surahStartPage(n){n=+n;return (n>=1&&n<=114)?SURAH_PAGE[n-1]:1;}
+function nextSurahStartPage(n){n=+n;return (n>=1&&n<114)?SURAH_PAGE[n]:605;}
+/* page of a given (surah,ayah). Surah-accurate; interpolates within the surah. */
+function pageOf(surah,ayah){surah=+surah;if(!(surah>=1&&surah<=114))return 1;ayah=+ayah||1;const sp=surahStartPage(surah),np=nextSurahStartPage(surah);const cnt=surahCount(surah)||1;const span=Math.max(1,np-sp);const p=sp+Math.floor((Math.max(1,ayah)-1)/cnt*span);return Math.min(604,Math.max(1,p));}
+let _hifzChecked=false;
+function hifzSelfCheck(){const issues=[];let sum=0;for(let i=0;i<114;i++)sum+=(SURAHS[i]?SURAHS[i][1]:0);if(sum!==6236)issues.push('ayah total '+sum+' ≠ 6236');
+  if(SURAH_PAGE.length!==114)issues.push('SURAH_PAGE length '+SURAH_PAGE.length+' ≠ 114');
+  if(SURAH_PAGE[0]!==1)issues.push('surah 1 start page = '+SURAH_PAGE[0]+' (expected 1)');
+  for(let i=1;i<114;i++)if(SURAH_PAGE[i]<SURAH_PAGE[i-1])issues.push('page not monotonic at surah '+(i+1));
+  if(SURAH_PAGE[113]>604)issues.push('last surah start page '+SURAH_PAGE[113]+' > 604');
+  if(issues.length)console.warn('HIFZ dataset self-check FAILED:',issues);else console.log('HIFZ dataset self-check OK — 6236 ayahs across 114 surahs, 604-page Madinah Mushaf.');
+  _hifzChecked=true;return issues;}
+try{hifzSelfCheck();}catch(e){}
+/* ---- configurable settings accessor ---- */
+function hifzCfg(){return (DB&&DB.settings&&DB.settings.hifz)||{};}
+/* ---- UNIQUE VERIFIED COVERAGE (merged non-overlapping page intervals 1..604) ---- */
+function hifzMergeCoverage(cov,iv){cov=(cov||[]).map(x=>[x[0],x[1]]);if(!iv||iv[0]==null||iv[1]==null)return cov;const a=Math.min(iv[0],iv[1]),b=Math.max(iv[0],iv[1]);const list=cov.concat([[a,b]]).sort((x,y)=>x[0]-y[0]);const out=[];list.forEach(([f,t])=>{if(!out.length||f>out[out.length-1][1]+1)out.push([f,t]);else out[out.length-1][1]=Math.max(out[out.length-1][1],t);});return out;}
+function hifzUniquePages(cov){return (cov||[]).reduce((a,iv)=>a+(iv[1]-iv[0]+1),0);}
+function hifzCompletionPct(cov){const mp=Number(hifzCfg().mushafPages)||604;return Math.min(100,Math.round(hifzUniquePages(cov)/mp*100));}
+function hifzCoverageLabel(cov){if(!cov||!cov.length)return 'None verified yet';return cov.slice().sort((a,b)=>a[0]-b[0]).map(iv=>iv[0]===iv[1]?('p'+iv[0]):('p'+iv[0]+'–'+iv[1])).join(', ');}
+/* ---- student Hifz profile (direction / start / coverage / audit) ---- */
+function hifzProfile(sid){return (DB.hifzProfiles&&DB.hifzProfiles[sid])||null;}
+function ensureHifzProfile(sid){DB.hifzProfiles=DB.hifzProfiles||{};if(!DB.hifzProfiles[sid]){DB.hifzProfiles[sid]={studentId:sid,direction:'TOP_TO_BOTTOM',startSurah:1,startAyah:1,startPage:1,coverage:[],lastApprovedPos:null,history:[{at:Date.now(),by:'system',action:'created',field:'profile',from:'',to:'default'}]};}return DB.hifzProfiles[sid];}
+function hifzDirLabel(d){return d==='BOTTOM_TO_TOP'?'Bottom → Top (end toward start)':'Top → Bottom (start toward end)';}
+function hifzSettings(){if(USER.role!=='admin'){toast('Administrator only',true);return;}const H=hifzCfg();const w=H.weights||{},f=H.componentFloors||{},e=H.errWeights||{},tw=H.termWeights||[25,30,45],tt=H.trackThresholds||{};const issues=hifzSelfCheck();
+  modal('⚙️ Hifz settings (100-point system)',`
+    <div style="background:${issues.length?'#fdeceb':'#e9f7ee'};border:1px solid ${issues.length?'#f3b7b3':'#b6e3c7'};border-radius:8px;padding:8px 11px;font-size:12.5px;margin-bottom:12px">📖 Qur'an reference: <b>604-page Madinah Mushaf</b> — dataset check: ${issues.length?('<b style="color:var(--red)">'+issues.length+' issue(s)</b>: '+esc(issues.join('; '))):'<b style="color:var(--green)">passed</b> (6236 ayahs · 604 pages)'}</div>
+    <h4 class="mb">School target</h4>
+    <div class="grid2"><div class="fld"><label>Pages per instructional day</label><input id="hf_ppd" type="number" step="0.1" value="${esc(H.pagesPerDay)}"></div><div class="fld"><label>Pages per month (display)</label><input id="hf_ppm" type="number" value="${esc(H.pagesPerMonth)}"></div></div>
+    <h4 class="mb mt">Component weights (should total 100)</h4>
+    <div class="grid2"><div class="fld"><label>Hifz Progress</label><input id="hf_wprog" type="number" value="${esc(w.prog)}"></div><div class="fld"><label>Accuracy</label><input id="hf_wacc" type="number" value="${esc(w.acc)}"></div><div class="fld"><label>Muraja'ah</label><input id="hf_wmur" type="number" value="${esc(w.mur)}"></div><div class="fld"><label>Fluency</label><input id="hf_wflu" type="number" value="${esc(w.flu)}"></div><div class="fld"><label>Tajweed</label><input id="hf_wtaj" type="number" value="${esc(w.taj)}"></div></div>
+    <h4 class="mb mt">Term weighting (Eval 1 / 2 / 3, %)</h4>
+    <div class="grid2"><div class="fld"><label>Eval 1</label><input id="hf_t1" type="number" value="${esc(tw[0])}"></div><div class="fld"><label>Eval 2</label><input id="hf_t2" type="number" value="${esc(tw[1])}"></div><div class="fld"><label>Eval 3</label><input id="hf_t3" type="number" value="${esc(tw[2])}"></div><div class="fld"><label>Evaluations per term</label><input id="hf_ept" type="number" value="${esc(H.evalsPerTerm)}"></div></div>
+    <h4 class="mb mt">Scoring sensitivity &amp; error weights</h4>
+    <div class="grid2"><div class="fld"><label>Sensitivity</label><input id="hf_sens" type="number" step="0.1" value="${esc(H.sensitivity)}"></div><div class="fld"><label>Major mistake</label><input id="hf_emaj" type="number" step="0.1" value="${esc(e.major)}"></div><div class="fld"><label>Forgotten</label><input id="hf_efor" type="number" step="0.1" value="${esc(e.forgotten)}"></div><div class="fld"><label>Prompt</label><input id="hf_epro" type="number" step="0.1" value="${esc(e.prompt)}"></div><div class="fld"><label>Minor mistake</label><input id="hf_emin" type="number" step="0.1" value="${esc(e.minor)}"></div></div>
+    <h4 class="mb mt">Alert floors (% of component; below this = alert)</h4>
+    <div class="grid2"><div class="fld"><label>Progress</label><input id="hf_fprog" type="number" value="${esc(Math.round((f.prog||0.6)*100))}"></div><div class="fld"><label>Accuracy</label><input id="hf_facc" type="number" value="${esc(Math.round((f.acc||0.6)*100))}"></div><div class="fld"><label>Muraja'ah</label><input id="hf_fmur" type="number" value="${esc(Math.round((f.mur||0.6)*100))}"></div><div class="fld"><label>Fluency</label><input id="hf_fflu" type="number" value="${esc(Math.round((f.flu||0.6)*100))}"></div><div class="fld"><label>Tajweed</label><input id="hf_ftaj" type="number" value="${esc(Math.round((f.taj||0.6)*100))}"></div></div>
+    <h4 class="mb mt">Programme-status thresholds (pages vs expected)</h4>
+    <div class="grid2"><div class="fld"><label>Ahead ≥</label><input id="hf_tah" type="number" value="${esc(tt.ahead)}"></div><div class="fld"><label>Behind ≤</label><input id="hf_tbe" type="number" value="${esc(tt.behind)}"></div><div class="fld"><label>Significantly behind ≤</label><input id="hf_tsb" type="number" value="${esc(tt.sigBehind)}"></div></div>
+    <h4 class="mb mt">Instructional-day calendar (expected progress)</h4>
+    <p class="muted" style="font-size:12px">Expected pages = instructional days × pages/day. Order used: explicit days set on each evaluation → school holidays below → weekday fallback. Weekdays are <b>only</b> the fallback.</p>
+    <div class="fld"><label>Non-instructional weekdays (fallback)</label><div class="flex gap" style="flex-wrap:wrap">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,i)=>`<label style="display:flex;align-items:center;gap:5px;text-transform:none;font-weight:500"><input type="checkbox" class="hf_wknd" value="${i}" style="width:auto" ${(H.weekend||[]).includes(i)?'checked':''}> ${d}</label>`).join('')}</div></div>
+    <div class="fld"><label>Holidays / non-instructional dates (comma-separated YYYY-MM-DD)</label><textarea id="hf_hol" rows="2">${esc((H.holidays||[]).join(', '))}</textarea></div>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveHifzSettings()">Save settings</button>`,true);}
+function saveHifzSettings(){const H=DB.settings.hifz;const n=id=>Number($('#'+id).value);
+  H.pagesPerDay=n('hf_ppd')||1;H.pagesPerMonth=n('hf_ppm')||30;
+  H.weights={prog:n('hf_wprog')||0,acc:n('hf_wacc')||0,mur:n('hf_wmur')||0,flu:n('hf_wflu')||0,taj:n('hf_wtaj')||0};
+  const wsum=H.weights.prog+H.weights.acc+H.weights.mur+H.weights.flu+H.weights.taj;
+  H.termWeights=[n('hf_t1')||0,n('hf_t2')||0,n('hf_t3')||0];H.evalsPerTerm=n('hf_ept')||3;
+  H.sensitivity=n('hf_sens')||1;H.errWeights={major:n('hf_emaj')||0,forgotten:n('hf_efor')||0,prompt:n('hf_epro')||0,minor:n('hf_emin')||0};
+  H.componentFloors={prog:(n('hf_fprog')||0)/100,acc:(n('hf_facc')||0)/100,mur:(n('hf_fmur')||0)/100,flu:(n('hf_fflu')||0)/100,taj:(n('hf_ftaj')||0)/100};
+  H.trackThresholds={ahead:n('hf_tah')||0,behind:n('hf_tbe')||0,sigBehind:n('hf_tsb')||0};
+  H.weekend=[...document.querySelectorAll('.hf_wknd:checked')].map(c=>Number(c.value));
+  H.holidays=($('#hf_hol').value||'').split(',').map(s=>s.trim()).filter(s=>/^\d{4}-\d{2}-\d{2}$/.test(s));
+  save();closeModal();toast(wsum!==100?('Saved — note: weights total '+wsum+', not 100'):'Hifz settings saved');}
+function editHifzProfile(sid){if(USER.role!=='admin'){toast('Only the administrator can change the Hifz profile',true);return;}const p=ensureHifzProfile(sid);const s=DB.students.find(x=>x.id===sid)||{};
+  modal('Hifz profile — '+esc(s.name),`<p class="muted mb">Direction and start position are official settings; changes are recorded with your name and time.</p>
+    <div class="fld"><label>Memorisation direction</label><select id="hp_dir"><option value="TOP_TO_BOTTOM" ${p.direction==='TOP_TO_BOTTOM'?'selected':''}>Top → Bottom (begin at Al-Fatihah, go forward)</option><option value="BOTTOM_TO_TOP" ${p.direction==='BOTTOM_TO_TOP'?'selected':''}>Bottom → Top (begin at An-Nas, go backward)</option></select></div>
+    <div class="grid2"><div class="fld"><label>Start Surah</label><select id="hp_ss">${surahOpts(p.startSurah)}</select></div><div class="fld"><label>Start Ayah</label><input id="hp_sa" type="number" min="1" value="${esc(p.startAyah||1)}"></div></div>
+    <div class="muted" style="font-size:12px">Verified coverage: <b>${hifzUniquePages(p.coverage)} / ${Number(hifzCfg().mushafPages)||604} pages</b> (${hifzCompletionPct(p.coverage)}%). Coverage changes only when evaluations are approved — it is not edited here.</div>
+    ${(p.history&&p.history.length)?`<div class="mt" style="font-size:11.5px;color:var(--muted)"><b>History:</b> ${p.history.slice(-4).map(h=>esc((h.action||'')+' — '+(h.by||'')+(h.to?(' → '+h.to):''))).join('; ')}</div>`:''}`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveHifzProfile('${sid}')">Save</button>`);}
+function saveHifzProfile(sid){if(USER.role!=='admin')return;const p=ensureHifzProfile(sid);const dir=$('#hp_dir').value,ss=Number($('#hp_ss').value)||1,sa=Number($('#hp_sa').value)||1;
+  const cnt=surahCount(ss);if(sa<1||sa>cnt){toast('Ayah must be 1–'+cnt+' for that surah',true);return;}
+  const now=Date.now();p.history=p.history||[];
+  if(p.direction!==dir){p.history.push({at:now,by:USER.name,action:'direction change',field:'direction',from:p.direction,to:dir});p.direction=dir;}
+  if(p.startSurah!==ss||p.startAyah!==sa){p.history.push({at:now,by:USER.name,action:'start change',field:'start',from:p.startSurah+':'+p.startAyah,to:ss+':'+sa});p.startSurah=ss;p.startAyah=sa;p.startPage=pageOf(ss,sa);}
+  save();closeModal();toast('Hifz profile saved');openStudentProfile(sid);}
+function _hifzProfileSection(s,admin){if(!hasModule('tahfiz'))return '';const p=hifzProfile(s.id)||{coverage:[],direction:'TOP_TO_BOTTOM'};const mp=Number(hifzCfg().mushafPages)||604;const uniq=hifzUniquePages(p.coverage);const pct=hifzCompletionPct(p.coverage);
+  return _pfSection('📖 Hifz profile')
+    +`<div style="background:#f5f8f6;border-radius:12px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>Qur'an completion (unique verified)</span><span><b>${pct}%</b> · ${uniq}/${mp} pages</span></div><div style="height:12px;background:#e2e8e4;border-radius:20px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0b8a45,#caa64e)"></div></div></div>`
+    +_pfGrid([['Direction',hifzDirLabel(p.direction)],['Start position',p.startSurah?surahLabel(p.startSurah)+' : '+esc(p.startAyah||1)+' (p'+esc(p.startPage||pageOf(p.startSurah,p.startAyah))+')':'—'],['Current frontier',p.lastApprovedPos?surahLabel(p.lastApprovedPos.surah)+' : '+esc(p.lastApprovedPos.ayah)+' (p'+esc(p.lastApprovedPos.page)+')':'— (updates on approved evaluations)'],['Verified coverage',esc(hifzCoverageLabel(p.coverage))]])
+    +(admin?`<div class="mt"><button class="btn sm sec" onclick="editHifzProfile('${s.id}')">✏️ Edit Hifz profile (direction / start)</button></div>`:'');}
 const QCDN='https://cdn.jsdelivr.net/npm/quran-json@3.1.2/dist/chapters/';const _qCache={};
 async function qChapter(n){n=+n;if(!n)return null;if(_qCache[n])return _qCache[n];try{const r=await fetch(QCDN+n+'.json');if(!r.ok)throw 0;const j=await r.json();_qCache[n]=j;return j;}catch(e){return null;}}
 async function qFillVerse(sid){const box=$('#tar_'+sid);if(!box)return;const sEl=$('#sc_'+sid),aEl=$('#ac_'+sid);const sn=sEl?sEl.value:'',an=aEl?aEl.value:'';if(!sn||!an){box.textContent='';box.removeAttribute('dir');return;}box.textContent='…';box.removeAttribute('dir');const c=await qChapter(sn);if(!c||!c.verses){box.textContent='(verse text loads when online)';return;}const v=c.verses[(+an)-1];if(v&&v.text){box.textContent=v.text;box.dir='rtl';}else box.textContent='';}
@@ -3544,7 +3650,7 @@ function tahIncomplete(cid){const req=['sc','ac','mark'];const bad=[];tahStudent
 function vTahfiz(){const cls=teacherClasses();if(!tahClass||!cls.find(c=>c.id===tahClass))tahClass=cls[0]?cls[0].id:'';
   if(!tahMonth)tahMonth=curMonth();
   const admin=USER.role==='admin';
-  $('#view').innerHTML=`<div class="page-head"><div><h2>📖 Qur’an Evaluation</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)} — sorted by admission number</p></div>${admin?`<button class="btn sec no-print" onclick="tahMarksSetup()">⚙️ Setup</button>`:''}</div>
+  $('#view').innerHTML=`<div class="page-head"><div><h2>📖 Qur’an Evaluation</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)} — sorted by admission number</p></div>${admin?`<div class="flex gap"><button class="btn sec no-print" onclick="hifzSettings()">⚙️ Hifz settings</button><button class="btn sec no-print" onclick="tahMarksSetup()">⚙️ Setup</button></div>`:''}</div>
   <div class="subtabs"><button class="subtab${tahView==='month'?' active':''}" onclick="tahView='month';vTahfiz()">Monthly evaluation</button><button class="subtab${tahView==='term'?' active':''}" onclick="tahView='term';vTahfiz()">Term marks &amp; remarks</button></div>
   <div class="toolbar"><div><label>Class</label><select onchange="switchTahClass(this.value)">${cls.map(c=>`<option value="${c.id}" ${tahClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
     ${tahView==='month'?`<div><label>Evaluation month</label><input type="month" value="${esc(tahMonth)}" onchange="tahMonth=this.value;renderTah()"></div>`:''}</div>
@@ -3963,7 +4069,7 @@ function openReceipt(id){const p=DB.payments.find(x=>x.id===id);const s=DB.stude
 let idTab='students',idClass='';
 function vIdCards(){if(!idClass)idClass=DB.classes[0]?DB.classes[0].id:'';
   $('#view').innerHTML=`<div class="page-head"><div><h2>ID Cards</h2><p>Printable cards with photo & barcode</p></div><button class="btn gold no-print" onclick="window.print()">🖨 Print page</button></div>
-  <div class="subtabs"><button class="subtab${idTab==='students'?' active':''}" onclick="idTab='students';vIdCards()">Students</button><button class="subtab${idTab==='teachers'?' active':''}" onclick="idTab='teachers';vIdCards()">Teachers</button></div>
+  <div class="subtabs"><button class="subtab${idTab==='students'?' active':''}" onclick="idTab='students';vIdCards()">Students</button><button class="subtab${idTab==='teachers'?' active':''}" onclick="idTab='teachers';vIdCards()">Staff</button></div>
   ${idTab==='students'?`<div class="toolbar no-print"><div><label>Class</label><select onchange="idClass=this.value;vIdCards()">${DB.classes.map(c=>`<option value="${c.id}" ${idClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div></div>`:''}
   <div id="idArea"></div>`;renderIdCards();}
 function renderIdCards(){let cards='';
