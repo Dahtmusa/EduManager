@@ -662,13 +662,33 @@ async function flushPush(id){if(!supa)return;
     const merged=server?merge3(base,STORE[id],server):STORE[id];
     STORE[id]=merged;if(id===SCHOOL_CODE&&DB)DB=merged;if(id==='__master__'&&MASTER)MASTER=merged;
     BASE[id]=_clone(merged);saveStoreLocal();saveBase();
-    const{error}=await supa.from('school_data').upsert({id,data:merged,updated_at:new Date().toISOString()});if(error)throw error;setSync('on','Synced');
+    const{error}=await supa.from('school_data').upsert({id,data:merged,updated_at:new Date().toISOString()});if(error)throw error;setSync('on','Saved');
   }catch(e){console.warn(e);setSync('err','Sync error');}}
 function pushRow(id){STORE[id]=(id==='__master__')?MASTER:(id===SCHOOL_CODE?DB:STORE[id]);saveStoreLocal();backupSnapshot(id);
   if(!supa)return;clearTimeout(pushTimers[id]);setSync('saving','Saving…');pushTimers[id]=setTimeout(()=>flushPush(id),700);}
 function save(){pushRow(SCHOOL_CODE);}
 function saveMaster(){pushRow('__master__');}
 function saveSchoolRow(code){saveStoreLocal();backupSnapshot(code);if(!supa)return;clearTimeout(pushTimers[code]);setSync('saving','Saving…');pushTimers[code]=setTimeout(()=>flushPush(code),400);}
+/* ---- DATABASE-FIRST commit: awaited read → 3-way merge → write → reread. Returns {ok,error}.
+   Use for flows that must CONFIRM persistence before reporting success (Hifz submit/approve/return).
+   Cancels any pending debounced push and makes the database the source of truth. Tenant-scoped to
+   the given row id (defaults to the authenticated school), so it respects the existing tenant boundary. ---- */
+async function cloudCommit(id){id=id||SCHOOL_CODE;
+  if(!supa){setSync('err','No database connection');return {ok:false,error:'No database connection — not saved.'};}
+  STORE[id]=(id==='__master__')?MASTER:(id===SCHOOL_CODE?DB:STORE[id]);saveStoreLocal();backupSnapshot(id);
+  clearTimeout(pushTimers[id]);
+  try{setSync('saving','Saving…');
+    const rd=await supa.from('school_data').select('data').eq('id',id).maybeSingle();if(rd.error)throw rd.error;const server=rd.data&&rd.data.data;
+    const base=BASE[id]!==undefined?BASE[id]:(server||STORE[id]);
+    const merged=server?merge3(base,STORE[id],server):STORE[id];
+    const wr=await supa.from('school_data').upsert({id:id,data:merged,updated_at:new Date().toISOString()});if(wr.error)throw wr.error;
+    const rb=await supa.from('school_data').select('data').eq('id',id).maybeSingle();if(rb.error)throw rb.error;   /* read-after-write */
+    const authoritative=(rb.data&&rb.data.data)?rb.data.data:merged;
+    STORE[id]=authoritative;BASE[id]=_clone(authoritative);if(id===SCHOOL_CODE)DB=authoritative;if(id==='__master__')MASTER=authoritative;
+    saveStoreLocal();saveBase();setSync('on','Database saved');return {ok:true};
+  }catch(e){console.warn('cloudCommit failed',e);setSync('err','Database error — not saved');return {ok:false,error:(e&&e.message)||String(e)};}}
+/* ---- authoritative refresh: reread THIS school's row from the database into DB (tenant-scoped) ---- */
+async function HZpull(){if(!supa)return false;try{const d=await pullRow(SCHOOL_CODE);if(d){DB=d;STORE[SCHOOL_CODE]=d;return true;}}catch(e){console.warn('HZpull failed',e);}return false;}
 /* ---- restore from a local backup (recover data already lost from the cloud) ---- */
 function restoreBackupModal(code){const list=listBackups(code);
   modal('Restore a backup',`<p class="muted mb">Restoring replaces the cloud copy for this account with the chosen backup.</p>
@@ -4330,7 +4350,7 @@ async function boot(){
     const _t=(_reg&&_reg.type)||(STORE[SCHOOL_CODE]&&STORE[SCHOOL_CODE].kind)||'school';
     DB=STORE[SCHOOL_CODE]?ensureByKind(STORE[SCHOOL_CODE],_t):null;
     if(DB){STORE[SCHOOL_CODE]=DB;}
-    setSync('on','Synced');
+    setSync('on','Connected');
     const sess=sessionStorage.getItem('sms_su');
     if(!wantCheck&&DB&&sess&&sess.startsWith(SCHOOL_CODE+'|')){const uidp=sess.split('|')[1];const u=DB.users.find(x=>x.id===uidp);if(u){USER=u;enterApp();return;}}
     renderAuth();
@@ -4338,7 +4358,7 @@ async function boot(){
     MODE='owner';
     const ok=await pullAllStrict();
     if(!ok){renderOffline();return;}
-    MASTER=STORE['__master__']||MASTER;setSync('on','Synced');renderAuth();
+    MASTER=STORE['__master__']||MASTER;setSync('on','Connected');renderAuth();
   }
 }
 /* ==================== HIFZ EVALUATION SYSTEM — Phase 2 (First-Term) ====================
@@ -4408,8 +4428,9 @@ function HZevalRecs(calId){return (DB.hifzEvals||[]).filter(e=>e.calId===calId);
 function HZevalFor(calId,sid){return (DB.hifzEvals||[]).find(e=>e.calId===calId&&e.studentId===sid)||null;}
 function HZstateBadge(c){const st=HZstate(c);const col=st==='OPEN'?'#0b8a45':st==='SCHEDULED'?'#8a6d1a':'#7a8a7f';let h='<span style="background:'+col+';color:#fff;border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700">'+st+'</span>';if(c.backfill)h+=' <span style="background:#caa64e;color:#3a2b06;border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700">BACKFILL</span>';return h;}
 function HZpendingCount(){return (DB.hifzEvals||[]).filter(e=>e.status==='submitted').length;}
-function vHifzHub(){if(!hasModule('tahfiz')){$('#view').innerHTML='<div class="card pad">The Memorization/Hifz module is not enabled for this school.</div>';return;}
+async function vHifzHub(){if(!hasModule('tahfiz')){$('#view').innerHTML='<div class="card pad">The Memorization/Hifz module is not enabled for this school.</div>';return;}
   if(USER.role!=='admin')return HZteacherHome();
+  await HZpull();   /* authoritative refresh so pending counts reflect the database */
   const ready=hifzReady();const cals=HZcalList();
   const rows=cals.map(c=>{const recs=HZevalRecs(c.id);const sub=recs.filter(e=>e.status==='submitted').length,app=recs.filter(e=>e.status==='approved').length,ret=recs.filter(e=>e.status==='returned').length;
     return `<tr>
@@ -4447,7 +4468,7 @@ function HZcalSaveNew(){if(USER.role!=='admin')return;const classIds=[...documen
   const c={id:'hz'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),year:$('#hc_year').value.trim()||DB.settings.session,term:$('#hc_term').value.trim()||DB.settings.term,
     evalNo:no,name:$('#hc_name').value.trim()||('Evaluation '+no),open:$('#hc_open').value||'',close:$('#hc_close').value||'',classIds:classIds,teacherIds:[],manualOpen:false,manualClose:false,
     instructionalDays:($('#hc_idays').value!==''?Number($('#hc_idays').value):null),backfill:$('#hc_bf').checked,createdAt:Date.now(),createdBy:USER.name};
-  DB.hifzCal.push(c);save();closeModal();toast('Evaluation created');vHifzHub();}
+  DB.hifzCal.push(c);cloudCommit().then(r=>{if(!r.ok){toast('Not saved — database error. Please retry.',true);return;}closeModal();toast('✔ Evaluation created (saved)');vHifzHub();});}
 function HZcalEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;const cls=DB.classes||[];
   modal('Edit evaluation',`
     <div class="grid2"><div class="fld"><label>Academic year</label><input id="hc_year" value="${esc(c.year)}"></div>
@@ -4463,16 +4484,16 @@ function HZcalEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)
 function HZcalSaveEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;
   c.year=$('#hc_year').value.trim()||c.year;c.term=$('#hc_term').value.trim()||c.term;c.evalNo=Number($('#hc_no').value)||c.evalNo;c.name=$('#hc_name').value.trim()||c.name;
   c.open=$('#hc_open').value||'';c.close=$('#hc_close').value||'';c.instructionalDays=($('#hc_idays').value!==''?Number($('#hc_idays').value):null);
-  c.classIds=[...document.querySelectorAll('.hc_cls:checked')].map(x=>x.value);save();closeModal();toast('Saved');vHifzHub();}
-function HZcalDelete(id){if(USER.role!=='admin')return;if(HZevalRecs(id).length){toast('Cannot delete — evaluations already exist',true);return;}if(!confirm('Delete this evaluation?'))return;DB.hifzCal=DB.hifzCal.filter(c=>c.id!==id);save();closeModal();toast('Deleted');vHifzHub();}
-function HZsetState(id,how){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;if(how==='open'){c.manualOpen=true;c.manualClose=false;}else{c.manualClose=true;c.manualOpen=false;}save();toast('Evaluation '+(how==='open'?'opened':'closed'));vHifzHub();}
-function HZtoggleBackfill(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;c.backfill=!c.backfill;save();toast('Backfill '+(c.backfill?'enabled — teachers can enter historical results':'closed — evaluation is now read-only'));vHifzHub();}
+  c.classIds=[...document.querySelectorAll('.hc_cls:checked')].map(x=>x.value);cloudCommit().then(r=>{if(!r.ok){toast('Not saved — database error. Please retry.',true);return;}closeModal();toast('✔ Saved');vHifzHub();});}
+function HZcalDelete(id){if(USER.role!=='admin')return;if(HZevalRecs(id).length){toast('Cannot delete — evaluations already exist',true);return;}if(!confirm('Delete this evaluation?'))return;DB.hifzCal=DB.hifzCal.filter(c=>c.id!==id);cloudCommit().then(r=>{if(!r.ok){toast('Not saved — database error. Please retry.',true);return;}closeModal();toast('✔ Deleted');vHifzHub();});}
+function HZsetState(id,how){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;if(how==='open'){c.manualOpen=true;c.manualClose=false;}else{c.manualClose=true;c.manualOpen=false;}cloudCommit().then(r=>{if(!r.ok){toast('Not saved — database error. Please retry.',true);return;}toast('✔ Evaluation '+(how==='open'?'opened':'closed'));vHifzHub();});}
+function HZtoggleBackfill(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;c.backfill=!c.backfill;cloudCommit().then(r=>{if(!r.ok){c.backfill=!c.backfill;toast('Not saved — database error. Please retry.',true);return;}toast('✔ Backfill '+(c.backfill?'enabled — teachers can enter historical results':'closed — evaluation is now read-only'));vHifzHub();});}
 /* ---- teacher workflow: home, student list, evaluation form, live preview ---- */
 let HZcur={calId:'',sid:''};
 function HZprevPos(prof){if(prof&&prof.lastApprovedPos)return prof.lastApprovedPos;if(prof&&prof.startSurah)return {surah:prof.startSurah,ayah:prof.startAyah,page:(prof.startPage!=null?prof.startPage:pageOf(prof.startSurah,prof.startAyah))};return null;}
 function HZstatusOf(calId,sid){const e=HZevalFor(calId,sid);return e?e.status:'none';}
 function HZstatusChip(st){const m={none:['#eef1ee','#5a6b5f','Not started'],draft:['#fff7e6','#8a6d1a','Draft'],submitted:['#e9f0ff','#2a5bd7','Submitted'],returned:['#fdeceb','#b00020','Returned'],approved:['#e9f7ee','#0b8a45','Approved']};const x=m[st]||m.none;return '<span style="background:'+x[0]+';color:'+x[1]+';border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700">'+x[2]+'</span>';}
-function HZteacherHome(){const cals=HZcalList().filter(c=>HZaccessible(c)&&HZteacherAuth(c,USER));
+async function HZteacherHome(){await HZpull();const cals=HZcalList().filter(c=>HZaccessible(c)&&HZteacherAuth(c,USER));
   const cards=cals.map(c=>{const studs=HZstudentsForEval(c,USER);const done=studs.filter(s=>{const st=HZstatusOf(c.id,s.id);return st==='submitted'||st==='approved';}).length;const pct=studs.length?Math.round(done/studs.length*100):0;
     return `<div class="card pad" style="cursor:pointer" onclick="HZevalOpen('${c.id}')">
       <div class="flex" style="justify-content:space-between;align-items:flex-start"><div><b>${esc(c.name||('Evaluation '+c.evalNo))}</b> ${HZstateBadge(c)}<div class="muted" style="font-size:12px">${esc(c.year||'')} · ${esc(c.term||'')} · Eval ${esc(c.evalNo)}</div></div><div style="text-align:right"><div style="font-weight:800;font-size:15px">${done}/${studs.length}</div><div class="muted" style="font-size:11px">completed</div></div></div>
@@ -4601,12 +4622,14 @@ function HZupsert(status){const c=HZcalGet(HZcur.calId);const s=DB.students.find
   e.coverageAdded=sc.coverageAdded;
   e.status=status;e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:status==='submitted'?'submitted':'saved draft'});
   if(status==='submitted')e.submittedAt=now;
-  save();return e;}
-function HZsaveDraft(){const e=HZupsert('draft');if(e){toast('Draft saved');HZevalOpen(HZcur.calId);}}
-function HZsubmit(){const e=HZupsert('submitted');if(e){toast('Submitted for admin review');HZevalOpen(HZcur.calId);}}
-function HZsaveNext(){const cur=HZcur;const e=HZupsert('draft');if(!e)return;const c=HZcalGet(cur.calId);const studs=HZstudentsForEval(c,USER);const i=studs.findIndex(x=>x.id===cur.sid);const nx=studs[i+1];if(nx){toast('Saved · next student');HZform(cur.calId,nx.id);}else{toast('Saved · that was the last student');HZevalOpen(cur.calId);}}
+  STORE[SCHOOL_CODE]=DB;saveStoreLocal();backupSnapshot(SCHOOL_CODE);/* local recovery net only — authoritative DB write is awaited by the caller via cloudCommit() */return e;}
+async function HZsaveDraft(){const e=HZupsert('draft');if(!e)return;const res=await cloudCommit();if(!res.ok){toast('Not saved — database error. Your entries are kept; tap “Save draft” again to retry.',true);return;}toast('✔ Draft saved to database');HZevalOpen(HZcur.calId);}
+async function HZsubmit(){const e=HZupsert('submitted');if(!e)return;const res=await cloudCommit();if(!res.ok){toast('Not submitted — database error. Your entries are kept; tap “Submit” again to retry.',true);return;}toast('✔ Submission confirmed — saved to the database');HZevalOpen(HZcur.calId);}
+async function HZsaveNext(){const cur=HZcur;const e=HZupsert('draft');if(!e)return;const res=await cloudCommit();if(!res.ok){toast('Not saved — database error. Please retry before moving on.',true);return;}const c=HZcalGet(cur.calId);const studs=HZstudentsForEval(c,USER);const i=studs.findIndex(x=>x.id===cur.sid);const nx=studs[i+1];if(nx){toast('✔ Saved · next student');HZform(cur.calId,nx.id);}else{toast('✔ Saved · that was the last student');HZevalOpen(cur.calId);}}
 /* ---- admin review + approval / coverage application ---- */
-function vHifzReview(){if(USER.role!=='admin'){$('#view').innerHTML='<div class="card pad">Administrator only.</div>';return;}
+async function vHifzReview(){if(USER.role!=='admin'){$('#view').innerHTML='<div class="card pad">Administrator only.</div>';return;}
+  $('#view').innerHTML='<div class="card pad"><div class="muted">Loading the latest evaluations from the database…</div></div>';
+  await HZpull();   /* read authoritative records from the database every time this screen opens */
   const evs=(DB.hifzEvals||[]).slice().sort((a,b)=>(b.submittedAt||b.audit&&b.audit[0]&&b.audit[0].at||0)-(a.submittedAt||a.audit&&a.audit[0]&&a.audit[0].at||0));
   const grp=st=>evs.filter(e=>e.status===st);
   const sName=id=>{const s=DB.students.find(x=>x.id===id);return s?s.name:'—';};
@@ -4645,17 +4668,20 @@ function HZreview(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[
     ?'<button class="btn sec" onclick="closeModal()">Close</button><button class="btn sec" style="color:var(--red)" onclick="HZreturn(\''+evalId+'\')">↩ Reopen &amp; return</button>'
     :'<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn sec" style="color:var(--red)" onclick="HZreturn(\''+evalId+'\')">↩ Return</button><button class="btn" onclick="HZapprove(\''+evalId+'\')">✔ Approve</button>';
   modal('Review evaluation',body,foot,true);}
-function HZapprove(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;const now=Date.now();
+async function HZapprove(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;const now=Date.now();
   const rc=$('#hz_rev');if(rc&&rc.value.trim())e.reviewComment=rc.value.trim();
   e.status='approved';e.reviewer=USER.name;e.reviewedAt=now;e.approvedAt=now;
   const prof=ensureHifzProfile(e.studentId);
-  if(!e.coverageApplied){if(e.coverageAdded)prof.coverage=hifzMergeCoverage(prof.coverage,e.coverageAdded);e.coverageApplied=true;}
+  if(!e.coverageApplied){if(e.coverageAdded)prof.coverage=hifzMergeCoverage(prof.coverage,e.coverageAdded);e.coverageApplied=true;}   /* idempotency guard: coverage applied exactly once */
   if(e.cur&&e.cur.surah)prof.lastApprovedPos={surah:e.cur.surah,ayah:e.cur.ayah,page:e.cur.page};
   prof.history=prof.history||[];prof.history.push({at:now,by:USER.name,action:'evaluation approved',field:'coverage',from:'',to:(e.coverageAdded?('p'+e.coverageAdded[0]+'–'+e.coverageAdded[1]):'no new pages')});
   e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:'approved'});
-  save();closeModal();toast('Approved — coverage, reports & parent view updated');vHifzReview();}
-function HZreturn(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;const rc=$('#hz_rev');const reason=rc?rc.value.trim():'';if(!reason){toast('Enter a review comment explaining what to fix',true);return;}
-  const now=Date.now();e.status='returned';e.reviewer=USER.name;e.reviewedAt=now;e.reviewComment=reason;e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:'returned',note:reason});save();closeModal();toast('Returned to teacher');vHifzReview();}
+  const res=await cloudCommit();   /* database-first: write status + coverage + frontier together, then reread */
+  if(!res.ok){toast('Approval NOT saved — database error. Nothing was finalised; tap Approve again to retry.',true);return;}   /* modal stays open for retry; on abandon the next review re-read from DB reverts the unsaved change */
+  closeModal();toast('✔ Approved & saved — coverage/reports updated');vHifzReview();}
+async function HZreturn(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;const rc=$('#hz_rev');const reason=rc?rc.value.trim():'';if(!reason){toast('Enter a review comment explaining what to fix',true);return;}
+  const now=Date.now();e.status='returned';e.reviewer=USER.name;e.reviewedAt=now;e.reviewComment=reason;e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:'returned',note:reason});
+  const res=await cloudCommit();if(!res.ok){toast('Not saved — database error. Tap Return again to retry.',true);return;}closeModal();toast('✔ Returned to teacher (saved)');vHifzReview();}
 /* ---- reports: approved evals, weighted term result, trend, expected-vs-actual, insights ---- */
 function HZapprovedEvals(sid,year,term){return (DB.hifzEvals||[]).filter(e=>e.studentId===sid&&e.status==='approved'&&(!year||e.year===year)&&(!term||e.term===term)).sort((a,b)=>Number(a.evalNo)-Number(b.evalNo)||(a.approvedAt||0)-(b.approvedAt||0));}
 function HZallApprovedChrono(sid){return (DB.hifzEvals||[]).filter(e=>e.studentId===sid&&e.status==='approved').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||Number(a.evalNo)-Number(b.evalNo));}
