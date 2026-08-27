@@ -3635,19 +3635,24 @@ function hifzReportHTML(sid,sess,term){
         <td style="${cellL}">Qur'an completion</td><td style="${cell}"><b>${pct}%</b></td></tr>
   </tbody></table>
   <div style="padding:6px 16px 0"><div style="height:10px;background:#e2e8e4;border-radius:20px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0b8a45,#caa64e)"></div></div><div style="display:flex;justify-content:space-between;font-size:10px;color:#6b5e33;margin-top:2px"><span>${uniq} / ${mp} pages verified</span><span>${eva.status?'Progress: '+esc(eva.status)+(tr.label&&tr.label!=='Not enough data'?(' · '+esc(tr.label)):''):''}</span></div></div>`;
-  /* ---- latest evaluation score card (only when we have one for this term) ---- */
+  /* ---- latest evaluation score card (only when we have one for this term).
+     No teacher comment inside — kept exclusively in the dedicated section at the bottom of the card. ---- */
   let latestBlock='';
   if(latestForTerm){
     const sc=latestForTerm.scores||{};const raw=latestForTerm.raw||{};
     const rowE=(label,score,max,color)=>`<tr><td style="${cell}">${esc(label)}</td><td style="${cell};text-align:center;font-weight:700;color:${color||'var(--rg)'}">${score||0}</td><td style="${cell};text-align:center">${max}</td></tr>`;
     const alerts=(sc.alerts||[]).map(a=>`<div style="display:inline-block;background:#fff7e6;color:#8a6d1a;border:1px solid #e6d8a8;border-radius:12px;padding:2px 8px;font-size:10.5px;margin:2px 4px 0 0">⚠ ${esc(a)}</div>`).join('');
-    const teacherComment=raw.comment||latestForTerm.reviewComment||'';
-    latestBlock=`${sec('Hifz Evaluation — Evaluation '+esc(latestForTerm.evalNo))}
+    /* Truthful pages-verified rendering: expected is 0 for evaluations submitted before an instructional-day
+       schedule was in place. Don't invent "/ 0 expected" — show a truthful "N page(s) verified" instead. */
+    const verifiedCell=sc.expectedPages>0
+      ? `<b>${sc.verifiedPages||0}</b> / ${sc.expectedPages} expected`
+      : `<b>${sc.verifiedPages||0}</b> page(s) verified`;
+    latestBlock=`${sec('Latest Evaluation — Evaluation '+esc(latestForTerm.evalNo)+' (single evaluation)')}
       <table style="${tbl}"><tbody>
         <tr><td style="${cellL};width:22%">Date</td><td style="${cell};width:28%">${esc(latestForTerm.date||'—')}${latestForTerm.historical?' <span style="color:#8a6d1a">(historical)</span>':''}</td>
             <td style="${cellL};width:22%">Teacher</td><td style="${cell};width:28%">${esc(latestForTerm.teacherName||'—')}</td></tr>
         <tr><td style="${cellL}">Assessed range</td><td style="${cell};background:#fdfaf0">p${esc(raw.assessedFromPage||'')}${raw.assessedToPage?'–p'+esc(raw.assessedToPage):''}</td>
-            <td style="${cellL}">Pages verified this eval</td><td style="${cell};background:#fdfaf0"><b>${sc.verifiedPages||0}</b> / ${sc.expectedPages||0} expected</td></tr>
+            <td style="${cellL}">Pages verified this eval</td><td style="${cell};background:#fdfaf0">${verifiedCell}</td></tr>
         <tr><td style="${cellL}">New-portion result</td><td style="${cell}">${esc(raw.newResult||'—')}</td>
             <td style="${cellL}">Coverage added</td><td style="${cell}">${latestForTerm.coverageAdded?('p'+latestForTerm.coverageAdded[0]+'–p'+latestForTerm.coverageAdded[1]):'—'}</td></tr>
       </tbody></table>
@@ -3658,26 +3663,26 @@ function hifzReportHTML(sid,sess,term){
         ${rowE("Muraja'ah",sc.mur,W.mur,'#2a5bd7')}
         ${rowE('Fluency',sc.flu,W.flu,'#8a6d1a')}
         ${rowE('Tajweed',sc.taj,W.taj,'#8a5bd7')}
-        <tr style="background:var(--rg);color:#fff;font-weight:800"><td style="${cell};border-color:var(--rgd)">Total</td><td style="${cell};text-align:center;border-color:var(--rgd);color:var(--rgold)">${sc.total||0}</td><td style="${cell};text-align:center;border-color:var(--rgd)">100</td></tr>
+        <tr style="background:var(--rg);color:#fff;font-weight:800"><td style="${cell};border-color:var(--rgd)">Latest evaluation total</td><td style="${cell};text-align:center;border-color:var(--rgd);color:var(--rgold)">${sc.total||0}</td><td style="${cell};text-align:center;border-color:var(--rgd)">100</td></tr>
       </tbody></table>
-      <div style="display:flex;flex-wrap:wrap;gap:8px 18px;padding:6px 16px 0;font-size:12px"><span><b style="color:var(--rg)">Band:</b> ${esc(sc.band||'—')}</span><span><b style="color:var(--rg)">Hifz Mastery:</b> ${sc.mastery||0}%</span></div>
-      ${alerts?`<div style="padding:2px 16px">${alerts}</div>`:''}
-      ${teacherComment?`<div style="margin:6px 16px 0;padding:8px;border:1px solid #d9cba5;background:var(--cream);border-radius:4px;font-size:12px"><b style="color:var(--rg)">Teacher's comment:</b> ${esc(teacherComment)}</div>`:''}`;
+      <div style="display:flex;flex-wrap:wrap;gap:8px 18px;padding:5px 16px 0;font-size:12px"><span><b style="color:var(--rg)">Band:</b> ${esc(sc.band||'—')}</span><span><b style="color:var(--rg)">Hifz Mastery:</b> ${sc.mastery||0}%</span></div>
+      ${alerts?`<div style="padding:2px 16px">${alerts}</div>`:''}`;
   }else if(evalsChrono.length){
-    latestBlock=`${sec('Latest approved evaluation')}<div style="padding:8px 16px;font-size:12px;color:#6b5e33">Most recent approved evaluation is from <b>${esc(evalsChrono[evalsChrono.length-1].term)}, ${esc(evalsChrono[evalsChrono.length-1].year)}</b> — no evaluation has been approved yet for <b>${esc(term)}, ${esc(sess)}</b>.</div>`;
+    latestBlock=`${sec('Latest Evaluation')}<div style="padding:8px 16px;font-size:12px;color:#6b5e33">Most recent approved evaluation is from <b>${esc(evalsChrono[evalsChrono.length-1].term)}, ${esc(evalsChrono[evalsChrono.length-1].year)}</b> — no evaluation has been approved yet for <b>${esc(term)}, ${esc(sess)}</b>.</div>`;
   }else{
-    latestBlock=`${sec('Latest approved evaluation')}<div style="padding:8px 16px;font-size:12px;color:#6b5e33">No approved Hifz evaluations yet.</div>`;
+    latestBlock=`${sec('Latest Evaluation')}<div style="padding:8px 16px;font-size:12px;color:#6b5e33">No approved Hifz evaluations yet.</div>`;
   }
-  /* ---- term result — READY vs INCOMPLETE (never a fake score) ---- */
+  /* ---- term result — READY vs INCOMPLETE (never a fake score).
+     Explicit "weighted" wording so a reader never confuses it with the latest single evaluation. ---- */
   const tw=tres.termWeights||[];const byNo=tres.byNo||{};
-  const breakdown=tw.map((w,i)=>{const n=i+1;const e=byNo[n];return `<span>Eval ${n}${e?': <b>'+(e.scores.total||0)+'/100</b>':' <span style="color:#8a6d1a">(pending)</span>'} <span style="color:#6b5e33">· ${w}%</span></span>`;}).join(' <span style="color:#c2b48a">·</span> ');
+  const breakdown=tw.map((w,i)=>{const n=i+1;const e=byNo[n];return `<span>Eval ${n}${e?': <b>'+(e.scores.total||0)+'/100</b>':' <span style="color:#8a6d1a">(pending)</span>'} <span style="color:#6b5e33">× ${w}%</span></span>`;}).join(' <span style="color:#c2b48a">·</span> ');
   const termRow=tres.ready
-    ?`<tr style="background:var(--rg);color:#fff;font-weight:800"><td style="${cell};border-color:var(--rgd)">First Term Hifz Result</td><td style="${cell};text-align:center;border-color:var(--rgd);color:var(--rgold)">${tres.termScore}</td><td style="${cell};text-align:center;border-color:var(--rgd)">100</td></tr>`
-    :`<tr style="background:#fff7e6"><td style="${cell};color:#8a6d1a;font-weight:700">${esc(term)} Hifz Result</td><td style="${cell};text-align:center;color:#8a6d1a" colspan="2">INCOMPLETE — ${tres.count}/${tres.required} evaluations approved</td></tr>`;
-  const termBlock=`${sec('Term Hifz Result')}
+    ?`<tr style="background:var(--rg);color:#fff;font-weight:800"><td style="${cell};border-color:var(--rgd)">First Term — Weighted Hifz Result</td><td style="${cell};text-align:center;border-color:var(--rgd);color:var(--rgold);font-size:14px">${tres.termScore}</td><td style="${cell};text-align:center;border-color:var(--rgd)">100</td></tr>`
+    :`<tr style="background:#fff7e6"><td style="${cell};color:#8a6d1a;font-weight:700">${esc(term)} — Weighted Hifz Result</td><td style="${cell};text-align:center;color:#8a6d1a" colspan="2">INCOMPLETE — ${tres.count}/${tres.required} evaluations approved</td></tr>`;
+  const termBlock=`${sec('Official Term Result — Weighted from All Three Evaluations')}
     <table style="${tbl}"><tbody>${termRow}</tbody></table>
-    <div style="padding:6px 16px;font-size:11px;color:#6b5e33">${breakdown}</div>
-    ${tres.ready?`<div style="padding:0 16px 4px;font-size:11px;color:#6b5e33">Band: <b style="color:var(--rg)">${esc(tres.band)}</b> · weighted per Hifz Settings (Eval 1: ${tw[0]||0}% · Eval 2: ${tw[1]||0}% · Eval 3: ${tw[2]||0}%).</div>`:`<div style="padding:0 16px 4px;font-size:11px;color:#6b5e33">The term result becomes READY once all ${tres.required} evaluations are approved. It is intentionally not computed from partial data.</div>`}`;
+    <div style="padding:5px 16px 2px;font-size:11px;color:#3a2c06;background:var(--cream);border-left:3px solid var(--rgold);margin:3px 16px 0">${breakdown}</div>
+    ${tres.ready?`<div style="padding:3px 16px;font-size:11px;color:#6b5e33">Band: <b style="color:var(--rg)">${esc(tres.band)}</b>. This weighted total is the official First Term Hifz result — <i>not</i> the latest single evaluation above. Weights (Eval 1 · Eval 2 · Eval 3): ${tw[0]||0}% · ${tw[1]||0}% · ${tw[2]||0}%.</div>`:`<div style="padding:3px 16px;font-size:11px;color:#6b5e33">The weighted term result becomes READY once all ${tres.required} evaluations are approved. It is intentionally not computed from partial data. The single evaluation above is not the term result.</div>`}`;
   /* ---- overall grade badge (only when term is READY, otherwise a discreet marker) ---- */
   const badge=tres.ready
     ?`<div style="width:66px;height:66px;border-radius:50%;background:var(--rg);border:3px solid var(--rgold);display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-size:16px;font-weight:800;color:var(--rgold);line-height:1;text-align:center;padding:0 4px">${esc(overallBand||'')}</div><div style="font-size:9px;color:#fff;margin-top:2px">${overall}/100</div></div>`
@@ -3705,18 +3710,18 @@ function hifzReportHTML(sid,sess,term){
         ${badge}
         <img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}" style="width:56px;height:56px;background:#fff"></div>
     </div>
-    <div style="background:var(--rg);color:#fff;font-size:10.5px;padding:4px 16px;text-align:center">Hifz Result: <b style="color:var(--rgold)">${tres.ready?(overall+'/100 · '+esc(overallBand||'')):'INCOMPLETE ('+tres.count+'/'+tres.required+' approved)'}</b> &nbsp;·&nbsp; Next Term Fees: <b style="color:var(--rgold)">${esc(feesNote)}</b></div>
-    ${sec("Hifz Profile — Qur'an Memorization")}
+    <div style="background:var(--rg);color:#fff;font-size:10.5px;padding:4px 16px;text-align:center">First Term Weighted Result: <b style="color:var(--rgold)">${tres.ready?(overall+'/100 · '+esc(overallBand||'')):'INCOMPLETE ('+tres.count+'/'+tres.required+' approved)'}</b>${latestForTerm?' &nbsp;·&nbsp; Latest Evaluation: <b style="color:var(--rgold)">'+(latestForTerm.scores.total||0)+'/100</b>':''} &nbsp;·&nbsp; Next Term Fees: <b style="color:var(--rgold)">${esc(feesNote)}</b></div>
+    ${sec("Cumulative Hifz Progress (all approved evaluations)")}
     ${profileTable}
     ${latestBlock}
     ${termBlock}
     ${sec("Teacher's Comment")}
-    <div style="border:1px solid #d9cba5;background:var(--cream);margin:0 16px;padding:9px;min-height:38px;font-size:12px">${esc(rem.teacher||(latestForTerm&&latestForTerm.raw&&latestForTerm.raw.comment)||(tres.ready?('Weighted term result: '+tres.termScore+'/100 ('+esc(tres.band||'')+').'):(evalsChrono.length?'Progress recorded across approved evaluations. Term result finalises once all '+tres.required+' evaluations are approved.':'Awaiting the first approved evaluation for this term.')))}</div>
-    <div style="display:flex;justify-content:space-around;gap:24px;margin-top:auto;padding:24px 24px 10px">
-      <div style="flex:0 1 220px;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="height:28px">${sigImg((classTeacher(s.classId)||{}).signature,28)}</div><div style="border-top:1.5px solid var(--rg);padding-top:3px">Class Teacher</div></div>
-      <div style="flex:0 1 220px;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="height:28px">${sigImg((directorUser()||{}).signature,28)}</div><div style="border-top:1.5px solid var(--rg);padding-top:3px">School Director</div></div>
+    <div style="border:1px solid #d9cba5;background:var(--cream);margin:0 16px;padding:8px 10px;min-height:34px;font-size:12px;line-height:1.4">${esc(rem.teacher||(latestForTerm&&latestForTerm.raw&&latestForTerm.raw.comment)||(tres.ready?('First Term weighted result: '+tres.termScore+'/100 ('+esc(tres.band||'')+').'):(evalsChrono.length?'Progress recorded across approved evaluations. Term result finalises once all '+tres.required+' evaluations are approved.':'Awaiting the first approved evaluation for this term.')))}</div>
+    <div style="display:flex;justify-content:space-around;gap:24px;margin-top:auto;padding:14px 24px 6px">
+      <div style="flex:0 1 220px;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="height:26px">${sigImg((classTeacher(s.classId)||{}).signature,26)}</div><div style="border-top:1.5px solid var(--rg);padding-top:3px">Class Teacher${classTeacher(s.classId)?(' — '+esc(classTeacher(s.classId).name||'')):''}</div></div>
+      <div style="flex:0 1 220px;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="height:26px">${sigImg((directorUser()||{}).signature,26)}</div><div style="border-top:1.5px solid var(--rg);padding-top:3px">School Director${directorUser()?(' — '+esc(directorUser().name||'')):''}</div></div>
     </div>
-    <div style="background:linear-gradient(135deg,var(--rg),var(--rgd));color:var(--rgold);text-align:center;font-size:11px;font-weight:700;font-style:italic;padding:7px">${esc(DB.settings.motto||'Knowledge is Light')}</div>
+    <div style="background:linear-gradient(135deg,var(--rg),var(--rgd));color:var(--rgold);text-align:center;font-size:10.5px;font-weight:700;font-style:italic;padding:6px">${esc(DB.settings.motto||'Knowledge is Light')}</div>
   </div>`;
 }
 function reportHTML(sid,sess,term){if(isHifzOfficial())return hifzReportHTML(sid,sess,term);if(hasModule('tahfiz'))return tahfizReportHTML(sid,sess,term);
