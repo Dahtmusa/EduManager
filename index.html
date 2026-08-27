@@ -690,10 +690,10 @@ async function _commitRowCAS(id,computeMerged){
         if(wr.error)throw wr.error;
       }
       if(affected===0){lastErr='Another update happened at the same time — retrying…';continue;}   /* CAS conflict: never overwrite a newer row — reread and retry instead */
-      const rb=await supa.from('school_data').select('data').eq('id',id).maybeSingle();
-      if(rb.error)throw rb.error;
-      const authoritative=(rb.data&&rb.data.data)?rb.data.data:merged;
-      return {ok:true,data:authoritative};
+      /* No post-update read-after-write: the CAS confirmed the write landed (affected≥1) and `merged`
+         is by definition the new row state, so `merged` IS the authoritative result. The next screen-open
+         HZpull catches up any concurrent writes that landed after our commit. Saves 1 round trip per commit. */
+      return {ok:true,data:merged};
     }catch(e){console.warn('commit attempt failed',e);lastErr=(e&&e.message)||String(e);}
   }
   setSync('err','Database error — not saved');
@@ -704,9 +704,14 @@ async function _commitRowCAS(id,computeMerged){
    never treated as authoritative — every flush rereads the server and merges/CAS-writes on top of it. ---- */
 async function flushPush(id){
   if(!supa)return;
-  const localSnapshot=STORE[id];
-  const baseSnapshot=BASE[id]!==undefined?BASE[id]:localSnapshot;
-  const res=await _withRowLock(id,()=>_commitRowCAS(id,server=>server!=null?merge3(baseSnapshot,localSnapshot,server):localSnapshot));
+  const res=await _withRowLock(id,()=>{
+    /* capture snapshots INSIDE the lock so any prior in-flight cloudCommit has already replaced
+       STORE[id]/BASE[id] before we read them; prevents a stale local/base pointer from overwriting
+       a newer confirmed state via merge3 when local!=base on some other-module field. */
+    const localSnapshot=STORE[id];
+    const baseSnapshot=BASE[id]!==undefined?BASE[id]:localSnapshot;
+    return _commitRowCAS(id,server=>server!=null?merge3(baseSnapshot,localSnapshot,server):localSnapshot);
+  });
   if(!res.ok){setSync('err','Sync error — will retry');clearTimeout(pushTimers[id]);pushTimers[id]=setTimeout(()=>flushPush(id),4000);return;}
   const authoritative=res.data;
   STORE[id]=authoritative;if(id===SCHOOL_CODE&&DB)DB=authoritative;if(id==='__master__'&&MASTER)MASTER=authoritative;
@@ -726,6 +731,9 @@ function saveSchoolRow(code){saveStoreLocal();backupSnapshot(code);if(!supa)retu
 async function cloudCommit(id){id=id||SCHOOL_CODE;
   if(!supa){setSync('err','No database connection');return {ok:false,error:'No database connection — not saved.'};}
   clearTimeout(pushTimers[id]);
+  /* Snapshot INSIDE the caller-synchronous entry so this commit's intent (the caller's just-applied
+     mutations to DB) is captured before yielding to the microtask queue. Aliasing safety comes from
+     the row lock: once inside it, no other write can have replaced the objects out from under us. */
   const localSnapshot=_clone((id==='__master__')?MASTER:(id===SCHOOL_CODE?DB:STORE[id]));
   STORE[id]=localSnapshot;saveStoreLocal();backupSnapshot(id);
   const baseSnapshot=BASE[id]!==undefined?BASE[id]:localSnapshot;
@@ -4476,22 +4484,57 @@ function HZevalRecs(calId){return (DB.hifzEvals||[]).filter(e=>e.calId===calId);
 function HZevalFor(calId,sid){return (DB.hifzEvals||[]).find(e=>e.calId===calId&&e.studentId===sid)||null;}
 function HZstateBadge(c){const st=HZstate(c);const col=st==='OPEN'?'#0b8a45':st==='SCHEDULED'?'#8a6d1a':'#7a8a7f';let h='<span style="background:'+col+';color:#fff;border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700">'+st+'</span>';if(c.backfill)h+=' <span style="background:#caa64e;color:#3a2b06;border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700">BACKFILL</span>';return h;}
 function HZpendingCount(){return (DB.hifzEvals||[]).filter(e=>e.status==='submitted').length;}
+/* ---- Admin calendar row: single source of truth for the row markup so a per-row rerender after
+   a confirmed cloudCommit produces the same HTML as a fresh full render. Busy state and last-known
+   failure are surfaced in the row itself — never as fake success. ---- */
+const _hzCalBusy=new Map();     /* id -> "Opening…"/"Closing…"/"Saving…"/"Deleting…" while a mutation is in flight for that record */
+const _hzCalFailed=new Map();   /* id -> "— UPDATE FAILED"/"— DELETE FAILED" until the next successful mutation on this record */
+function _hzCalRowHTML(c){
+  const recs=HZevalRecs(c.id);const sub=recs.filter(e=>e.status==='submitted').length,app=recs.filter(e=>e.status==='approved').length,ret=recs.filter(e=>e.status==='returned').length;
+  const busy=_hzCalBusy.get(c.id);const failed=_hzCalFailed.get(c.id);
+  const st=HZstate(c);
+  const stateLabel=(busy==='Opening…'||busy==='Closing…')?busy:(st==='OPEN'?'Close':'Open');
+  const stateAct=st==='OPEN'?'close':'open';
+  const bfLabel=(busy==='Saving…')?busy:(c.backfill?'Backfill: ON':'Backfill');
+  const editLabel=(busy==='Deleting…')?'Deleting…':'Edit';
+  const dis=busy?'disabled':'';
+  return `<tr id="hzcal_${c.id}">
+    <td><b>${esc(c.name||('Evaluation '+c.evalNo))}</b><div class="muted" style="font-size:11px">${esc(c.year||'')} · ${esc(c.term||'')} · Eval ${esc(c.evalNo)}</div></td>
+    <td>${HZstateBadge(c)}${failed?' <span style="color:var(--red);font-size:11px;font-weight:700">'+esc(failed)+'</span>':''}</td>
+    <td style="font-size:11.5px">${c.open?esc(c.open):'—'} → ${c.close?esc(c.close):'—'}</td>
+    <td style="font-size:11.5px">${(c.classIds||[]).map(id=>esc(className(id))).join(', ')||'—'}</td>
+    <td style="text-align:center">${app}✓ / ${sub}⏳${ret?(' / '+ret+'↩'):''}</td>
+    <td style="text-align:right;white-space:nowrap">
+      <button class="btn sm sec" ${dis} onclick="HZcalEdit('${c.id}')">${editLabel}</button>
+      <button class="btn sm" ${dis} onclick="HZsetState('${c.id}','${stateAct}')">${stateLabel}</button>
+      <button class="btn sm ${c.backfill?'gold':'sec'}" ${dis} onclick="HZtoggleBackfill('${c.id}')">${bfLabel}</button>
+    </td></tr>`;
+}
+function _hzRerenderCalRow(id){
+  const c=HZcalGet(id);const tr=document.getElementById('hzcal_'+id);
+  if(!c){if(tr)tr.remove();return;}
+  if(!tr){const tbody=document.querySelector('#view table tbody');if(tbody){tbody.insertAdjacentHTML('beforeend',_hzCalRowHTML(c));return;}vHifzHub();return;}   /* fallback for empty-state transition */
+  tr.outerHTML=_hzCalRowHTML(c);
+}
+/* Per-record serialization + failure rollback for admin calendar mutations. Renders busy state
+   in the same paint as the click so the button never looks unresponsive, then either adopts the
+   authoritative post-commit state or reverts the local mutation and surfaces UPDATE FAILED. */
+async function _hzCalCommit(id,busyLabel,applyFn,undoFn){
+  if(_hzCalBusy.has(id)){toast('Please wait — a change to this evaluation is already in progress',true);return {ok:false,busy:true};}
+  _hzCalBusy.set(id,busyLabel);_hzCalFailed.delete(id);_hzRerenderCalRow(id);   /* single paint: disabled button + busy label */
+  try{applyFn();}catch(e){_hzCalBusy.delete(id);_hzRerenderCalRow(id);toast('Could not apply change: '+((e&&e.message)||e),true);return {ok:false,error:e};}
+  let res;try{res=await cloudCommit();}catch(e){res={ok:false,error:(e&&e.message)||String(e)};}
+  _hzCalBusy.delete(id);
+  if(res.ok){_hzRerenderCalRow(id);return {ok:true};}
+  try{undoFn();}catch(e){}
+  _hzCalFailed.set(id,'— UPDATE FAILED');_hzRerenderCalRow(id);
+  return {ok:false,error:res.error||'Database error'};
+}
 async function vHifzHub(){if(!hasModule('tahfiz')){$('#view').innerHTML='<div class="card pad">The Memorization/Hifz module is not enabled for this school.</div>';return;}
   if(USER.role!=='admin')return HZteacherHome();
   await HZpull();   /* authoritative refresh so pending counts reflect the database */
   const ready=hifzReady();const cals=HZcalList();
-  const rows=cals.map(c=>{const recs=HZevalRecs(c.id);const sub=recs.filter(e=>e.status==='submitted').length,app=recs.filter(e=>e.status==='approved').length,ret=recs.filter(e=>e.status==='returned').length;
-    return `<tr>
-      <td><b>${esc(c.name||('Evaluation '+c.evalNo))}</b><div class="muted" style="font-size:11px">${esc(c.year||'')} · ${esc(c.term||'')} · Eval ${esc(c.evalNo)}</div></td>
-      <td>${HZstateBadge(c)}</td>
-      <td style="font-size:11.5px">${c.open?esc(c.open):'—'} → ${c.close?esc(c.close):'—'}</td>
-      <td style="font-size:11.5px">${(c.classIds||[]).map(id=>esc(className(id))).join(', ')||'—'}</td>
-      <td style="text-align:center">${app}✓ / ${sub}⏳${ret?(' / '+ret+'↩'):''}</td>
-      <td style="text-align:right;white-space:nowrap">
-        <button class="btn sm sec" onclick="HZcalEdit('${c.id}')">Edit</button>
-        ${HZstate(c)==='OPEN'?`<button class="btn sm" onclick="HZsetState('${c.id}','close')">Close</button>`:`<button class="btn sm" onclick="HZsetState('${c.id}','open')">Open</button>`}
-        <button class="btn sm ${c.backfill?'gold':'sec'}" onclick="HZtoggleBackfill('${c.id}')">${c.backfill?'Backfill: ON':'Backfill'}</button>
-      </td></tr>`;}).join('');
+  const rows=cals.map(c=>_hzCalRowHTML(c)).join('');
   $('#view').innerHTML=`<div class="page-head"><div><h2>📖 Hifz Evaluation</h2><p>3 evaluations per term · ${esc(DB.settings.term)}, ${esc(DB.settings.session)}</p></div>
     <div class="flex gap no-print"><button class="btn sec" onclick="hifzSettings()">⚙️ Settings</button><button class="btn sec" onclick="HZrunSelfTest()">🧪 Self-test</button><button class="btn sec" onclick="go('hifzreview')">✅ Review${HZpendingCount()?(' ('+HZpendingCount()+')'):''}</button><button class="btn" onclick="HZcalCreate()">＋ New evaluation</button></div></div>
     <div class="card pad mb" style="border-left:4px solid ${ready?'var(--green)':'var(--red)'}">
@@ -4512,11 +4555,22 @@ function HZcalCreate(){if(USER.role!=='admin')return;const cls=DB.classes||[];co
     <div class="fld"><label>Classes</label><div class="flex gap" style="flex-wrap:wrap">${cls.map(c=>`<label style="display:flex;align-items:center;gap:5px;font-weight:500;text-transform:none"><input type="checkbox" class="hc_cls" value="${c.id}" style="width:auto"> ${esc(c.name)}</label>`).join('')||'<span class="muted">No classes yet</span>'}</div></div>
     <label style="display:flex;align-items:center;gap:7px;margin-top:6px;font-weight:500;text-transform:none"><input type="checkbox" id="hc_bf" style="width:auto"> Enable historical <b>backfill</b> now (for a previously-done evaluation)</label>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="HZcalSaveNew()">Create</button>`,true);}
-function HZcalSaveNew(){if(USER.role!=='admin')return;const classIds=[...document.querySelectorAll('.hc_cls:checked')].map(c=>c.value);const no=Number($('#hc_no').value)||1;
+async function HZcalSaveNew(){if(USER.role!=='admin')return;
+  const classIds=[...document.querySelectorAll('.hc_cls:checked')].map(x=>x.value);const no=Number($('#hc_no').value)||1;
   const c={id:'hz'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),year:$('#hc_year').value.trim()||DB.settings.session,term:$('#hc_term').value.trim()||DB.settings.term,
     evalNo:no,name:$('#hc_name').value.trim()||('Evaluation '+no),open:$('#hc_open').value||'',close:$('#hc_close').value||'',classIds:classIds,teacherIds:[],manualOpen:false,manualClose:false,
     instructionalDays:($('#hc_idays').value!==''?Number($('#hc_idays').value):null),backfill:$('#hc_bf').checked,createdAt:Date.now(),createdBy:USER.name};
-  DB.hifzCal.push(c);cloudCommit().then(r=>{if(!r.ok){toast('Not saved — database error. Please retry.',true);return;}closeModal();toast('✔ Evaluation created (saved)');vHifzHub();});}
+  const btn=[...document.querySelectorAll('#modalRoot button.btn')].find(b=>!b.classList.contains('sec'));
+  if(btn&&btn.disabled)return;   /* re-entry guard while a create is in flight */
+  const originalLabel=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Creating…';}
+  const prev=(DB.hifzCal||[]).slice();DB.hifzCal.push(c);
+  let res;try{res=await cloudCommit();}catch(e){res={ok:false,error:(e&&e.message)||String(e)};}
+  if(btn){btn.disabled=false;btn.textContent=originalLabel;}
+  if(!res.ok){DB.hifzCal=prev;toast('Not created — database error. Your inputs are kept in the form; retry to try again.',true);return;}
+  closeModal();toast('✔ Evaluation created (saved)');
+  const tbody=document.querySelector('#view table tbody');
+  if(tbody)tbody.insertAdjacentHTML('beforeend',_hzCalRowHTML(c));else vHifzHub();   /* first-ever row: repaint hub to swap the empty-state card for the table */
+}
 function HZcalEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;const cls=DB.classes||[];
   modal('Edit evaluation',`
     <div class="grid2"><div class="fld"><label>Academic year</label><input id="hc_year" value="${esc(c.year)}"></div>
@@ -4529,13 +4583,47 @@ function HZcalEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)
     <div class="fld"><label>Classes</label><div class="flex gap" style="flex-wrap:wrap">${cls.map(cc=>`<label style="display:flex;align-items:center;gap:5px;font-weight:500;text-transform:none"><input type="checkbox" class="hc_cls" value="${cc.id}" style="width:auto" ${(c.classIds||[]).indexOf(cc.id)>-1?'checked':''}> ${esc(cc.name)}</label>`).join('')}</div></div>
     <div class="muted" style="font-size:12px">State is automatic from dates; use the Open/Close/Backfill buttons on the list to override.</div>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button>${HZevalRecs(id).length===0?`<button class="btn sec" style="color:var(--red)" onclick="HZcalDelete('${id}')">Delete</button>`:''}<button class="btn" onclick="HZcalSaveEdit('${id}')">Save</button>`,true);}
-function HZcalSaveEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;
-  c.year=$('#hc_year').value.trim()||c.year;c.term=$('#hc_term').value.trim()||c.term;c.evalNo=Number($('#hc_no').value)||c.evalNo;c.name=$('#hc_name').value.trim()||c.name;
-  c.open=$('#hc_open').value||'';c.close=$('#hc_close').value||'';c.instructionalDays=($('#hc_idays').value!==''?Number($('#hc_idays').value):null);
-  c.classIds=[...document.querySelectorAll('.hc_cls:checked')].map(x=>x.value);cloudCommit().then(r=>{if(!r.ok){toast('Not saved — database error. Please retry.',true);return;}closeModal();toast('✔ Saved');vHifzHub();});}
-function HZcalDelete(id){if(USER.role!=='admin')return;if(HZevalRecs(id).length){toast('Cannot delete — evaluations already exist',true);return;}if(!confirm('Delete this evaluation?'))return;DB.hifzCal=DB.hifzCal.filter(c=>c.id!==id);cloudCommit().then(r=>{if(!r.ok){toast('Not saved — database error. Please retry.',true);return;}closeModal();toast('✔ Deleted');vHifzHub();});}
-function HZsetState(id,how){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;if(how==='open'){c.manualOpen=true;c.manualClose=false;}else{c.manualClose=true;c.manualOpen=false;}cloudCommit().then(r=>{if(!r.ok){toast('Not saved — database error. Please retry.',true);return;}toast('✔ Evaluation '+(how==='open'?'opened':'closed'));vHifzHub();});}
-function HZtoggleBackfill(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;c.backfill=!c.backfill;cloudCommit().then(r=>{if(!r.ok){c.backfill=!c.backfill;toast('Not saved — database error. Please retry.',true);return;}toast('✔ Backfill '+(c.backfill?'enabled — teachers can enter historical results':'closed — evaluation is now read-only'));vHifzHub();});}
+async function HZcalSaveEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;
+  if(_hzCalBusy.has(id)){toast('Please wait — a change to this evaluation is already in progress',true);return;}
+  const btn=[...document.querySelectorAll('#modalRoot button.btn')].find(b=>!b.classList.contains('sec')&&(b.textContent||'').trim()==='Save');
+  const originalLabel=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  const prev={year:c.year,term:c.term,evalNo:c.evalNo,name:c.name,open:c.open,close:c.close,instructionalDays:c.instructionalDays,classIds:(c.classIds||[]).slice()};
+  const newYear=$('#hc_year').value.trim()||c.year,newTerm=$('#hc_term').value.trim()||c.term,newNo=Number($('#hc_no').value)||c.evalNo,newName=$('#hc_name').value.trim()||c.name;
+  const newOpen=$('#hc_open').value||'',newClose=$('#hc_close').value||'';
+  const newIdays=($('#hc_idays').value!==''?Number($('#hc_idays').value):null);
+  const newClassIds=[...document.querySelectorAll('.hc_cls:checked')].map(x=>x.value);
+  const r=await _hzCalCommit(id,'Saving…',
+    ()=>{c.year=newYear;c.term=newTerm;c.evalNo=newNo;c.name=newName;c.open=newOpen;c.close=newClose;c.instructionalDays=newIdays;c.classIds=newClassIds;},
+    ()=>{c.year=prev.year;c.term=prev.term;c.evalNo=prev.evalNo;c.name=prev.name;c.open=prev.open;c.close=prev.close;c.instructionalDays=prev.instructionalDays;c.classIds=prev.classIds;});
+  if(btn){btn.disabled=false;btn.textContent=originalLabel;}
+  if(r.ok){closeModal();toast('✔ Saved');return;}
+  if(!r.busy)toast('Not saved — database error. Your edits are kept in the form; retry to try again.',true);
+}
+async function HZcalDelete(id){if(USER.role!=='admin')return;if(HZevalRecs(id).length){toast('Cannot delete — evaluations already exist',true);return;}if(!confirm('Delete this evaluation?'))return;
+  if(_hzCalBusy.has(id)){toast('Please wait — a change to this evaluation is already in progress',true);return;}
+  _hzCalBusy.set(id,'Deleting…');_hzCalFailed.delete(id);_hzRerenderCalRow(id);   /* row shows Edit→Deleting…, all buttons disabled */
+  const prev=(DB.hifzCal||[]).slice();DB.hifzCal=DB.hifzCal.filter(x=>x.id!==id);
+  let res;try{res=await cloudCommit();}catch(e){res={ok:false,error:(e&&e.message)||String(e)};}
+  _hzCalBusy.delete(id);
+  if(res.ok){closeModal();toast('✔ Deleted');_hzRerenderCalRow(id);return;}   /* HZcalGet(id)===null now → row is removed */
+  DB.hifzCal=prev;_hzCalFailed.set(id,'— DELETE FAILED');_hzRerenderCalRow(id);
+  toast('Not deleted — database error. The evaluation is unchanged.',true);
+}
+function HZsetState(id,how){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;
+  const label=how==='open'?'Opening…':'Closing…';
+  const prev={manualOpen:c.manualOpen,manualClose:c.manualClose};
+  _hzCalCommit(id,label,
+    ()=>{if(how==='open'){c.manualOpen=true;c.manualClose=false;}else{c.manualClose=true;c.manualOpen=false;}},
+    ()=>{c.manualOpen=prev.manualOpen;c.manualClose=prev.manualClose;})
+    .then(r=>{if(r.ok)toast('✔ Evaluation '+(how==='open'?'opened':'closed'));else if(!r.busy)toast('Not saved — database error. The evaluation state was NOT changed. Please retry.',true);});
+}
+function HZtoggleBackfill(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;
+  const prev=c.backfill;
+  _hzCalCommit(id,'Saving…',
+    ()=>{c.backfill=!c.backfill;},
+    ()=>{c.backfill=prev;})
+    .then(r=>{if(r.ok)toast('✔ Backfill '+(c.backfill?'enabled — teachers can enter historical results':'closed — evaluation is now read-only'));else if(!r.busy)toast('Not saved — database error. Backfill was NOT changed.',true);});
+}
 /* ---- teacher workflow: home, student list, evaluation form, live preview ---- */
 let HZcur={calId:'',sid:''};
 const _hzBusy=new Set();   /* re-entrancy guard: blocks a second overlapping submit/approve/return while one is in flight for the same target */
