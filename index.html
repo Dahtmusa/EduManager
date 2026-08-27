@@ -653,40 +653,88 @@ function merge3(base,local,server){
 function backupSnapshot(id){try{const doc=STORE[id];if(!doc)return;const key='sms_bak_'+id;let arr=[];try{arr=JSON.parse(localStorage.getItem(key))||[];}catch(e){}
   const last=arr[arr.length-1];if(last&&_eq(last.data,doc))return;arr.push({t:Date.now(),data:doc});while(arr.length>6)arr.shift();try{localStorage.setItem(key,JSON.stringify(arr));}catch(e){}}catch(e){}}
 function listBackups(id){try{return JSON.parse(localStorage.getItem('sms_bak_'+id))||[];}catch(e){return [];}}
-/* ---- safe push: read latest cloud, 3-way merge, then write. If cloud read fails, DO NOT overwrite. ---- */
-async function flushPush(id){if(!supa)return;
-  try{setSync('saving','Saving…');
-    let server,readOk=true;try{const{data}=await supa.from('school_data').select('data').eq('id',id).maybeSingle();server=data&&data.data;}catch(e){readOk=false;}
-    if(!readOk){setSync('err','Sync error — will retry');clearTimeout(pushTimers[id]);pushTimers[id]=setTimeout(()=>flushPush(id),4000);return;}
-    const base=BASE[id]!==undefined?BASE[id]:(server||STORE[id]);
-    const merged=server?merge3(base,STORE[id],server):STORE[id];
-    STORE[id]=merged;if(id===SCHOOL_CODE&&DB)DB=merged;if(id==='__master__'&&MASTER)MASTER=merged;
-    BASE[id]=_clone(merged);saveStoreLocal();saveBase();
-    const{error}=await supa.from('school_data').upsert({id,data:merged,updated_at:new Date().toISOString()});if(error)throw error;setSync('on','Saved');
-  }catch(e){console.warn(e);setSync('err','Sync error');}}
+/* ---- concurrency-safe persistence core ----
+   Every write to a school_data row goes through _commitRowCAS: read {data,updated_at} fresh, 3-way-merge
+   local intent onto it, then write guarded by WHERE updated_at = the value just read (optimistic
+   concurrency). If another writer changed the row first (0 rows affected), reread + remerge + retry,
+   bounded. Never a blind unconditional upsert, so a stale writer can no longer silently clobber a newer
+   confirmed write. _withRowLock serializes every writer (cloudCommit, flushPush, the online-reconnect
+   handler) per row id, so two writes to the SAME school can never physically interleave — the second
+   always starts from the first's confirmed result instead of racing it. ---- */
+const _rowLocks={};
+function _withRowLock(id,fn){
+  const wait=_rowLocks[id]||Promise.resolve();
+  const run=wait.then(fn,fn);
+  _rowLocks[id]=run.then(()=>{},()=>{});
+  return run;
+}
+async function _commitRowCAS(id,computeMerged){
+  if(!supa)return {ok:false,error:'No database connection — not saved.'};
+  let lastErr='Could not save — please retry.';
+  for(let attempt=0;attempt<4;attempt++){
+    try{
+      setSync('saving','Saving…');
+      const rd=await supa.from('school_data').select('data,updated_at').eq('id',id).maybeSingle();
+      if(rd.error)throw rd.error;
+      const server=rd.data&&rd.data.data;
+      const serverUpdatedAt=rd.data?rd.data.updated_at:null;
+      const merged=computeMerged(server);
+      const newStamp=new Date().toISOString();
+      let affected=1;
+      if(server!=null){
+        const wr=await supa.from('school_data').update({data:merged,updated_at:newStamp}).eq('id',id).eq('updated_at',serverUpdatedAt).select('id');
+        if(wr.error)throw wr.error;
+        affected=Array.isArray(wr.data)?wr.data.length:0;
+      }else{
+        const wr=await supa.from('school_data').upsert({id,data:merged,updated_at:newStamp});
+        if(wr.error)throw wr.error;
+      }
+      if(affected===0){lastErr='Another update happened at the same time — retrying…';continue;}   /* CAS conflict: never overwrite a newer row — reread and retry instead */
+      const rb=await supa.from('school_data').select('data').eq('id',id).maybeSingle();
+      if(rb.error)throw rb.error;
+      const authoritative=(rb.data&&rb.data.data)?rb.data.data:merged;
+      return {ok:true,data:authoritative};
+    }catch(e){console.warn('commit attempt failed',e);lastErr=(e&&e.message)||String(e);}
+  }
+  setSync('err','Database error — not saved');
+  return {ok:false,error:lastErr};
+}
+/* ---- safe push: serialized, CAS-protected 3-way merge. Never blindly overwrites a newer cloud row.
+   Offline note: STORE/localStorage let the PWA keep working with no connection, but that cached copy is
+   never treated as authoritative — every flush rereads the server and merges/CAS-writes on top of it. ---- */
+async function flushPush(id){
+  if(!supa)return;
+  const localSnapshot=STORE[id];
+  const baseSnapshot=BASE[id]!==undefined?BASE[id]:localSnapshot;
+  const res=await _withRowLock(id,()=>_commitRowCAS(id,server=>server!=null?merge3(baseSnapshot,localSnapshot,server):localSnapshot));
+  if(!res.ok){setSync('err','Sync error — will retry');clearTimeout(pushTimers[id]);pushTimers[id]=setTimeout(()=>flushPush(id),4000);return;}
+  const authoritative=res.data;
+  STORE[id]=authoritative;if(id===SCHOOL_CODE&&DB)DB=authoritative;if(id==='__master__'&&MASTER)MASTER=authoritative;
+  BASE[id]=_clone(authoritative);saveStoreLocal();saveBase();setSync('on','Saved');
+}
 function pushRow(id){STORE[id]=(id==='__master__')?MASTER:(id===SCHOOL_CODE?DB:STORE[id]);saveStoreLocal();backupSnapshot(id);
   if(!supa)return;clearTimeout(pushTimers[id]);setSync('saving','Saving…');pushTimers[id]=setTimeout(()=>flushPush(id),700);}
 function save(){pushRow(SCHOOL_CODE);}
 function saveMaster(){pushRow('__master__');}
 function saveSchoolRow(code){saveStoreLocal();backupSnapshot(code);if(!supa)return;clearTimeout(pushTimers[code]);setSync('saving','Saving…');pushTimers[code]=setTimeout(()=>flushPush(code),400);}
-/* ---- DATABASE-FIRST commit: awaited read → 3-way merge → write → reread. Returns {ok,error}.
-   Use for flows that must CONFIRM persistence before reporting success (Hifz submit/approve/return).
-   Cancels any pending debounced push and makes the database the source of truth. Tenant-scoped to
-   the given row id (defaults to the authenticated school), so it respects the existing tenant boundary. ---- */
+/* ---- DATABASE-FIRST commit: serialized, optimistic-concurrency read → 3-way merge → CAS write → reread.
+   Returns {ok,error}. Use for flows that must CONFIRM persistence before reporting success (Hifz
+   submit/approve/return). Shares _withRowLock/_commitRowCAS with flushPush, so it cannot interleave with
+   a debounced push or the online-reconnect handler on the same row — a racing writer always operates on
+   fresh authoritative data instead of silently overwriting this commit (or being overwritten by it).
+   Tenant-scoped to the given row id (defaults to the authenticated school). ---- */
 async function cloudCommit(id){id=id||SCHOOL_CODE;
   if(!supa){setSync('err','No database connection');return {ok:false,error:'No database connection — not saved.'};}
-  STORE[id]=(id==='__master__')?MASTER:(id===SCHOOL_CODE?DB:STORE[id]);saveStoreLocal();backupSnapshot(id);
   clearTimeout(pushTimers[id]);
-  try{setSync('saving','Saving…');
-    const rd=await supa.from('school_data').select('data').eq('id',id).maybeSingle();if(rd.error)throw rd.error;const server=rd.data&&rd.data.data;
-    const base=BASE[id]!==undefined?BASE[id]:(server||STORE[id]);
-    const merged=server?merge3(base,STORE[id],server):STORE[id];
-    const wr=await supa.from('school_data').upsert({id:id,data:merged,updated_at:new Date().toISOString()});if(wr.error)throw wr.error;
-    const rb=await supa.from('school_data').select('data').eq('id',id).maybeSingle();if(rb.error)throw rb.error;   /* read-after-write */
-    const authoritative=(rb.data&&rb.data.data)?rb.data.data:merged;
-    STORE[id]=authoritative;BASE[id]=_clone(authoritative);if(id===SCHOOL_CODE)DB=authoritative;if(id==='__master__')MASTER=authoritative;
-    saveStoreLocal();saveBase();setSync('on','Database saved');return {ok:true};
-  }catch(e){console.warn('cloudCommit failed',e);setSync('err','Database error — not saved');return {ok:false,error:(e&&e.message)||String(e)};}}
+  const localSnapshot=_clone((id==='__master__')?MASTER:(id===SCHOOL_CODE?DB:STORE[id]));
+  STORE[id]=localSnapshot;saveStoreLocal();backupSnapshot(id);
+  const baseSnapshot=BASE[id]!==undefined?BASE[id]:localSnapshot;
+  const res=await _withRowLock(id,()=>_commitRowCAS(id,server=>server!=null?merge3(baseSnapshot,localSnapshot,server):localSnapshot));
+  if(!res.ok)return {ok:false,error:res.error};
+  const authoritative=res.data;
+  STORE[id]=authoritative;BASE[id]=_clone(authoritative);if(id===SCHOOL_CODE)DB=authoritative;if(id==='__master__')MASTER=authoritative;
+  saveStoreLocal();saveBase();setSync('on','Database saved');return {ok:true};
+}
 /* ---- authoritative refresh: reread THIS school's row from the database into DB (tenant-scoped) ---- */
 async function HZpull(){if(!supa)return false;try{const d=await pullRow(SCHOOL_CODE);if(d){DB=d;STORE[SCHOOL_CODE]=d;return true;}}catch(e){console.warn('HZpull failed',e);}return false;}
 /* ---- restore from a local backup (recover data already lost from the cloud) ---- */
@@ -4490,6 +4538,7 @@ function HZsetState(id,how){if(USER.role!=='admin')return;const c=HZcalGet(id);i
 function HZtoggleBackfill(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;c.backfill=!c.backfill;cloudCommit().then(r=>{if(!r.ok){c.backfill=!c.backfill;toast('Not saved — database error. Please retry.',true);return;}toast('✔ Backfill '+(c.backfill?'enabled — teachers can enter historical results':'closed — evaluation is now read-only'));vHifzHub();});}
 /* ---- teacher workflow: home, student list, evaluation form, live preview ---- */
 let HZcur={calId:'',sid:''};
+const _hzBusy=new Set();   /* re-entrancy guard: blocks a second overlapping submit/approve/return while one is in flight for the same target */
 function HZprevPos(prof){if(prof&&prof.lastApprovedPos)return prof.lastApprovedPos;if(prof&&prof.startSurah)return {surah:prof.startSurah,ayah:prof.startAyah,page:(prof.startPage!=null?prof.startPage:pageOf(prof.startSurah,prof.startAyah))};return null;}
 function HZstatusOf(calId,sid){const e=HZevalFor(calId,sid);return e?e.status:'none';}
 function HZstatusChip(st){const m={none:['#eef1ee','#5a6b5f','Not started'],draft:['#fff7e6','#8a6d1a','Draft'],submitted:['#e9f0ff','#2a5bd7','Submitted'],returned:['#fdeceb','#b00020','Returned'],approved:['#e9f7ee','#0b8a45','Approved']};const x=m[st]||m.none;return '<span style="background:'+x[0]+';color:'+x[1]+';border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700">'+x[2]+'</span>';}
@@ -4623,9 +4672,15 @@ function HZupsert(status){const c=HZcalGet(HZcur.calId);const s=DB.students.find
   e.status=status;e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:status==='submitted'?'submitted':'saved draft'});
   if(status==='submitted')e.submittedAt=now;
   STORE[SCHOOL_CODE]=DB;saveStoreLocal();backupSnapshot(SCHOOL_CODE);/* local recovery net only — authoritative DB write is awaited by the caller via cloudCommit() */return e;}
-async function HZsaveDraft(){const e=HZupsert('draft');if(!e)return;const res=await cloudCommit();if(!res.ok){toast('Not saved — database error. Your entries are kept; tap “Save draft” again to retry.',true);return;}toast('✔ Draft saved to database');HZevalOpen(HZcur.calId);}
-async function HZsubmit(){const e=HZupsert('submitted');if(!e)return;const res=await cloudCommit();if(!res.ok){toast('Not submitted — database error. Your entries are kept; tap “Submit” again to retry.',true);return;}toast('✔ Submission confirmed — saved to the database');HZevalOpen(HZcur.calId);}
-async function HZsaveNext(){const cur=HZcur;const e=HZupsert('draft');if(!e)return;const res=await cloudCommit();if(!res.ok){toast('Not saved — database error. Please retry before moving on.',true);return;}const c=HZcalGet(cur.calId);const studs=HZstudentsForEval(c,USER);const i=studs.findIndex(x=>x.id===cur.sid);const nx=studs[i+1];if(nx){toast('✔ Saved · next student');HZform(cur.calId,nx.id);}else{toast('✔ Saved · that was the last student');HZevalOpen(cur.calId);}}
+async function HZsaveDraft(){const key='hzform:'+HZcur.calId+':'+HZcur.sid;if(_hzBusy.has(key)){toast('Already saving — please wait',true);return;}_hzBusy.add(key);
+  try{const e=HZupsert('draft');if(!e)return;const res=await cloudCommit();if(!res.ok){toast('Not saved — database error. Your entries are kept; tap “Save draft” again to retry.',true);return;}toast('✔ Draft saved to database');HZevalOpen(HZcur.calId);}
+  finally{_hzBusy.delete(key);}}
+async function HZsubmit(){const key='hzform:'+HZcur.calId+':'+HZcur.sid;if(_hzBusy.has(key)){toast('Already submitting — please wait',true);return;}_hzBusy.add(key);
+  try{const e=HZupsert('submitted');if(!e)return;const res=await cloudCommit();if(!res.ok){toast('Not submitted — database error. Your entries are kept; tap “Submit” again to retry.',true);return;}toast('✔ Submission confirmed — saved to the database');HZevalOpen(HZcur.calId);}
+  finally{_hzBusy.delete(key);}}
+async function HZsaveNext(){const cur=HZcur;const key='hzform:'+cur.calId+':'+cur.sid;if(_hzBusy.has(key)){toast('Already saving — please wait',true);return;}_hzBusy.add(key);
+  try{const e=HZupsert('draft');if(!e)return;const res=await cloudCommit();if(!res.ok){toast('Not saved — database error. Please retry before moving on.',true);return;}const c=HZcalGet(cur.calId);const studs=HZstudentsForEval(c,USER);const i=studs.findIndex(x=>x.id===cur.sid);const nx=studs[i+1];if(nx){toast('✔ Saved · next student');HZform(cur.calId,nx.id);}else{toast('✔ Saved · that was the last student');HZevalOpen(cur.calId);}}
+  finally{_hzBusy.delete(key);}}
 /* ---- admin review + approval / coverage application ---- */
 async function vHifzReview(){if(USER.role!=='admin'){$('#view').innerHTML='<div class="card pad">Administrator only.</div>';return;}
   $('#view').innerHTML='<div class="card pad"><div class="muted">Loading the latest evaluations from the database…</div></div>';
@@ -4668,20 +4723,26 @@ function HZreview(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[
     ?'<button class="btn sec" onclick="closeModal()">Close</button><button class="btn sec" style="color:var(--red)" onclick="HZreturn(\''+evalId+'\')">↩ Reopen &amp; return</button>'
     :'<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn sec" style="color:var(--red)" onclick="HZreturn(\''+evalId+'\')">↩ Return</button><button class="btn" onclick="HZapprove(\''+evalId+'\')">✔ Approve</button>';
   modal('Review evaluation',body,foot,true);}
-async function HZapprove(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;const now=Date.now();
-  const rc=$('#hz_rev');if(rc&&rc.value.trim())e.reviewComment=rc.value.trim();
-  e.status='approved';e.reviewer=USER.name;e.reviewedAt=now;e.approvedAt=now;
-  const prof=ensureHifzProfile(e.studentId);
-  if(!e.coverageApplied){if(e.coverageAdded)prof.coverage=hifzMergeCoverage(prof.coverage,e.coverageAdded);e.coverageApplied=true;}   /* idempotency guard: coverage applied exactly once */
-  if(e.cur&&e.cur.surah)prof.lastApprovedPos={surah:e.cur.surah,ayah:e.cur.ayah,page:e.cur.page};
-  prof.history=prof.history||[];prof.history.push({at:now,by:USER.name,action:'evaluation approved',field:'coverage',from:'',to:(e.coverageAdded?('p'+e.coverageAdded[0]+'–'+e.coverageAdded[1]):'no new pages')});
-  e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:'approved'});
-  const res=await cloudCommit();   /* database-first: write status + coverage + frontier together, then reread */
-  if(!res.ok){toast('Approval NOT saved — database error. Nothing was finalised; tap Approve again to retry.',true);return;}   /* modal stays open for retry; on abandon the next review re-read from DB reverts the unsaved change */
-  closeModal();toast('✔ Approved & saved — coverage/reports updated');vHifzReview();}
+async function HZapprove(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;
+  if(e.status==='approved'){toast('Already approved');closeModal();return;}   /* idempotent target-state check: a duplicate/late click must not mutate or add another audit/history entry */
+  const key='hzapprove:'+evalId;if(_hzBusy.has(key)){toast('Already approving — please wait',true);return;}_hzBusy.add(key);
+  try{const now=Date.now();
+    const rc=$('#hz_rev');if(rc&&rc.value.trim())e.reviewComment=rc.value.trim();
+    e.status='approved';e.reviewer=USER.name;e.reviewedAt=now;e.approvedAt=now;
+    const prof=ensureHifzProfile(e.studentId);
+    if(!e.coverageApplied){if(e.coverageAdded)prof.coverage=hifzMergeCoverage(prof.coverage,e.coverageAdded);e.coverageApplied=true;}   /* idempotency guard: coverage applied exactly once */
+    if(e.cur&&e.cur.surah)prof.lastApprovedPos={surah:e.cur.surah,ayah:e.cur.ayah,page:e.cur.page};
+    prof.history=prof.history||[];prof.history.push({at:now,by:USER.name,action:'evaluation approved',field:'coverage',from:'',to:(e.coverageAdded?('p'+e.coverageAdded[0]+'–'+e.coverageAdded[1]):'no new pages')});
+    e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:'approved'});
+    const res=await cloudCommit();   /* database-first, CAS-protected: write status + coverage + frontier together, then reread */
+    if(!res.ok){toast('Approval NOT saved — database error. Nothing was finalised; tap Approve again to retry.',true);return;}   /* modal stays open for retry; on abandon the next review re-read from DB reverts the unsaved change */
+    closeModal();toast('✔ Approved & saved — coverage/reports updated');vHifzReview();
+  }finally{_hzBusy.delete(key);}}
 async function HZreturn(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;const rc=$('#hz_rev');const reason=rc?rc.value.trim():'';if(!reason){toast('Enter a review comment explaining what to fix',true);return;}
-  const now=Date.now();e.status='returned';e.reviewer=USER.name;e.reviewedAt=now;e.reviewComment=reason;e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:'returned',note:reason});
-  const res=await cloudCommit();if(!res.ok){toast('Not saved — database error. Tap Return again to retry.',true);return;}closeModal();toast('✔ Returned to teacher (saved)');vHifzReview();}
+  const key='hzreturn:'+evalId;if(_hzBusy.has(key)){toast('Already processing — please wait',true);return;}_hzBusy.add(key);
+  try{const now=Date.now();e.status='returned';e.reviewer=USER.name;e.reviewedAt=now;e.reviewComment=reason;e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:'returned',note:reason});
+    const res=await cloudCommit();if(!res.ok){toast('Not saved — database error. Tap Return again to retry.',true);return;}closeModal();toast('✔ Returned to teacher (saved)');vHifzReview();
+  }finally{_hzBusy.delete(key);}}
 /* ---- reports: approved evals, weighted term result, trend, expected-vs-actual, insights ---- */
 function HZapprovedEvals(sid,year,term){return (DB.hifzEvals||[]).filter(e=>e.studentId===sid&&e.status==='approved'&&(!year||e.year===year)&&(!term||e.term===term)).sort((a,b)=>Number(a.evalNo)-Number(b.evalNo)||(a.approvedAt||0)-(b.approvedAt||0));}
 function HZallApprovedChrono(sid){return (DB.hifzEvals||[]).filter(e=>e.studentId===sid&&e.status==='approved').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||Number(a.evalNo)-Number(b.evalNo));}
