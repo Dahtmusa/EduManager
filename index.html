@@ -4612,12 +4612,12 @@ async function HZcalSaveNew(){if(USER.role!=='admin')return;
     evalNo:no,name:$('#hc_name').value.trim()||('Evaluation '+no),open:$('#hc_open').value||'',close:$('#hc_close').value||'',classIds:classIds,teacherIds:[],manualOpen:false,manualClose:false,
     instructionalDays:($('#hc_idays').value!==''?Number($('#hc_idays').value):null),backfill:$('#hc_bf').checked,createdAt:Date.now(),createdBy:USER.name};
   const btn=[...document.querySelectorAll('#modalRoot button.btn')].find(b=>!b.classList.contains('sec'));
-  if(btn&&btn.disabled)return;   /* re-entry guard while a create is in flight */
-  const originalLabel=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Creating…';}
+  if(btn&&btn.dataset&&btn.dataset.hzBusy==='1')return;   /* re-entry guard while a create is in flight */
+  _hzBtnBusy(btn,'Creating…');
   const prev=(DB.hifzCal||[]).slice();DB.hifzCal.push(c);
   let res;try{res=await cloudCommit();}catch(e){res={ok:false,error:(e&&e.message)||String(e)};}
-  if(btn){btn.disabled=false;btn.textContent=originalLabel;}
-  if(!res.ok){DB.hifzCal=prev;toast('Not created — database error. Your inputs are kept in the form; retry to try again.',true);return;}
+  if(!res.ok){DB.hifzCal=prev;_hzBtnFail(btn,'— DATABASE UPDATE FAILED');toast('Not created — database error. Your inputs are kept in the form; retry to try again.',true);return;}
+  _hzBtnClear(btn);
   closeModal();toast('✔ Evaluation created (saved)');
   const tbody=document.querySelector('#view table tbody');
   if(tbody)tbody.insertAdjacentHTML('beforeend',_hzCalRowHTML(c));else vHifzHub();   /* first-ever row: repaint hub to swap the empty-state card for the table */
@@ -4637,7 +4637,7 @@ function HZcalEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)
 async function HZcalSaveEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;
   if(_hzCalBusy.has(id)){toast('Please wait — a change to this evaluation is already in progress',true);return;}
   const btn=[...document.querySelectorAll('#modalRoot button.btn')].find(b=>!b.classList.contains('sec')&&(b.textContent||'').trim()==='Save');
-  const originalLabel=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  _hzBtnBusy(btn,'Saving…');
   const prev={year:c.year,term:c.term,evalNo:c.evalNo,name:c.name,open:c.open,close:c.close,instructionalDays:c.instructionalDays,classIds:(c.classIds||[]).slice()};
   const newYear=$('#hc_year').value.trim()||c.year,newTerm=$('#hc_term').value.trim()||c.term,newNo=Number($('#hc_no').value)||c.evalNo,newName=$('#hc_name').value.trim()||c.name;
   const newOpen=$('#hc_open').value||'',newClose=$('#hc_close').value||'';
@@ -4646,9 +4646,9 @@ async function HZcalSaveEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(
   const r=await _hzCalCommit(id,'Saving…',
     ()=>{c.year=newYear;c.term=newTerm;c.evalNo=newNo;c.name=newName;c.open=newOpen;c.close=newClose;c.instructionalDays=newIdays;c.classIds=newClassIds;},
     ()=>{c.year=prev.year;c.term=prev.term;c.evalNo=prev.evalNo;c.name=prev.name;c.open=prev.open;c.close=prev.close;c.instructionalDays=prev.instructionalDays;c.classIds=prev.classIds;});
-  if(btn){btn.disabled=false;btn.textContent=originalLabel;}
-  if(r.ok){closeModal();toast('✔ Saved');return;}
-  if(!r.busy)toast('Not saved — database error. Your edits are kept in the form; retry to try again.',true);
+  if(r.ok){_hzBtnClear(btn);closeModal();toast('✔ Saved');return;}
+  if(r.busy){_hzBtnClear(btn);return;}
+  _hzBtnFail(btn,'— DATABASE UPDATE FAILED');toast('Not saved — database error. Your edits are kept in the form; retry to try again.',true);
 }
 async function HZcalDelete(id){if(USER.role!=='admin')return;if(HZevalRecs(id).length){toast('Cannot delete — evaluations already exist',true);return;}if(!confirm('Delete this evaluation?'))return;
   if(_hzCalBusy.has(id)){toast('Please wait — a change to this evaluation is already in progress',true);return;}
@@ -4678,6 +4678,35 @@ function HZtoggleBackfill(id){if(USER.role!=='admin')return;const c=HZcalGet(id)
 /* ---- teacher workflow: home, student list, evaluation form, live preview ---- */
 let HZcur={calId:'',sid:''};
 const _hzBusy=new Set();   /* re-entrancy guard: blocks a second overlapping submit/approve/return while one is in flight for the same target */
+/* ---- Uniform Hifz button feedback: same-paint label swap, disable, and a visible failure marker.
+   Every action button (Submit/Save draft/Save & next/Approve/Return/Create/Edit-Save) uses these so
+   the UI can never show success before cloudCommit resolves. Called with the raw button DOM node. ---- */
+function _hzBtnBusy(btn,busyLabel){
+  if(!btn||btn.dataset.hzBusy==='1')return null;
+  btn.dataset.hzBusy='1';
+  btn.dataset.hzOrig=btn.textContent;
+  btn.dataset.hzOrigDisabled=btn.disabled?'1':'0';
+  btn.disabled=true;
+  btn.textContent=busyLabel;
+  btn.style.color='';btn.style.borderColor='';   /* clear any prior UPDATE FAILED tint */
+  return btn;
+}
+function _hzBtnClear(btn){
+  if(!btn||!btn.dataset)return;
+  if(btn.dataset.hzOrig!=null)btn.textContent=btn.dataset.hzOrig;
+  btn.disabled=(btn.dataset.hzOrigDisabled==='1');
+  delete btn.dataset.hzBusy;delete btn.dataset.hzOrig;delete btn.dataset.hzOrigDisabled;
+  btn.style.color='';btn.style.borderColor='';
+}
+function _hzBtnFail(btn,marker){
+  if(!btn)return;
+  const orig=(btn.dataset&&btn.dataset.hzOrig!=null)?btn.dataset.hzOrig:btn.textContent;
+  btn.textContent=orig+' '+(marker||'— DATABASE UPDATE FAILED');
+  btn.disabled=false;
+  btn.style.color='var(--red)';
+  btn.style.borderColor='var(--red)';
+  if(btn.dataset){delete btn.dataset.hzBusy;delete btn.dataset.hzOrig;delete btn.dataset.hzOrigDisabled;}
+}
 function HZprevPos(prof){if(prof&&prof.lastApprovedPos)return prof.lastApprovedPos;if(prof&&prof.startSurah)return {surah:prof.startSurah,ayah:prof.startAyah,page:(prof.startPage!=null?prof.startPage:pageOf(prof.startSurah,prof.startAyah))};return null;}
 function HZstatusOf(calId,sid){const e=HZevalFor(calId,sid);return e?e.status:'none';}
 function HZstatusChip(st){const m={none:['#eef1ee','#5a6b5f','Not started'],draft:['#fff7e6','#8a6d1a','Draft'],submitted:['#e9f0ff','#2a5bd7','Submitted'],returned:['#fdeceb','#b00020','Returned'],approved:['#e9f7ee','#0b8a45','Approved']};const x=m[st]||m.none;return '<span style="background:'+x[0]+';color:'+x[1]+';border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700">'+x[2]+'</span>';}
@@ -4748,8 +4777,8 @@ function HZform(calId,sid){const c=HZcalGet(calId);const s=DB.students.find(x=>x
   h+='</div><div>';
   // Live preview panel
   h+='<div class="card pad mb" id="hzPrev" style="position:sticky;top:10px"></div>';
-  if(editable){h+='<div class="flex gap no-print"><button class="btn sec" onclick="HZsaveDraft()">💾 Save draft</button><button class="btn" onclick="HZsubmit()">✔ Submit</button></div>'
-    +'<div class="mt"><button class="btn sec sm" onclick="HZsaveNext()">Save &amp; next student →</button></div>';}
+  if(editable){h+='<div class="flex gap no-print"><button class="btn sec" onclick="HZsaveDraft(this)">💾 Save draft</button><button class="btn" onclick="HZsubmit(this)">✔ Submit</button></div>'
+    +'<div class="mt"><button class="btn sec sm" onclick="HZsaveNext(this)">Save &amp; next student →</button></div>';}
   h+='</div></div>';
   $('#view').innerHTML=h;HZlive();window.scrollTo(0,0);}
 function HZread(){const g=id=>{const el=$('#'+id);return el?el.value:'';};const gn=id=>{const v=g(id);return v===''?'':Number(v);};
@@ -4811,14 +4840,27 @@ function HZupsert(status){const c=HZcalGet(HZcur.calId);const s=DB.students.find
   e.status=status;e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:status==='submitted'?'submitted':'saved draft'});
   if(status==='submitted')e.submittedAt=now;
   STORE[SCHOOL_CODE]=DB;saveStoreLocal();backupSnapshot(SCHOOL_CODE);/* local recovery net only — authoritative DB write is awaited by the caller via cloudCommit() */return e;}
-async function HZsaveDraft(){const key='hzform:'+HZcur.calId+':'+HZcur.sid;if(_hzBusy.has(key)){toast('Already saving — please wait',true);return;}_hzBusy.add(key);
-  try{const e=HZupsert('draft');if(!e)return;const res=await cloudCommit();if(!res.ok){toast('Not saved — database error. Your entries are kept; tap “Save draft” again to retry.',true);return;}toast('✔ Draft saved to database');HZevalOpen(HZcur.calId);}
+async function HZsaveDraft(btn){const key='hzform:'+HZcur.calId+':'+HZcur.sid;if(_hzBusy.has(key)){toast('Already saving — please wait',true);return;}_hzBusy.add(key);
+  _hzBtnBusy(btn,'Saving…');   /* same-paint label swap + disable */
+  try{const e=HZupsert('draft');if(!e){_hzBtnClear(btn);return;}
+    const res=await cloudCommit();
+    if(!res.ok){_hzBtnFail(btn,'— DATABASE UPDATE FAILED');toast('Not saved — database error. Your entries are kept; tap “Save draft” again to retry.',true);return;}
+    toast('✔ Draft saved to database');HZevalOpen(HZcur.calId);}
   finally{_hzBusy.delete(key);}}
-async function HZsubmit(){const key='hzform:'+HZcur.calId+':'+HZcur.sid;if(_hzBusy.has(key)){toast('Already submitting — please wait',true);return;}_hzBusy.add(key);
-  try{const e=HZupsert('submitted');if(!e)return;const res=await cloudCommit();if(!res.ok){toast('Not submitted — database error. Your entries are kept; tap “Submit” again to retry.',true);return;}toast('✔ Submission confirmed — saved to the database');HZevalOpen(HZcur.calId);}
+async function HZsubmit(btn){const key='hzform:'+HZcur.calId+':'+HZcur.sid;if(_hzBusy.has(key)){toast('Already submitting — please wait',true);return;}_hzBusy.add(key);
+  _hzBtnBusy(btn,'Submitting…');
+  try{const e=HZupsert('submitted');if(!e){_hzBtnClear(btn);return;}
+    const res=await cloudCommit();
+    if(!res.ok){_hzBtnFail(btn,'— DATABASE UPDATE FAILED');toast('Not submitted — database error. Your entries are kept; tap “Submit” again to retry.',true);return;}
+    toast('✔ Submission confirmed — saved to the database');HZevalOpen(HZcur.calId);}
   finally{_hzBusy.delete(key);}}
-async function HZsaveNext(){const cur=HZcur;const key='hzform:'+cur.calId+':'+cur.sid;if(_hzBusy.has(key)){toast('Already saving — please wait',true);return;}_hzBusy.add(key);
-  try{const e=HZupsert('draft');if(!e)return;const res=await cloudCommit();if(!res.ok){toast('Not saved — database error. Please retry before moving on.',true);return;}const c=HZcalGet(cur.calId);const studs=HZstudentsForEval(c,USER);const i=studs.findIndex(x=>x.id===cur.sid);const nx=studs[i+1];if(nx){toast('✔ Saved · next student');HZform(cur.calId,nx.id);}else{toast('✔ Saved · that was the last student');HZevalOpen(cur.calId);}}
+async function HZsaveNext(btn){const cur=HZcur;const key='hzform:'+cur.calId+':'+cur.sid;if(_hzBusy.has(key)){toast('Already saving — please wait',true);return;}_hzBusy.add(key);
+  _hzBtnBusy(btn,'Saving…');
+  try{const e=HZupsert('draft');if(!e){_hzBtnClear(btn);return;}
+    const res=await cloudCommit();
+    if(!res.ok){_hzBtnFail(btn,'— DATABASE UPDATE FAILED');toast('Not saved — database error. Please retry before moving on.',true);return;}
+    const c=HZcalGet(cur.calId);const studs=HZstudentsForEval(c,USER);const i=studs.findIndex(x=>x.id===cur.sid);const nx=studs[i+1];
+    if(nx){toast('✔ Saved · next student');HZform(cur.calId,nx.id);}else{toast('✔ Saved · that was the last student');HZevalOpen(cur.calId);}}
   finally{_hzBusy.delete(key);}}
 /* ---- admin review + approval / coverage application ---- */
 async function vHifzReview(){if(USER.role!=='admin'){$('#view').innerHTML='<div class="card pad">Administrator only.</div>';return;}
@@ -4859,28 +4901,44 @@ function HZreview(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[
   if(r.comment)body+='<div class="mt" style="font-size:12.5px"><b>Teacher comment:</b> '+esc(r.comment)+'</div>';
   body+='<div class="fld mt"><label>Review comment (required to return)</label><textarea id="hz_rev" rows="2">'+esc(e.reviewComment||'')+'</textarea></div>';
   const foot=e.status==='approved'
-    ?'<button class="btn sec" onclick="closeModal()">Close</button><button class="btn sec" style="color:var(--red)" onclick="HZreturn(\''+evalId+'\')">↩ Reopen &amp; return</button>'
-    :'<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn sec" style="color:var(--red)" onclick="HZreturn(\''+evalId+'\')">↩ Return</button><button class="btn" onclick="HZapprove(\''+evalId+'\')">✔ Approve</button>';
+    ?'<button class="btn sec" onclick="closeModal()">Close</button><button class="btn sec" style="color:var(--red)" onclick="HZreturn(\''+evalId+'\',this)">↩ Reopen &amp; return</button>'
+    :'<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn sec" style="color:var(--red)" onclick="HZreturn(\''+evalId+'\',this)">↩ Return</button><button class="btn" onclick="HZapprove(\''+evalId+'\',this)">✔ Approve</button>';
   modal('Review evaluation',body,foot,true);}
-async function HZapprove(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;
+async function HZapprove(evalId,btn){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;
   if(e.status==='approved'){toast('Already approved');closeModal();return;}   /* idempotent target-state check: a duplicate/late click must not mutate or add another audit/history entry */
   const key='hzapprove:'+evalId;if(_hzBusy.has(key)){toast('Already approving — please wait',true);return;}_hzBusy.add(key);
+  _hzBtnBusy(btn,'Approving…');   /* same-paint button label + disable */
+  /* snapshot for rollback on failure so we don't leave the in-memory record in a partially-updated state */
+  const snap={status:e.status,reviewer:e.reviewer,reviewedAt:e.reviewedAt,approvedAt:e.approvedAt,reviewComment:e.reviewComment,coverageApplied:e.coverageApplied,audit:(e.audit||[]).slice()};
+  const prof=ensureHifzProfile(e.studentId);const profSnap={coverage:(prof.coverage||[]).slice(),lastApprovedPos:prof.lastApprovedPos?{surah:prof.lastApprovedPos.surah,ayah:prof.lastApprovedPos.ayah,page:prof.lastApprovedPos.page}:null,history:(prof.history||[]).slice()};
   try{const now=Date.now();
     const rc=$('#hz_rev');if(rc&&rc.value.trim())e.reviewComment=rc.value.trim();
     e.status='approved';e.reviewer=USER.name;e.reviewedAt=now;e.approvedAt=now;
-    const prof=ensureHifzProfile(e.studentId);
     if(!e.coverageApplied){if(e.coverageAdded)prof.coverage=hifzMergeCoverage(prof.coverage,e.coverageAdded);e.coverageApplied=true;}   /* idempotency guard: coverage applied exactly once */
     if(e.cur&&e.cur.surah)prof.lastApprovedPos={surah:e.cur.surah,ayah:e.cur.ayah,page:e.cur.page};
     prof.history=prof.history||[];prof.history.push({at:now,by:USER.name,action:'evaluation approved',field:'coverage',from:'',to:(e.coverageAdded?('p'+e.coverageAdded[0]+'–'+e.coverageAdded[1]):'no new pages')});
     e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:'approved'});
     const res=await cloudCommit();   /* database-first, CAS-protected: write status + coverage + frontier together, then reread */
-    if(!res.ok){toast('Approval NOT saved — database error. Nothing was finalised; tap Approve again to retry.',true);return;}   /* modal stays open for retry; on abandon the next review re-read from DB reverts the unsaved change */
+    if(!res.ok){
+      /* revert in-memory to snapshot so the modal (and subsequent reviews) don't show a false-approved state */
+      e.status=snap.status;e.reviewer=snap.reviewer;e.reviewedAt=snap.reviewedAt;e.approvedAt=snap.approvedAt;e.reviewComment=snap.reviewComment;e.coverageApplied=snap.coverageApplied;e.audit=snap.audit;
+      prof.coverage=profSnap.coverage;prof.lastApprovedPos=profSnap.lastApprovedPos;prof.history=profSnap.history;
+      _hzBtnFail(btn,'— DATABASE UPDATE FAILED');toast('Approval NOT saved — database error. Nothing was finalised; tap Approve again to retry.',true);return;
+    }
     closeModal();toast('✔ Approved & saved — coverage/reports updated');vHifzReview();
   }finally{_hzBusy.delete(key);}}
-async function HZreturn(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;const rc=$('#hz_rev');const reason=rc?rc.value.trim():'';if(!reason){toast('Enter a review comment explaining what to fix',true);return;}
+async function HZreturn(evalId,btn){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;
+  const rc=$('#hz_rev');const reason=rc?rc.value.trim():'';if(!reason){toast('Enter a review comment explaining what to fix',true);return;}
   const key='hzreturn:'+evalId;if(_hzBusy.has(key)){toast('Already processing — please wait',true);return;}_hzBusy.add(key);
+  _hzBtnBusy(btn,'Returning…');
+  const snap={status:e.status,reviewer:e.reviewer,reviewedAt:e.reviewedAt,reviewComment:e.reviewComment,audit:(e.audit||[]).slice()};
   try{const now=Date.now();e.status='returned';e.reviewer=USER.name;e.reviewedAt=now;e.reviewComment=reason;e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:'returned',note:reason});
-    const res=await cloudCommit();if(!res.ok){toast('Not saved — database error. Tap Return again to retry.',true);return;}closeModal();toast('✔ Returned to teacher (saved)');vHifzReview();
+    const res=await cloudCommit();
+    if(!res.ok){
+      e.status=snap.status;e.reviewer=snap.reviewer;e.reviewedAt=snap.reviewedAt;e.reviewComment=snap.reviewComment;e.audit=snap.audit;
+      _hzBtnFail(btn,'— DATABASE UPDATE FAILED');toast('Not saved — database error. Tap Return again to retry.',true);return;
+    }
+    closeModal();toast('✔ Returned to teacher (saved)');vHifzReview();
   }finally{_hzBusy.delete(key);}}
 /* ---- reports: approved evals, weighted term result, trend, expected-vs-actual, insights ---- */
 function HZapprovedEvals(sid,year,term){return (DB.hifzEvals||[]).filter(e=>e.studentId===sid&&e.status==='approved'&&(!year||e.year===year)&&(!term||e.term===term)).sort((a,b)=>Number(a.evalNo)-Number(b.evalNo)||(a.approvedAt||0)-(b.approvedAt||0));}
