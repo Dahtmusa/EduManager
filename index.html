@@ -861,6 +861,7 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(!d.hifzProfiles||typeof d.hifzProfiles!=='object')d.hifzProfiles={};
   if(!Array.isArray(d.hifzCal))d.hifzCal=[];
   if(!Array.isArray(d.hifzEvals))d.hifzEvals=[];
+  if(d.settings.hifzOfficial==null)d.settings.hifzOfficial=false;   /* Phase-A retirement flag — false keeps legacy Memorization visible & editable; true hides it from nav and puts the /tahfiz route into read-only archive mode */
   if(!d.settings.hifz||typeof d.settings.hifz!=='object')d.settings.hifz={};
   {const H=d.settings.hifz;
    if(H.mushafPages==null)H.mushafPages=604;
@@ -984,6 +985,7 @@ function psychoList(){return isIslamic()
   :['Handwriting','Drawing & Craft','Sports & Games','Verbal Fluency','Physical Fitness','Practical Skills'];}
 const RATEWORD={5:'Excellent',4:'Very Good',3:'Good',2:'Fair',1:'Poor'};
 function hasModule(m){return !!(DB&&DB.settings&&DB.settings.modules&&DB.settings.modules[m]);}
+function isHifzOfficial(){return !!(DB&&DB.settings&&DB.settings.hifzOfficial===true);}   /* Phase-A: when true, legacy Memorization is retired from nav; the tahfiz route becomes a read-only archive */
 function gradClassName(){if(DB.settings.modules&&DB.settings.modules.tahfiz){const c=DB.classes[DB.classes.length-1];return c?c.name:'Final Level';}return (DB.settings.modules&&DB.settings.modules.gradPry5)?'Primary 5':'Primary 6';}
 function termWeeks(){return Number(DB.settings.termWeeks)||13;}
 function currentWeek(){const tb=DB.settings.dates&&DB.settings.dates.termBegin;
@@ -2588,7 +2590,7 @@ function buildNav(){
     if(hasModule('staffAttendance'))items.splice(7,0,['staffatt','👔','Staff Att.']);
     if(hasModule('houses'))items.push(['houses','🏠','Houses']);
     if(hasModule('quran'))items.push(['quran','☪','Qur’an']);
-    if(hasModule('tahfiz')){items.splice(9,0,['tahfiz','📖','Memorization']);items.splice(10,0,['hifz','📖','Hifz Eval']);items.splice(11,0,['hifzreview','✅','Hifz Review',HZpendingCount()||'']);}
+    if(hasModule('tahfiz')){const idx=9;let i=idx;if(!isHifzOfficial()){items.splice(i++,0,['tahfiz','📖','Memorization']);}items.splice(i++,0,['hifz','📖','Hifz Eval']);items.splice(i,0,['hifzreview','✅','Hifz Review',HZpendingCount()||'']);}   /* Phase-A: hide legacy Memorization when hifzOfficial=true; Hifz Eval + Review stay */
     if(hasModule('finance'))items.push(['finance','💵','Accounts']);
     if(hasModule('gallery'))items.push(['gallery','🖼️','Gallery']);
     if(hasModule('lessonPlans'))items.push(['lessons','📚','Lesson Plans']);
@@ -2600,7 +2602,7 @@ function buildNav(){
     items.push(['messages','✉️','Messages',unreadMsgCount()]);
     items.push(['website','🌐','Website']);if(hasBackup())items.push(['backup','🛟','Backup']);}
   else {items=[['tdash','🏠','My Space'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
-    if(hasModule('tahfiz')){items=items.filter(it=>it[0]!=='results');items.splice(3,0,['tahfiz','📖','Memorization']);items.splice(4,0,['hifz','📖','Hifz Eval']);}
+    if(hasModule('tahfiz')){items=items.filter(it=>it[0]!=='results');let i=3;if(!isHifzOfficial()){items.splice(i++,0,['tahfiz','📖','Memorization']);}items.splice(i,0,['hifz','📖','Hifz Eval']);}   /* Phase-A: same rule for teacher nav */
     if(hasModule('lessonPlans'))items.push(['lessons','📚','Lesson Plans']);
     items.push(['incidents','🚩','Incidents']);
     items.push(['messages','✉️','Messages',unreadMsgCount()]);}
@@ -2618,7 +2620,7 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
     customers:vStoreCustomers,quotes:vStoreQuotes,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
-    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:vTahfiz,hifz:vHifzHub,hifzreview:vHifzReview,messages:vMessages,alumni:vAlumni,incidents:vIncidents,tdash:vTdash,search:vSearch};
+    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:()=>{return isHifzOfficial()?vTahfizArchive():vTahfiz();},hifz:vHifzHub,hifzreview:vHifzReview,messages:vMessages,alumni:vAlumni,incidents:vIncidents,tdash:vTdash,search:vSearch};
   (map[p]||vDashboard)();}
 
 /* ===================== OWNER: DASHBOARD ===================== */
@@ -3707,7 +3709,13 @@ function hifzProfile(sid){return (DB.hifzProfiles&&DB.hifzProfiles[sid])||null;}
 function ensureHifzProfile(sid){DB.hifzProfiles=DB.hifzProfiles||{};if(!DB.hifzProfiles[sid]){DB.hifzProfiles[sid]={studentId:sid,direction:'TOP_TO_BOTTOM',startSurah:1,startAyah:1,startPage:1,coverage:[],lastApprovedPos:null,history:[{at:Date.now(),by:'system',action:'created',field:'profile',from:'',to:'default'}]};}return DB.hifzProfiles[sid];}
 function hifzDirLabel(d){return d==='BOTTOM_TO_TOP'?'Bottom → Top (end toward start)':'Top → Bottom (start toward end)';}
 function hifzSettings(){if(USER.role!=='admin'){toast('Administrator only',true);return;}const H=hifzCfg();const w=H.weights||{},f=H.componentFloors||{},e=H.errWeights||{},tw=H.termWeights||[25,30,45],tt=H.trackThresholds||{};const issues=hifzSelfCheck();
+  const _official=isHifzOfficial();
   modal('⚙️ Hifz settings (100-point system)',`
+    <div style="background:${_official?'#e9f7ee':'#fbf6ea'};border:1px solid ${_official?'#b6e3c7':'#e6d8a8'};border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px">
+      <b>Use Hifz Evaluation as the official memorization system</b><br>
+      <span class="muted" style="font-size:12px">${_official?'Legacy Memorization is hidden from navigation and its page is a read-only archive. Historical data is preserved.':'Legacy Memorization is still visible and editable. Enable this to retire it from navigation. All historical data stays preserved either way.'}</span>
+      <div class="mt"><button id="hf_off_btn" class="btn sm sec" type="button" onclick="toggleHifzOfficial()">${_official?'✅ Official (currently ON) — click to disable':'☐ Not official (currently OFF) — click to enable'}</button></div>
+    </div>
     <div style="background:${issues.length?'#fdeceb':'#e9f7ee'};border:1px solid ${issues.length?'#f3b7b3':'#b6e3c7'};border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px">
       📖 Qur'an page reference — <b>604-page Madinah Mushaf</b> (ayah-accurate, verified index).<br>
       Status: ${issues.length?'<b style="color:var(--red)">NOT READY — page calculations are blocked</b>':'<b style="color:var(--green)">VALIDATED &amp; READY</b>'}${H.pageStartSource?(' · source: '+esc(H.pageStartSource)):''}
@@ -3731,6 +3739,49 @@ function hifzSettings(){if(USER.role!=='admin'){toast('Administrator only',true)
     <div class="fld"><label>Non-instructional weekdays (fallback)</label><div class="flex gap" style="flex-wrap:wrap">${['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d,i)=>`<label style="display:flex;align-items:center;gap:5px;text-transform:none;font-weight:500"><input type="checkbox" class="hf_wknd" value="${i}" style="width:auto" ${(H.weekend||[]).includes(i)?'checked':''}> ${d}</label>`).join('')}</div></div>
     <div class="fld"><label>Holidays / non-instructional dates (comma-separated YYYY-MM-DD)</label><textarea id="hf_hol" rows="2">${esc((H.holidays||[]).join(', '))}</textarea></div>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveHifzSettings()">Save settings</button>`,true);}
+/* ---- Phase-A retirement: read-only archive of legacy Memorization data ---- */
+function _tahArchiveRows(){
+  const src=DB.tahfiz||{};const out=[];
+  Object.keys(src).forEach(k=>{const p=k.split('|');if(p.length!==4)return;const [sess,term,month,sid]=p;const e=src[k];if(!e||e.status!=='approved')return;const s=DB.students.find(x=>x.id===sid);out.push({sess,term,month,sid,name:s?s.name:'(unknown student)',cls:s?className(s.classId):'—',mark:e.mark||'',pg:e.pg||'',sc:e.sc,ac:e.ac,hz:e.hz});});
+  out.sort((a,b)=>(b.sess+b.term+b.month).localeCompare(a.sess+a.term+a.month)||a.name.localeCompare(b.name));return out;
+}
+function vTahfizArchive(){
+  if(!hasModule('tahfiz'))return vDashboard();
+  const rows=_tahArchiveRows();
+  const table=rows.length
+    ?`<div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;font-size:11px;color:var(--muted)"><th style="padding:8px">Session</th><th>Term</th><th>Month</th><th>Student</th><th>Class</th><th style="text-align:center">Current position</th><th style="text-align:center">Pages</th><th style="text-align:center">Hizb</th><th style="text-align:center">Score</th></tr></thead><tbody>${rows.map(x=>`<tr><td style="padding:6px 8px;font-size:12px">${esc(x.sess)}</td><td style="font-size:12px">${esc(x.term)}</td><td style="font-size:12px">${esc(monthLabel(x.month))}</td><td><b>${esc(x.name)}</b></td><td style="font-size:12px">${esc(x.cls)}</td><td style="text-align:center;font-size:12px">${x.sc?esc(surahLabel(x.sc))+(x.ac?':'+esc(x.ac):''):'—'}</td><td style="text-align:center">${esc(x.pg||'')}</td><td style="text-align:center">${esc(x.hz||'')}</td><td style="text-align:center"><b>${esc(x.mark)}</b></td></tr>`).join('')}</tbody></table></div>`
+    :`<div class="card pad"><div class="empty"><div class="big">🗂️</div>No archived Memorization records for this school.</div></div>`;
+  $('#view').innerHTML=`<div class="page-head"><div><h2>📚 Legacy Memorization archive</h2><p>Read-only historical records · ${rows.length} approved entr${rows.length===1?'y':'ies'}</p></div><button class="btn" onclick="go('hifz')">Go to Hifz Evaluation →</button></div>
+    <div class="card pad mb" style="border-left:4px solid var(--rg);background:#fbf6ea">
+      <b>Legacy Memorization records are preserved.</b> Current Qur'an assessment is managed through <b>Hifz Evaluation</b>.
+      <div class="muted mt" style="font-size:12.5px">This screen is read-only. No entries can be created, edited, submitted, approved, or deleted here. To restore the editable Memorization module (for example to reopen a previous term for correction) an administrator can disable <b>“Use Hifz Evaluation as the official memorization system”</b> in Hifz settings.</div>
+    </div>
+    ${table}`;
+  window.scrollTo(0,0);
+}
+/* ---- Phase-A retirement toggle: awaited cloudCommit, per-click busy state, revert on failure ---- */
+let _hzOfficialBusy=false;
+async function toggleHifzOfficial(){
+  if(USER.role!=='admin'){toast('Administrator only',true);return;}
+  if(_hzOfficialBusy){toast('Please wait — a change is already in progress',true);return;}
+  _hzOfficialBusy=true;
+  const btn=document.getElementById('hf_off_btn');
+  const prev=isHifzOfficial();const next=!prev;
+  const setUI=(label,disabled,failed)=>{if(!btn)return;btn.disabled=!!disabled;btn.textContent=label;btn.style.borderColor=failed?'var(--red)':'';btn.style.color=failed?'var(--red)':'';};
+  setUI(next?'Enabling…':'Disabling…',true,false);
+  DB.settings.hifzOfficial=next;
+  let res;try{res=await cloudCommit();}catch(e){res={ok:false,error:(e&&e.message)||String(e)};}
+  _hzOfficialBusy=false;
+  if(!res.ok){
+    DB.settings.hifzOfficial=prev;   /* revert to the pre-click value */
+    setUI((prev?'✅ Official (currently ON) — click to disable':'☐ Not official (currently OFF) — click to enable')+' — UPDATE FAILED',false,true);
+    toast('Not saved — database error. Setting unchanged.',true);
+    return;
+  }
+  setUI(next?'✅ Official (currently ON) — click to disable':'☐ Not official (currently OFF) — click to enable',false,false);
+  try{buildNav();}catch(e){}   /* Memorization tab appears/disappears immediately */
+  toast(next?'✔ Hifz Evaluation is now the official memorization system':'✔ Reverted — Memorization module is visible again');
+}
 function saveHifzSettings(){const H=DB.settings.hifz;const n=id=>Number($('#'+id).value);
   H.pagesPerDay=n('hf_ppd')||1;H.pagesPerMonth=n('hf_ppm')||30;
   H.weights={prog:n('hf_wprog')||0,acc:n('hf_wacc')||0,mur:n('hf_wmur')||0,flu:n('hf_wflu')||0,taj:n('hf_wtaj')||0};
