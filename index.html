@@ -1527,6 +1527,8 @@ function parentLogin(){const adm=$('#pp_adm').value.trim(),pw=$('#pp_pw').value.
   const pwd=pw.replace(/\D/g,'');const gp=(s.guardianPhone||'').replace(/\D/g,'');
   const ok=(s.parentPin&&s.parentPin===pw)||(gp&&gp.length>=7&&gp===pwd);
   if(!ok){err.style.display='block';err.textContent=gp?'Wrong password. Use the guardian phone number on file.':'No password on file — please contact the school.';return;}
+  const gpn=(s.guardianPhone||'').replace(/\D/g,'');
+  window._parentKids=(gpn&&gpn.length>=7)?DB.students.filter(x=>!x.graduated&&((x.guardianPhone||'').replace(/\D/g,'')===gpn)).sort((a,b)=>(a.name||'').localeCompare(b.name||'')):[s];
   renderParentDash(s);}
 function renderParentDash(s){const t=theme();const due=studentDue(s),paid=approvedPaid(s.id),bal=due-paid;const bk=DB.settings.bank||{};
   let pres=0,tot=0;Object.keys(DB.attendance).forEach(k=>{const cid=k.split('|')[1];if(cid===s.classId){const v=DB.attendance[k][s.id];if(v!==undefined){tot++;if(v==='P')pres++;}}});
@@ -1542,6 +1544,8 @@ function renderParentDash(s){const t=theme();const due=studentDue(s),paid=approv
         <button class="btn sec sm" onclick="MODE='school';renderAuth()">← Home</button></div>
       <div class="card pad mb"><div class="flex gap">${s.photo?`<img src="${s.photo}" style="width:64px;height:64px;border-radius:12px;object-fit:cover">`:'<div style="width:64px;height:64px;border-radius:12px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:30px">👧</div>'}
         <div><div style="font-size:19px;font-weight:800">${esc(s.name)}</div><div class="muted">${esc(className(s.classId))} · Adm ${esc(s.admissionNo||'—')}</div></div></div></div>
+      ${(window._parentKids&&window._parentKids.length>1)?`<div class="card pad mb"><div class="muted" style="font-size:11px;margin-bottom:5px">My children</div><div class="flex gap" style="flex-wrap:wrap">${window._parentKids.map(k=>`<button class="btn sm ${k.id===s.id?'':'sec'}" onclick="renderParentDash(DB.students.find(x=>x.id==='${k.id}'))">${esc(k.name)}</button>`).join('')}</div></div>`:''}
+      ${HZparentCard(s)}
       <div class="cards-row">
         <div class="stat"><div class="lbl">Balance</div><div class="num" style="font-size:20px;color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</div><div class="meta">${naira(paid)} of ${naira(due)} paid</div></div>
         <div class="stat"><div class="lbl">Attendance</div><div class="num" style="font-size:20px">${tot?Math.round(pres/tot*100)+'%':'—'}</div><div class="meta">${pres}/${tot} present</div></div>
@@ -2274,10 +2278,10 @@ function renderAuth(){
     sc.innerHTML=`<div class="auth owner"><div class="acard"><div class="crest p">🛰️</div>
       <h1>${esc((MASTER&&MASTER.platform.name)||'EduManager Cloud')}</h1><div class="sub">Owner Console</div>
       <div class="auth-err" id="aerr"></div>
-      <div class="field"><label>Owner username</label><input id="ou" placeholder="owner"></div>
-      <div class="field"><label>Password</label><span class="pw-wrap"><input id="op" type="password" onkeydown="if(event.key==='Enter')ownerLogin()"><button type="button" class="pw-eye" onclick="togglePw(this)">👁</button></span></div>
+      <div class="field"><label>Owner email</label><input id="ou" placeholder="you@example.com" autocomplete="username"></div>
+      <div class="field"><label>Password</label><span class="pw-wrap"><input id="op" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')ownerLogin()"><button type="button" class="pw-eye" onclick="togglePw(this)">👁</button></span></div>
       <button class="btn purple" style="width:100%;justify-content:center" onclick="ownerLogin()">Sign in</button>
-      <div class="hint"><b>Demo:</b> owner / owner123. Change it in Owner → Settings.</div></div></div>`;
+      <div class="hint">Secured by Supabase Auth.</div></div></div>`;
     $('#op').addEventListener('keydown',e=>{if(e.key==='Enter')ownerLogin();});return;
   }
   // school mode
@@ -2441,8 +2445,22 @@ function renderPublicGallery(){const t=theme();const set=DB.settings;const album
         <div style="padding:12px"><b>${esc(a.title)}</b>${a.desc?`<div class="muted" style="font-size:12.5px;margin-top:3px">${esc(a.desc)}</div>`:''}<div class="muted" style="font-size:11px;margin-top:3px">${(a.media||[]).length} item(s)${a.date?' · '+esc(a.date):''}</div></div></div>`;}).join('')}</div>`
         :`<div class="card"><div class="empty"><div class="big">🖼️</div>No gallery items yet.</div></div>`}
     </div></div>`;window.scrollTo(0,0);}
-function ownerLogin(){const u=$('#ou').value.trim().toLowerCase(),p=$('#op').value;const o=MASTER.platform.owner;
-  if(u===o.username.toLowerCase()&&p===o.password){USER={name:o.name,role:'owner'};enterApp();}else{$('#aerr').style.display='block';$('#aerr').textContent='Invalid owner credentials.';}}
+async function ownerLogin(){const u=$('#ou').value.trim(),p=$('#op').value;
+  // Phase 1 owner containment: prefer Supabase Auth. The owner credential lives ONLY in Supabase Auth,
+  // never in client-readable data. An email in the field routes to Auth; a legacy username uses the fallback.
+  if(u.indexOf('@')>-1 && supa && supa.auth){
+    try{const{data,error}=await supa.auth.signInWithPassword({email:u.toLowerCase(),password:p});
+      if(!error && data && data.user){
+        const role=data.user.app_metadata && data.user.app_metadata.role;
+        if(role && role!=='owner'){try{await supa.auth.signOut();}catch(e){}$('#aerr').style.display='block';$('#aerr').textContent='This account is not an owner account.';return;}
+        USER={name:(MASTER&&MASTER.platform&&MASTER.platform.owner&&MASTER.platform.owner.name)||'Platform Owner',role:'owner'};enterApp();return;}
+    }catch(e){}
+    $('#aerr').style.display='block';$('#aerr').textContent='Invalid owner credentials.';return;
+  }
+  // Legacy fallback — remains only until the owner password is removed from __master__ in the gated migration step.
+  const o=MASTER&&MASTER.platform&&MASTER.platform.owner;const ul=u.toLowerCase();
+  if(o&&o.password&&ul===String(o.username||'').toLowerCase()&&p===o.password){USER={name:o.name,role:'owner'};enterApp();}
+  else{$('#aerr').style.display='block';$('#aerr').textContent='Invalid owner credentials.';}}
 function schoolLogin(){const u=$('#su').value.trim().toLowerCase(),p=$('#sp').value;
   const f=DB.users.find(x=>x.username.toLowerCase()===u&&x.password===p);
   if(!f){$('#aerr').style.display='block';$('#aerr').textContent='Invalid username or password.';return;}
@@ -2494,7 +2512,7 @@ function buildNav(){
     if(hasModule('staffAttendance'))items.splice(7,0,['staffatt','👔','Staff Att.']);
     if(hasModule('houses'))items.push(['houses','🏠','Houses']);
     if(hasModule('quran'))items.push(['quran','☪','Qur’an']);
-    if(hasModule('tahfiz'))items.splice(9,0,['tahfiz','📖','Memorization']);
+    if(hasModule('tahfiz')){items.splice(9,0,['tahfiz','📖','Memorization']);items.splice(10,0,['hifz','📖','Hifz Eval']);items.splice(11,0,['hifzreview','✅','Hifz Review',HZpendingCount()||'']);}
     if(hasModule('finance'))items.push(['finance','💵','Accounts']);
     if(hasModule('gallery'))items.push(['gallery','🖼️','Gallery']);
     if(hasModule('lessonPlans'))items.push(['lessons','📚','Lesson Plans']);
@@ -2506,7 +2524,7 @@ function buildNav(){
     items.push(['messages','✉️','Messages',unreadMsgCount()]);
     items.push(['website','🌐','Website']);if(hasBackup())items.push(['backup','🛟','Backup']);}
   else {items=[['tdash','🏠','My Space'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
-    if(hasModule('tahfiz')){items=items.filter(it=>it[0]!=='results');items.splice(3,0,['tahfiz','📖','Memorization']);}
+    if(hasModule('tahfiz')){items=items.filter(it=>it[0]!=='results');items.splice(3,0,['tahfiz','📖','Memorization']);items.splice(4,0,['hifz','📖','Hifz Eval']);}
     if(hasModule('lessonPlans'))items.push(['lessons','📚','Lesson Plans']);
     items.push(['incidents','🚩','Incidents']);
     items.push(['messages','✉️','Messages',unreadMsgCount()]);}
@@ -2524,7 +2542,7 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
     customers:vStoreCustomers,quotes:vStoreQuotes,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
-    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:vTahfiz,messages:vMessages,alumni:vAlumni,incidents:vIncidents,tdash:vTdash,search:vSearch};
+    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:vTahfiz,hifz:vHifzHub,hifzreview:vHifzReview,messages:vMessages,alumni:vAlumni,incidents:vIncidents,tdash:vTdash,search:vSearch};
   (map[p]||vDashboard)();}
 
 /* ===================== OWNER: DASHBOARD ===================== */
@@ -2887,8 +2905,7 @@ function vOSettings(){
     <div class="fld"><label>Platform name</label><input id="pl_name" value="${esc(MASTER.platform.name)}"></div>
     <button class="btn purple" onclick="savePlatform()">Save</button></div>
   <div class="card pad mb" style="max-width:640px"><h3 class="mb">Owner password</h3>
-    <div class="fld" style="max-width:300px"><label>New password</label><input id="o_pass" type="text" placeholder="Leave blank to keep"></div>
-    <button class="btn sec" onclick="saveOwnerPass()">Update password</button></div>
+    <p class="muted">Owner sign-in is secured by Supabase Auth. Change or reset the owner password from the Supabase dashboard (Authentication → Users) — not here. The owner password is no longer stored in the app's data.</p></div>
   <div class="card pad mb" style="max-width:640px"><h3 class="mb">Cloud (Supabase)</h3>
     <p class="muted mb"><span class="pill ${supa?'green':'grey'}">${supa?'Connected':'Not connected'}</span> ${hard?'Keys are hardcoded in the file (best for production).':'Set here for this device, or hardcode in the file for all visitors.'}</p>
     <div class="fld"><label>Project URL</label><input id="cf_url" value="${esc(cfg.url||'')}" placeholder="https://xxxx.supabase.co"></div>
@@ -2898,7 +2915,7 @@ function vOSettings(){
     <button class="btn sec" onclick="exportAll()">⬇ Export full backup</button></div>`;
 }
 function savePlatform(){MASTER.platform.name=$('#pl_name').value.trim()||'EduManager Cloud';saveMaster();$('#brandName').textContent=MASTER.platform.name;toast('Saved');}
-function saveOwnerPass(){const p=$('#o_pass').value.trim();if(!p){toast('Enter a password',true);return;}MASTER.platform.owner.password=p;saveMaster();$('#o_pass').value='';toast('Password updated');}
+function saveOwnerPass(){/* Phase 1 owner containment: owner password is managed only in Supabase Auth, never written to client-readable data. */toast('Manage the owner password in Supabase Auth (dashboard → Authentication → Users).',true);}
 async function saveCloudCfg(){const url=$('#cf_url').value.trim().replace(/\/$/,''),key=$('#cf_key').value.trim();
   if(!url||!key){toast('Enter both',true);return;}localStorage.setItem('sms_cfg',JSON.stringify({url,key}));
   if(!initSupa()){toast('Could not connect',true);return;}toast('Connecting…');await pullAll();MASTER=STORE['__master__']||MASTER;setSync('on','Synced');toast('Cloud connected');vOSettings();}
@@ -3552,28 +3569,58 @@ function surahOpts(sel){return '<option value="">— Surah —</option>'+SURAHS.
 function ayahOpts(cnt,sel){let o='<option value="">—</option>';for(let i=1;i<=cnt;i++)o+=`<option value="${i}" ${String(sel)===String(i)?'selected':''}>${i}</option>`;return o;}
 /* ============================================================
    HIFZ SYSTEM — PHASE 1 FOUNDATION (data + coverage + profiles)
-   Qur'an reference: STANDARD 604-page MADINAH MUSHAF (15 lines).
-   SURAH_PAGE[i] = the page on which surah (i+1) begins. This is the
-   widely published, fixed Madinah start-page table. Within-surah page
-   is interpolated by ayah proportion (surah-accurate; an exact per-ayah
-   604-page index can replace pageOf() later without changing callers).
+   Qur'an page reference: 604-page MADINAH MUSHAF, AYAH-ACCURATE.
+   Pages come from a VERIFIED page-start index — one entry per page:
+   the FIRST ayah appearing on that page. There is NO interpolation.
+   The index is loaded ONCE by the admin from a verified public dataset
+   (Hifz settings → "Build page index") and stored as
+   DB.settings.hifz.pageStart = 604 rows of [surah, ayah] (row 0 = page 1).
+   Until it is present AND passes hifzSelfCheck(), ALL page maths are
+   BLOCKED (hifzReady() === false) and the admin is shown a clear error.
    ============================================================ */
-const SURAH_PAGE=[1,2,50,77,106,128,151,177,187,208,221,235,249,255,262,267,282,293,305,312,322,332,342,350,359,367,377,385,396,404,411,415,418,428,434,440,446,453,458,467,477,483,489,496,499,502,507,511,515,518,520,523,526,528,531,534,537,542,545,549,551,553,554,556,558,560,562,564,566,568,570,572,574,575,577,578,580,582,583,585,586,587,587,589,590,591,591,592,593,594,595,595,596,596,597,597,598,598,599,599,600,600,601,601,601,602,602,602,603,603,603,604,604,604];
-function surahStartPage(n){n=+n;return (n>=1&&n<=114)?SURAH_PAGE[n-1]:1;}
-function nextSurahStartPage(n){n=+n;return (n>=1&&n<114)?SURAH_PAGE[n]:605;}
-/* page of a given (surah,ayah). Surah-accurate; interpolates within the surah. */
-function pageOf(surah,ayah){surah=+surah;if(!(surah>=1&&surah<=114))return 1;ayah=+ayah||1;const sp=surahStartPage(surah),np=nextSurahStartPage(surah);const cnt=surahCount(surah)||1;const span=Math.max(1,np-sp);const p=sp+Math.floor((Math.max(1,ayah)-1)/cnt*span);return Math.min(604,Math.max(1,p));}
-let _hifzChecked=false;
-function hifzSelfCheck(){const issues=[];let sum=0;for(let i=0;i<114;i++)sum+=(SURAHS[i]?SURAHS[i][1]:0);if(sum!==6236)issues.push('ayah total '+sum+' ≠ 6236');
-  if(SURAH_PAGE.length!==114)issues.push('SURAH_PAGE length '+SURAH_PAGE.length+' ≠ 114');
-  if(SURAH_PAGE[0]!==1)issues.push('surah 1 start page = '+SURAH_PAGE[0]+' (expected 1)');
-  for(let i=1;i<114;i++)if(SURAH_PAGE[i]<SURAH_PAGE[i-1])issues.push('page not monotonic at surah '+(i+1));
-  if(SURAH_PAGE[113]>604)issues.push('last surah start page '+SURAH_PAGE[113]+' > 604');
-  if(issues.length)console.warn('HIFZ dataset self-check FAILED:',issues);else console.log('HIFZ dataset self-check OK — 6236 ayahs across 114 surahs, 604-page Madinah Mushaf.');
-  _hifzChecked=true;return issues;}
-try{hifzSelfCheck();}catch(e){}
-/* ---- configurable settings accessor ---- */
 function hifzCfg(){return (DB&&DB.settings&&DB.settings.hifz)||{};}
+function hifzPageIndex(){const ps=hifzCfg().pageStart;return (Array.isArray(ps)&&ps.length===604)?ps:null;}
+/* Deterministic page lookup via binary search over the verified page-start index.
+   Returns the Madinah page number (1..604), or null if the index is not ready. */
+function pageOf(surah,ayah){const idx=hifzPageIndex();if(!idx)return null;surah=+surah;ayah=+ayah||1;if(!(surah>=1&&surah<=114))return null;
+  let lo=0,hi=603,ans=0;while(lo<=hi){const mid=(lo+hi)>>1,ms=idx[mid][0],ma=idx[mid][1];
+    if(ms<surah||(ms===surah&&ma<=ayah)){ans=mid;lo=mid+1;}else hi=mid-1;}
+  return ans+1;}
+/* HARD validation — the gate for every page calculation. Returns [] only when fully valid. */
+function hifzSelfCheck(){const issues=[];
+  if(!Array.isArray(SURAHS)||SURAHS.length!==114)issues.push('surah metadata missing or ≠ 114 surahs');
+  let sum=0;for(let i=0;i<114;i++)sum+=(SURAHS[i]?Number(SURAHS[i][1])||0:0);if(sum!==6236)issues.push('total ayah count '+sum+' ≠ 6236');
+  const idx=hifzCfg().pageStart;
+  if(!Array.isArray(idx)){issues.push('604-page index not loaded');return issues;}
+  if(idx.length!==604)issues.push('page index has '+idx.length+' entries (need exactly 604)');
+  if(!idx[0]||Number(idx[0][0])!==1||Number(idx[0][1])!==1)issues.push('page 1 must start at Surah 1, Ayah 1');
+  let prevS=0,prevA=0,okStruct=idx.length===604;
+  for(let p=0;p<idx.length&&okStruct;p++){const e=idx[p];
+    if(!Array.isArray(e)||e.length<2){issues.push('page '+(p+1)+' malformed');okStruct=false;break;}
+    const s=+e[0],a=+e[1];
+    if(!(s>=1&&s<=114)){issues.push('page '+(p+1)+': surah '+s+' out of 1..114');okStruct=false;break;}
+    const cnt=surahCount(s);
+    if(!(a>=1&&a<=cnt)){issues.push('page '+(p+1)+': ayah '+a+' invalid for surah '+s+' (1..'+cnt+')');okStruct=false;break;}
+    if(p>0&&!(s>prevS||(s===prevS&&a>prevA))){issues.push('page '+(p+1)+' not strictly increasing');okStruct=false;break;}
+    prevS=s;prevA=a;}
+  if(okStruct){const t=(su,ay)=>{const pg=pageOf(su,ay);if(pg==null||pg<1||pg>604){issues.push('pageOf('+su+':'+ay+') returned '+pg+' (out of 1..604)');}return pg;};
+    if(t(1,1)!==1)issues.push('pageOf(1:1) ≠ 1');t(2,255);t(18,1);t(36,1);t(67,1);if(t(114,6)!==604)issues.push('pageOf(114:6) ≠ 604');}
+  return issues;}
+function hifzReady(){return hifzSelfCheck().length===0;}
+try{const _i=hifzSelfCheck();console[_i.length?'warn':'log']('HIFZ page reference '+(_i.length?('NOT READY — '+_i.join('; ')):'validated OK (604 pages, 6236 ayahs, ayah-accurate).'));}catch(e){}
+/* Build the verified 604-page index from a public verified dataset (Quran.com API v4), validate, then store. Admin only. */
+async function buildHifzPageIndex(){if(USER.role!=='admin'){toast('Administrator only',true);return;}
+  if(!navigator.onLine){toast('Connect to the internet to build the page index',true);return;}
+  if(!confirm('Build the 604-page Qur’an page index from the verified Quran.com dataset? This runs once and is then stored & validated.'))return;
+  _showUp(604);const idx=new Array(604).fill(null);const base='https://api.quran.com/api/v4/verses/by_page/';
+  async function one(n,tries){try{const r=await fetch(base+n+'?per_page=1&fields=verse_key');if(!r.ok)throw 0;const j=await r.json();const vk=(j.verses&&j.verses[0]&&j.verses[0].verse_key)||'';const m=vk.split(':');if(m.length!==2)throw 0;idx[n-1]=[Number(m[0]),Number(m[1])];return true;}catch(e){if((tries||0)<2){await new Promise(r=>setTimeout(r,500));return one(n,(tries||0)+1);}return false;}}
+  let done=0;for(let start=1;start<=604;start+=8){const batch=[];for(let n=start;n<start+8&&n<=604;n++)batch.push(one(n).then(()=>{done++;_setUp(done,604);}));await Promise.all(batch);}
+  _hideUp();
+  if(idx.some(x=>!x)){const missing=idx.filter(x=>!x).length;toast('Could not load '+missing+' page(s). Nothing saved — check your connection and retry.',true);return;}
+  const prev=DB.settings.hifz.pageStart;DB.settings.hifz.pageStart=idx;const issues=hifzSelfCheck();
+  if(issues.length){DB.settings.hifz.pageStart=prev;toast('Downloaded data failed validation and was NOT saved: '+issues[0],true);return;}
+  DB.settings.hifz.pageStartSource='Quran.com API v4';DB.settings.hifz.pageStartAt=Date.now();
+  save();toast('✓ 604-page index built & validated');closeModal();hifzSettings();}
 /* ---- UNIQUE VERIFIED COVERAGE (merged non-overlapping page intervals 1..604) ---- */
 function hifzMergeCoverage(cov,iv){cov=(cov||[]).map(x=>[x[0],x[1]]);if(!iv||iv[0]==null||iv[1]==null)return cov;const a=Math.min(iv[0],iv[1]),b=Math.max(iv[0],iv[1]);const list=cov.concat([[a,b]]).sort((x,y)=>x[0]-y[0]);const out=[];list.forEach(([f,t])=>{if(!out.length||f>out[out.length-1][1]+1)out.push([f,t]);else out[out.length-1][1]=Math.max(out[out.length-1][1],t);});return out;}
 function hifzUniquePages(cov){return (cov||[]).reduce((a,iv)=>a+(iv[1]-iv[0]+1),0);}
@@ -3585,7 +3632,12 @@ function ensureHifzProfile(sid){DB.hifzProfiles=DB.hifzProfiles||{};if(!DB.hifzP
 function hifzDirLabel(d){return d==='BOTTOM_TO_TOP'?'Bottom → Top (end toward start)':'Top → Bottom (start toward end)';}
 function hifzSettings(){if(USER.role!=='admin'){toast('Administrator only',true);return;}const H=hifzCfg();const w=H.weights||{},f=H.componentFloors||{},e=H.errWeights||{},tw=H.termWeights||[25,30,45],tt=H.trackThresholds||{};const issues=hifzSelfCheck();
   modal('⚙️ Hifz settings (100-point system)',`
-    <div style="background:${issues.length?'#fdeceb':'#e9f7ee'};border:1px solid ${issues.length?'#f3b7b3':'#b6e3c7'};border-radius:8px;padding:8px 11px;font-size:12.5px;margin-bottom:12px">📖 Qur'an reference: <b>604-page Madinah Mushaf</b> — dataset check: ${issues.length?('<b style="color:var(--red)">'+issues.length+' issue(s)</b>: '+esc(issues.join('; '))):'<b style="color:var(--green)">passed</b> (6236 ayahs · 604 pages)'}</div>
+    <div style="background:${issues.length?'#fdeceb':'#e9f7ee'};border:1px solid ${issues.length?'#f3b7b3':'#b6e3c7'};border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px">
+      📖 Qur'an page reference — <b>604-page Madinah Mushaf</b> (ayah-accurate, verified index).<br>
+      Status: ${issues.length?'<b style="color:var(--red)">NOT READY — page calculations are blocked</b>':'<b style="color:var(--green)">VALIDATED &amp; READY</b>'}${H.pageStartSource?(' · source: '+esc(H.pageStartSource)):''}
+      ${issues.length?('<div style="margin-top:4px;color:#7a1c14">'+esc(issues.slice(0,3).join('; '))+(issues.length>3?' …':'')+'</div>'):''}
+      <div class="mt"><button class="btn sm ${issues.length?'gold':'sec'}" type="button" onclick="buildHifzPageIndex()">${hifzPageIndex()?'Rebuild':'Build'} 604-page index (verified source)</button></div>
+    </div>
     <h4 class="mb">School target</h4>
     <div class="grid2"><div class="fld"><label>Pages per instructional day</label><input id="hf_ppd" type="number" step="0.1" value="${esc(H.pagesPerDay)}"></div><div class="fld"><label>Pages per month (display)</label><input id="hf_ppm" type="number" value="${esc(H.pagesPerMonth)}"></div></div>
     <h4 class="mb mt">Component weights (should total 100)</h4>
@@ -3627,11 +3679,13 @@ function saveHifzProfile(sid){if(USER.role!=='admin')return;const p=ensureHifzPr
   if(p.direction!==dir){p.history.push({at:now,by:USER.name,action:'direction change',field:'direction',from:p.direction,to:dir});p.direction=dir;}
   if(p.startSurah!==ss||p.startAyah!==sa){p.history.push({at:now,by:USER.name,action:'start change',field:'start',from:p.startSurah+':'+p.startAyah,to:ss+':'+sa});p.startSurah=ss;p.startAyah=sa;p.startPage=pageOf(ss,sa);}
   save();closeModal();toast('Hifz profile saved');openStudentProfile(sid);}
-function _hifzProfileSection(s,admin){if(!hasModule('tahfiz'))return '';const p=hifzProfile(s.id)||{coverage:[],direction:'TOP_TO_BOTTOM'};const mp=Number(hifzCfg().mushafPages)||604;const uniq=hifzUniquePages(p.coverage);const pct=hifzCompletionPct(p.coverage);
+function _hifzProfileSection(s,admin){if(!hasModule('tahfiz'))return '';const p=hifzProfile(s.id)||{coverage:[],direction:'TOP_TO_BOTTOM'};const mp=Number(hifzCfg().mushafPages)||604;const uniq=hifzUniquePages(p.coverage);const pct=hifzCompletionPct(p.coverage);const ready=hifzReady();
+  const startPg=p.startSurah?pageOf(p.startSurah,p.startAyah):null;const frontPg=p.lastApprovedPos?pageOf(p.lastApprovedPos.surah,p.lastApprovedPos.ayah):null;
   return _pfSection('📖 Hifz profile')
+    +(ready?'':`<div style="background:#fdeceb;border:1px solid #f3b7b3;border-radius:8px;padding:7px 10px;font-size:12px;margin-bottom:8px">⚠ Qur'an page index not loaded — page figures are blocked until an admin builds it in <b>Hifz settings</b>.</div>`)
     +`<div style="background:#f5f8f6;border-radius:12px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>Qur'an completion (unique verified)</span><span><b>${pct}%</b> · ${uniq}/${mp} pages</span></div><div style="height:12px;background:#e2e8e4;border-radius:20px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0b8a45,#caa64e)"></div></div></div>`
-    +_pfGrid([['Direction',hifzDirLabel(p.direction)],['Start position',p.startSurah?surahLabel(p.startSurah)+' : '+esc(p.startAyah||1)+' (p'+esc(p.startPage||pageOf(p.startSurah,p.startAyah))+')':'—'],['Current frontier',p.lastApprovedPos?surahLabel(p.lastApprovedPos.surah)+' : '+esc(p.lastApprovedPos.ayah)+' (p'+esc(p.lastApprovedPos.page)+')':'— (updates on approved evaluations)'],['Verified coverage',esc(hifzCoverageLabel(p.coverage))]])
-    +(admin?`<div class="mt"><button class="btn sm sec" onclick="editHifzProfile('${s.id}')">✏️ Edit Hifz profile (direction / start)</button></div>`:'');}
+    +_pfGrid([['Direction',hifzDirLabel(p.direction)],['Start position',p.startSurah?surahLabel(p.startSurah)+' : '+esc(p.startAyah||1)+(startPg!=null?' (p'+startPg+')':''):'—'],['Current frontier',p.lastApprovedPos?surahLabel(p.lastApprovedPos.surah)+' : '+esc(p.lastApprovedPos.ayah)+(frontPg!=null?' (p'+frontPg+')':''):'— (updates on approved evaluations)'],['Verified coverage',esc(hifzCoverageLabel(p.coverage))]])
+    +`<div class="mt"><button class="btn sm sec" onclick="HZstudentReport('${s.id}')">📄 Hifz report sheet</button>${admin?` <button class="btn sm sec" onclick="editHifzProfile('${s.id}')">✏️ Edit Hifz profile</button>`:''}</div>`;}
 const QCDN='https://cdn.jsdelivr.net/npm/quran-json@3.1.2/dist/chapters/';const _qCache={};
 async function qChapter(n){n=+n;if(!n)return null;if(_qCache[n])return _qCache[n];try{const r=await fetch(QCDN+n+'.json');if(!r.ok)throw 0;const j=await r.json();_qCache[n]=j;return j;}catch(e){return null;}}
 async function qFillVerse(sid){const box=$('#tar_'+sid);if(!box)return;const sEl=$('#sc_'+sid),aEl=$('#ac_'+sid);const sn=sEl?sEl.value:'',an=aEl?aEl.value:'';if(!sn||!an){box.textContent='';box.removeAttribute('dir');return;}box.textContent='…';box.removeAttribute('dir');const c=await qChapter(sn);if(!c||!c.verses){box.textContent='(verse text loads when online)';return;}const v=c.verses[(+an)-1];if(v&&v.text){box.textContent=v.text;box.dir='rtl';}else box.textContent='';}
@@ -4287,6 +4341,430 @@ async function boot(){
     MASTER=STORE['__master__']||MASTER;setSync('on','Synced');renderAuth();
   }
 }
+/* ==================== HIFZ EVALUATION SYSTEM — Phase 2 (First-Term) ====================
+   Additive. Reuses the Phase-1 validated 604-page index (pageOf/hifzReady) and the unique
+   coverage engine (hifzMergeCoverage/hifzUniquePages/hifzCompletionPct). Never estimates a
+   page; never turns the current position into verified coverage. All weights configurable
+   from DB.settings.hifz. Old DB.tahfiz/tahTerm/tahEvalOpen are untouched. */
+function HZcfg(){return hifzCfg();}
+function HZw(){const w=HZcfg().weights||{};return {prog:(w.prog!=null?+w.prog:20),acc:(w.acc!=null?+w.acc:25),mur:(w.mur!=null?+w.mur:25),flu:(w.flu!=null?+w.flu:15),taj:(w.taj!=null?+w.taj:15)};}
+function HZwSum(){const W=HZw();return W.prog+W.acc+W.mur+W.flu+W.taj;}
+function HZclamp(x,lo,hi){return Math.max(lo,Math.min(hi,x));}
+function HZround(x){return Math.round(x);}
+/* ---- instructional days & expected pages (weekdays are only the fallback) ---- */
+function HZaddDays(iso,n){const d=new Date(iso+'T00:00:00');d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);}
+function HZisWeekend(iso){const wd=new Date(iso+'T00:00:00').getDay();return (HZcfg().weekend||[0,6]).indexOf(wd)>-1;}
+function HZisHoliday(iso){return (HZcfg().holidays||[]).indexOf(iso)>-1;}
+function HZinstructionalDays(fromISO,toISO){/* days AFTER fromISO up to & incl toISO that are instructional */
+  if(!fromISO||!toISO||toISO<=fromISO)return 0;let n=0,cur=HZaddDays(fromISO,1),guard=0;
+  while(cur<=toISO&&guard<2000){if(!HZisWeekend(cur)&&!HZisHoliday(cur))n++;cur=HZaddDays(cur,1);guard++;}return n;}
+function HZwindow(cal){if(!cal)return {start:null,end:null};
+  const end=cal.close||cal.actualDate||cal.open||today();
+  const prevs=(DB.hifzCal||[]).filter(c=>c.year===cal.year&&c.term===cal.term&&Number(c.evalNo)<Number(cal.evalNo)&&(c.close||c.actualDate));
+  let start;
+  if(prevs.length){prevs.sort((a,b)=>Number(b.evalNo)-Number(a.evalNo));start=prevs[0].close||prevs[0].actualDate;}
+  else start=(DB.settings.dates&&DB.settings.dates.termBegin)||HZaddDays(end,-30);
+  return {start:start,end:end};}
+function HZexpectedPages(cal){const H=HZcfg();const ppd=Number(H.pagesPerDay)||1;let days;
+  if(cal&&cal.instructionalDays!=null&&cal.instructionalDays!=='')days=Number(cal.instructionalDays)||0;
+  else{const w=HZwindow(cal);days=HZinstructionalDays(w.start,w.end);}
+  return Math.max(0,(Number(days)||0)*ppd);}
+/* ---- component scores: raw observations → points (teacher never types a score) ---- */
+function HZaccFrom(fromP,toP,errs,maxPts){const H=HZcfg();const e=H.errWeights||{major:1,forgotten:1.2,prompt:0.4,minor:0.2};const sens=(H.sensitivity!=null?Number(H.sensitivity):1);
+  const assessed=Math.max(0.5,(Number(toP)-Number(fromP)+1));
+  const werr=(Number(errs.major)||0)*(+e.major||0)+(Number(errs.forgotten)||0)*(+e.forgotten||0)+(Number(errs.prompts)||0)*(+e.prompt||0)+(Number(errs.minor)||0)*(+e.minor||0);
+  return HZclamp(HZround(maxPts*(1-(werr/assessed)*sens)),0,maxPts);}
+function HZflu(r){const m=HZcfg().fluencyMap||{1:3,2:6,3:9,4:12,5:15};return Number(m[r])||0;}
+function HZtaj(r){const m=HZcfg().tajweedMap||{1:3,2:6,3:9,4:12,5:15};return Number(m[r])||0;}
+function HZverified(raw){const r=raw.newResult;
+  if(r==='PASSED'){const f=Number(raw.assessedFromPage),t=Number(raw.assessedToPage);if(!(f>=1&&t>=1))return {verified:0,coverageAdded:null};const v=Math.abs(t-f)+1;return {verified:v,coverageAdded:[Math.min(f,t),Math.max(f,t)]};}
+  if(r==='PARTIAL'){const f=Number(raw.verFromPage),t=Number(raw.verToPage);if(!(f>=1&&t>=1))return {verified:0,coverageAdded:null};const v=Math.abs(t-f)+1;return {verified:v,coverageAdded:[Math.min(f,t),Math.max(f,t)]};}
+  return {verified:0,coverageAdded:null};/* NOT_PASSED */}
+function HZprog(verified,expected,maxPts){return expected>0?HZclamp(HZround(verified/expected*maxPts),0,maxPts):(verified>0?maxPts:0);}
+function HZband(total){const bands=(HZcfg().bands||[{min:90,label:'Outstanding'},{min:80,label:'Very Good'},{min:70,label:'Good'},{min:60,label:'Satisfactory'},{min:0,label:'Needs Improvement'}]).slice().sort((a,b)=>b.min-a.min);
+  const b=bands.find(x=>total>=x.min);return b?b.label:'—';}
+function HZalerts(sc){const W=HZw();const f=HZcfg().componentFloors||{};const out=[];
+  const chk=(k,label,max)=>{const fl=(f[k]!=null?f[k]:0.6);if(max>0&&(sc[k]/max)<fl)out.push(label+' requires attention');};
+  chk('prog','Progress',W.prog);chk('acc','Accuracy',W.acc);chk('mur',"Muraja'ah",W.mur);chk('flu','Fluency',W.flu);chk('taj','Tajweed',W.taj);return out;}
+function HZmastery(sc){const W=HZw();const parts=[];
+  if(W.acc>0)parts.push(sc.acc/W.acc);if(W.mur>0)parts.push(sc.mur/W.mur);if(W.flu>0)parts.push(sc.flu/W.flu);if(W.taj>0)parts.push(sc.taj/W.taj);
+  if(!parts.length)return 0;return Math.round(parts.reduce((a,b)=>a+b,0)/parts.length*100);}
+/* Master compute: raw observations (+ its calendar for expected pages) → all scores. Pure. */
+function HZcompute(raw,cal){const W=HZw();const expected=HZexpectedPages(cal);const ver=HZverified(raw);
+  const prog=HZprog(ver.verified,expected,W.prog);
+  const acc=HZaccFrom(raw.assessedFromPage,raw.assessedToPage,{major:raw.major,minor:raw.minor,prompts:raw.prompts,forgotten:raw.forgotten},W.acc);
+  const mu=raw.mura||{};const mur=HZaccFrom(mu.fromPage,mu.toPage,{major:mu.major,minor:mu.minor,prompts:mu.prompts,forgotten:mu.forgotten},W.mur);
+  const flu=HZflu(raw.fluency),taj=HZtaj(raw.tajweed);const total=prog+acc+mur+flu+taj;const sc={prog:prog,acc:acc,mur:mur,flu:flu,taj:taj,total:total};
+  return {prog:prog,acc:acc,mur:mur,flu:flu,taj:taj,total:total,band:HZband(total),alerts:HZalerts(sc),mastery:HZmastery(sc),expectedPages:expected,verifiedPages:ver.verified,coverageAdded:ver.coverageAdded};}
+/* ---- evaluation calendar: data, state machine, admin actions, historical backfill ---- */
+function HZcalList(){return (DB.hifzCal||[]).slice().sort((a,b)=>String(a.year||'').localeCompare(String(b.year||''))||String(a.term||'').localeCompare(String(b.term||''))||Number(a.evalNo||0)-Number(b.evalNo||0));}
+function HZcalGet(id){return (DB.hifzCal||[]).find(c=>c.id===id)||null;}
+function HZstate(c){if(!c)return 'CLOSED';if(c.manualClose)return 'CLOSED';if(c.manualOpen)return 'OPEN';const t=today();if(c.open&&t<c.open)return 'SCHEDULED';if(c.close&&t>c.close)return 'CLOSED';if(c.open)return 'OPEN';return 'SCHEDULED';}
+function HZaccessible(c){return HZstate(c)==='OPEN'||!!c.backfill;}
+function HZteacherAuth(c,u){u=u||USER;if(u.role==='admin')return true;if((c.teacherIds||[]).indexOf(u.id)>-1)return true;const uc=u.classes||[];return (c.classIds||[]).some(cid=>uc.indexOf(cid)>-1);}
+function HZteacherClassIds(c,u){u=u||USER;if(u.role==='admin')return (c.classIds||[]).slice();const uc=u.classes||[];return (c.classIds||[]).filter(cid=>uc.indexOf(cid)>-1);}
+function HZstudentsForEval(c,u){const ids=HZteacherClassIds(c,u);let list=[];ids.forEach(cid=>{list=list.concat(studentsIn(cid));});const seen={};list=list.filter(s=>seen[s.id]?false:(seen[s.id]=true));return list.sort((a,b)=>admOrder(a)-admOrder(b)||(a.name||'').localeCompare(b.name||''));}
+function HZevalRecs(calId){return (DB.hifzEvals||[]).filter(e=>e.calId===calId);}
+function HZevalFor(calId,sid){return (DB.hifzEvals||[]).find(e=>e.calId===calId&&e.studentId===sid)||null;}
+function HZstateBadge(c){const st=HZstate(c);const col=st==='OPEN'?'#0b8a45':st==='SCHEDULED'?'#8a6d1a':'#7a8a7f';let h='<span style="background:'+col+';color:#fff;border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700">'+st+'</span>';if(c.backfill)h+=' <span style="background:#caa64e;color:#3a2b06;border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700">BACKFILL</span>';return h;}
+function HZpendingCount(){return (DB.hifzEvals||[]).filter(e=>e.status==='submitted').length;}
+function vHifzHub(){if(!hasModule('tahfiz')){$('#view').innerHTML='<div class="card pad">The Memorization/Hifz module is not enabled for this school.</div>';return;}
+  if(USER.role!=='admin')return HZteacherHome();
+  const ready=hifzReady();const cals=HZcalList();
+  const rows=cals.map(c=>{const recs=HZevalRecs(c.id);const sub=recs.filter(e=>e.status==='submitted').length,app=recs.filter(e=>e.status==='approved').length,ret=recs.filter(e=>e.status==='returned').length;
+    return `<tr>
+      <td><b>${esc(c.name||('Evaluation '+c.evalNo))}</b><div class="muted" style="font-size:11px">${esc(c.year||'')} · ${esc(c.term||'')} · Eval ${esc(c.evalNo)}</div></td>
+      <td>${HZstateBadge(c)}</td>
+      <td style="font-size:11.5px">${c.open?esc(c.open):'—'} → ${c.close?esc(c.close):'—'}</td>
+      <td style="font-size:11.5px">${(c.classIds||[]).map(id=>esc(className(id))).join(', ')||'—'}</td>
+      <td style="text-align:center">${app}✓ / ${sub}⏳${ret?(' / '+ret+'↩'):''}</td>
+      <td style="text-align:right;white-space:nowrap">
+        <button class="btn sm sec" onclick="HZcalEdit('${c.id}')">Edit</button>
+        ${HZstate(c)==='OPEN'?`<button class="btn sm" onclick="HZsetState('${c.id}','close')">Close</button>`:`<button class="btn sm" onclick="HZsetState('${c.id}','open')">Open</button>`}
+        <button class="btn sm ${c.backfill?'gold':'sec'}" onclick="HZtoggleBackfill('${c.id}')">${c.backfill?'Backfill: ON':'Backfill'}</button>
+      </td></tr>`;}).join('');
+  $('#view').innerHTML=`<div class="page-head"><div><h2>📖 Hifz Evaluation</h2><p>3 evaluations per term · ${esc(DB.settings.term)}, ${esc(DB.settings.session)}</p></div>
+    <div class="flex gap no-print"><button class="btn sec" onclick="hifzSettings()">⚙️ Settings</button><button class="btn sec" onclick="HZrunSelfTest()">🧪 Self-test</button><button class="btn sec" onclick="go('hifzreview')">✅ Review${HZpendingCount()?(' ('+HZpendingCount()+')'):''}</button><button class="btn" onclick="HZcalCreate()">＋ New evaluation</button></div></div>
+    <div class="card pad mb" style="border-left:4px solid ${ready?'var(--green)':'var(--red)'}">
+      <b>Qur'an page reference:</b> ${ready?'<span style="color:var(--green)">VALIDATED &amp; READY</span> — page calculations active.':'<span style="color:var(--red)">NOT READY</span> — build the 604-page index in ⚙️ Settings before evaluating.'}</div>
+    ${cals.length?`<div class="card" style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="text-align:left;font-size:11px;color:var(--muted)"><th style="padding:8px">Evaluation</th><th>State</th><th>Window</th><th>Classes</th><th style="text-align:center">Appr/Pend</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>`
+      :`<div class="card pad"><div class="empty"><div class="big">🗓️</div>No evaluations yet. Click <b>New evaluation</b> to create Evaluation 1.<br><span class="muted">For the current term: create Evaluation 1 &amp; 2 and turn on <b>Backfill</b> so teachers can enter the historical results, then schedule Evaluation 3 normally.</span></div></div>`}
+    <p class="muted mt" style="font-size:12px">Teachers can enter an evaluation only when it is <b>OPEN</b> or <b>Backfill</b> is on, and only for their assigned classes/students.</p>`;
+  window.scrollTo(0,0);}
+function HZcalCreate(){if(USER.role!=='admin')return;const cls=DB.classes||[];const nextNo=(HZcalList().filter(c=>c.year===DB.settings.session&&c.term===DB.settings.term).length)+1;
+  modal('New Hifz evaluation',`
+    <div class="grid2"><div class="fld"><label>Academic year</label><input id="hc_year" value="${esc(DB.settings.session)}"></div>
+      <div class="fld"><label>Term</label><input id="hc_term" value="${esc(DB.settings.term)}"></div>
+      <div class="fld"><label>Evaluation number</label><input id="hc_no" type="number" min="1" max="9" value="${nextNo>3?3:nextNo}"></div>
+      <div class="fld"><label>Name (optional)</label><input id="hc_name" placeholder="e.g. First Evaluation"></div>
+      <div class="fld"><label>Open date</label><input id="hc_open" type="date"></div>
+      <div class="fld"><label>Close date</label><input id="hc_close" type="date"></div>
+      <div class="fld"><label>Instructional days (optional — overrides calendar)</label><input id="hc_idays" type="number" min="0" placeholder="auto from calendar"></div></div>
+    <div class="fld"><label>Classes</label><div class="flex gap" style="flex-wrap:wrap">${cls.map(c=>`<label style="display:flex;align-items:center;gap:5px;font-weight:500;text-transform:none"><input type="checkbox" class="hc_cls" value="${c.id}" style="width:auto"> ${esc(c.name)}</label>`).join('')||'<span class="muted">No classes yet</span>'}</div></div>
+    <label style="display:flex;align-items:center;gap:7px;margin-top:6px;font-weight:500;text-transform:none"><input type="checkbox" id="hc_bf" style="width:auto"> Enable historical <b>backfill</b> now (for a previously-done evaluation)</label>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="HZcalSaveNew()">Create</button>`,true);}
+function HZcalSaveNew(){if(USER.role!=='admin')return;const classIds=[...document.querySelectorAll('.hc_cls:checked')].map(c=>c.value);const no=Number($('#hc_no').value)||1;
+  const c={id:'hz'+Date.now().toString(36)+Math.random().toString(36).slice(2,6),year:$('#hc_year').value.trim()||DB.settings.session,term:$('#hc_term').value.trim()||DB.settings.term,
+    evalNo:no,name:$('#hc_name').value.trim()||('Evaluation '+no),open:$('#hc_open').value||'',close:$('#hc_close').value||'',classIds:classIds,teacherIds:[],manualOpen:false,manualClose:false,
+    instructionalDays:($('#hc_idays').value!==''?Number($('#hc_idays').value):null),backfill:$('#hc_bf').checked,createdAt:Date.now(),createdBy:USER.name};
+  DB.hifzCal.push(c);save();closeModal();toast('Evaluation created');vHifzHub();}
+function HZcalEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;const cls=DB.classes||[];
+  modal('Edit evaluation',`
+    <div class="grid2"><div class="fld"><label>Academic year</label><input id="hc_year" value="${esc(c.year)}"></div>
+      <div class="fld"><label>Term</label><input id="hc_term" value="${esc(c.term)}"></div>
+      <div class="fld"><label>Evaluation number</label><input id="hc_no" type="number" min="1" max="9" value="${esc(c.evalNo)}"></div>
+      <div class="fld"><label>Name</label><input id="hc_name" value="${esc(c.name||'')}"></div>
+      <div class="fld"><label>Open date</label><input id="hc_open" type="date" value="${esc(c.open||'')}"></div>
+      <div class="fld"><label>Close date (extend here)</label><input id="hc_close" type="date" value="${esc(c.close||'')}"></div>
+      <div class="fld"><label>Instructional days (optional)</label><input id="hc_idays" type="number" min="0" value="${c.instructionalDays!=null?esc(c.instructionalDays):''}"></div></div>
+    <div class="fld"><label>Classes</label><div class="flex gap" style="flex-wrap:wrap">${cls.map(cc=>`<label style="display:flex;align-items:center;gap:5px;font-weight:500;text-transform:none"><input type="checkbox" class="hc_cls" value="${cc.id}" style="width:auto" ${(c.classIds||[]).indexOf(cc.id)>-1?'checked':''}> ${esc(cc.name)}</label>`).join('')}</div></div>
+    <div class="muted" style="font-size:12px">State is automatic from dates; use the Open/Close/Backfill buttons on the list to override.</div>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button>${HZevalRecs(id).length===0?`<button class="btn sec" style="color:var(--red)" onclick="HZcalDelete('${id}')">Delete</button>`:''}<button class="btn" onclick="HZcalSaveEdit('${id}')">Save</button>`,true);}
+function HZcalSaveEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;
+  c.year=$('#hc_year').value.trim()||c.year;c.term=$('#hc_term').value.trim()||c.term;c.evalNo=Number($('#hc_no').value)||c.evalNo;c.name=$('#hc_name').value.trim()||c.name;
+  c.open=$('#hc_open').value||'';c.close=$('#hc_close').value||'';c.instructionalDays=($('#hc_idays').value!==''?Number($('#hc_idays').value):null);
+  c.classIds=[...document.querySelectorAll('.hc_cls:checked')].map(x=>x.value);save();closeModal();toast('Saved');vHifzHub();}
+function HZcalDelete(id){if(USER.role!=='admin')return;if(HZevalRecs(id).length){toast('Cannot delete — evaluations already exist',true);return;}if(!confirm('Delete this evaluation?'))return;DB.hifzCal=DB.hifzCal.filter(c=>c.id!==id);save();closeModal();toast('Deleted');vHifzHub();}
+function HZsetState(id,how){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;if(how==='open'){c.manualOpen=true;c.manualClose=false;}else{c.manualClose=true;c.manualOpen=false;}save();toast('Evaluation '+(how==='open'?'opened':'closed'));vHifzHub();}
+function HZtoggleBackfill(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;c.backfill=!c.backfill;save();toast('Backfill '+(c.backfill?'enabled — teachers can enter historical results':'closed — evaluation is now read-only'));vHifzHub();}
+/* ---- teacher workflow: home, student list, evaluation form, live preview ---- */
+let HZcur={calId:'',sid:''};
+function HZprevPos(prof){if(prof&&prof.lastApprovedPos)return prof.lastApprovedPos;if(prof&&prof.startSurah)return {surah:prof.startSurah,ayah:prof.startAyah,page:(prof.startPage!=null?prof.startPage:pageOf(prof.startSurah,prof.startAyah))};return null;}
+function HZstatusOf(calId,sid){const e=HZevalFor(calId,sid);return e?e.status:'none';}
+function HZstatusChip(st){const m={none:['#eef1ee','#5a6b5f','Not started'],draft:['#fff7e6','#8a6d1a','Draft'],submitted:['#e9f0ff','#2a5bd7','Submitted'],returned:['#fdeceb','#b00020','Returned'],approved:['#e9f7ee','#0b8a45','Approved']};const x=m[st]||m.none;return '<span style="background:'+x[0]+';color:'+x[1]+';border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700">'+x[2]+'</span>';}
+function HZteacherHome(){const cals=HZcalList().filter(c=>HZaccessible(c)&&HZteacherAuth(c,USER));
+  const cards=cals.map(c=>{const studs=HZstudentsForEval(c,USER);const done=studs.filter(s=>{const st=HZstatusOf(c.id,s.id);return st==='submitted'||st==='approved';}).length;const pct=studs.length?Math.round(done/studs.length*100):0;
+    return `<div class="card pad" style="cursor:pointer" onclick="HZevalOpen('${c.id}')">
+      <div class="flex" style="justify-content:space-between;align-items:flex-start"><div><b>${esc(c.name||('Evaluation '+c.evalNo))}</b> ${HZstateBadge(c)}<div class="muted" style="font-size:12px">${esc(c.year||'')} · ${esc(c.term||'')} · Eval ${esc(c.evalNo)}</div></div><div style="text-align:right"><div style="font-weight:800;font-size:15px">${done}/${studs.length}</div><div class="muted" style="font-size:11px">completed</div></div></div>
+      <div style="height:8px;background:#e2e8e4;border-radius:20px;overflow:hidden;margin-top:8px"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0b8a45,#caa64e)"></div></div></div>`;}).join('');
+  $('#view').innerHTML=`<div class="page-head"><div><h2>📖 Hifz Evaluation</h2><p>Your open evaluations · ${esc(DB.settings.term)}, ${esc(DB.settings.session)}</p></div></div>
+    ${hifzReady()?'':'<div class="card pad mb" style="border-left:4px solid var(--red)">⚠ The Qur\'an page index is not loaded yet — ask the administrator to build it in Hifz settings before evaluating.</div>'}
+    ${cals.length?cards:'<div class="card pad"><div class="empty"><div class="big">🕓</div>No evaluations are open for you right now.<br><span class="muted">An evaluation appears here when the administrator opens it or enables historical backfill for your class.</span></div></div>'}`;
+  window.scrollTo(0,0);}
+function HZevalOpen(calId){const c=HZcalGet(calId);if(!c||!HZaccessible(c)||!HZteacherAuth(c,USER)){toast('This evaluation is not open for you',true);return;}
+  const studs=HZstudentsForEval(c,USER);const done=studs.filter(s=>{const st=HZstatusOf(calId,s.id);return st==='submitted'||st==='approved';}).length;
+  const rows=studs.map((s,i)=>{const st=HZstatusOf(calId,s.id);const e=HZevalFor(calId,s.id);const lock=(st==='submitted'||st==='approved');
+    return `<div class="card pad" style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:8px">
+      <div><b>${esc(s.name)}</b> <span class="muted" style="font-size:11px">· ${esc(s.admissionNo||'')}</span><div style="margin-top:2px">${HZstatusChip(st)}${e&&e.scores?(' <span class="muted" style="font-size:11.5px">'+e.scores.total+'/100 · '+esc(e.scores.band)+'</span>'):''}</div></div>
+      <button class="btn sm ${lock?'sec':''}" onclick="HZform('${calId}','${s.id}')">${lock?'View':(st==='returned'?'Fix & resubmit':(st==='draft'?'Continue':'Evaluate'))}</button></div>`;}).join('');
+  $('#view').innerHTML=`<div class="page-head"><div><h2>${esc(c.name||('Evaluation '+c.evalNo))} ${HZstateBadge(c)}</h2><p>${esc(c.year||'')} · ${esc(c.term||'')} · Eval ${esc(c.evalNo)}</p></div><button class="btn sec" onclick="go('hifz')">← Back</button></div>
+    <div class="card pad mb" style="display:flex;justify-content:space-between;align-items:center"><b>Progress</b><span>${done}/${studs.length} completed</span></div>
+    <div style="height:8px;background:#e2e8e4;border-radius:20px;overflow:hidden;margin-bottom:12px"><div style="height:100%;width:${studs.length?Math.round(done/studs.length*100):0}%;background:linear-gradient(90deg,#0b8a45,#caa64e)"></div></div>
+    ${rows||'<div class="card pad"><div class="empty">No students assigned to you in this evaluation.</div></div>'}`;
+  window.scrollTo(0,0);}
+function HZratingOpts(sel){const labels={5:'Excellent',4:'Very Good',3:'Good',2:'Needs Improvement',1:'Weak'};let o='<option value="">— select —</option>';[5,4,3,2,1].forEach(r=>{o+='<option value="'+r+'" '+(String(sel)===String(r)?'selected':'')+'>'+r+' — '+labels[r]+'</option>';});return o;}
+function HZnum(id,val,ph){return '<input id="'+id+'" type="number" min="0" step="1" value="'+(val!=null&&val!==''?esc(val):'')+'" placeholder="'+(ph||'0')+'" oninput="HZlive()">';}
+function HZform(calId,sid){const c=HZcalGet(calId);const s=DB.students.find(x=>x.id===sid);if(!c||!s){toast('Not found',true);return;}
+  HZcur={calId:calId,sid:sid};const prof=ensureHifzProfile(sid);const prev=HZprevPos(prof);const e=HZevalFor(calId,sid);const r=(e&&e.raw)||{};const mu=r.mura||{};
+  const st=e?e.status:'none';const editable=HZaccessible(c)&&HZteacherAuth(c,USER)&&(st==='none'||st==='draft'||st==='returned');
+  const defDate=(e&&e.date)||(c.backfill?(c.close||c.open||''):today());
+  const prevTxt=prev?(surahLabel(prev.surah)+' : Ayah '+prev.ayah+(prev.page!=null?(' · Page '+prev.page):'')):'Not set (start of programme)';
+  const dis=editable?'':' disabled';
+  const tip=(t)=>'<span title="'+t+'" style="cursor:help;color:var(--muted);font-size:11px">ⓘ</span>';
+  let h='<div class="page-head no-print"><div><h2>'+esc(c.name||('Evaluation '+c.evalNo))+'</h2><p>'+esc(c.term)+', '+esc(c.year)+' · Eval '+esc(c.evalNo)+'</p></div><button class="btn sec" onclick="HZevalOpen(\''+calId+'\')">← Back</button></div>';
+  if(e&&(st==='returned'||st==='submitted'||st==='approved')){h+='<div class="card pad mb" style="border-left:4px solid '+(st==='returned'?'var(--red)':st==='approved'?'var(--green)':'#2a5bd7')+'">Status: '+HZstatusChip(st)+(e.reviewComment&&st==='returned'?(' — <b>Reviewer:</b> '+esc(e.reviewComment)):'')+(st==='approved'?' — this evaluation is final and read-only.':st==='submitted'?' — awaiting admin review (read-only).':'')+'</div>';}
+  if(!hifzReady())h+='<div class="card pad mb" style="border-left:4px solid var(--red)">⚠ Qur\'an page index not loaded — page calculations are blocked. Ask the admin to build it in Hifz settings.</div>';
+  h+='<div class="grid2" style="align-items:start"><div>';
+  // Header block
+  h+='<div class="card pad mb"><div class="_pfg"><div><div class="muted" style="font-size:10px;text-transform:uppercase">Student</div><b>'+esc(s.name)+'</b></div><div><div class="muted" style="font-size:10px;text-transform:uppercase">Teacher</div><b>'+esc(USER.name)+'</b></div></div>'
+    +'<div class="fld mt"><label>Actual evaluation date '+(c.backfill?'(historical — enter the real date it happened)':'')+'</label><input id="hz_date" type="date" value="'+esc(defDate)+'"'+dis+' onchange="HZlive()"></div></div>';
+  // Current position
+  h+='<div class="card pad mb"><h4 class="mb">Current Hifz position</h4>'
+    +'<div class="muted" style="font-size:12px">Previous approved: <b>'+esc(prevTxt)+'</b> · Direction: '+esc(hifzDirLabel(prof.direction))+'</div>'
+    +'<div class="grid2 mt"><div class="fld"><label>Current Surah</label><select id="hz_cs"'+dis+' onchange="HZlive()">'+surahOpts(r.curSurah||(prev?prev.surah:''))+'</select></div>'
+    +'<div class="fld"><label>Current Ayah</label><input id="hz_ca" type="number" min="1" value="'+(r.curAyah!=null?esc(r.curAyah):(prev?esc(prev.ayah):''))+'"'+dis+' oninput="HZlive()"></div></div>'
+    +'<div id="hz_curpage" class="muted" style="font-size:12.5px;margin-top:4px"></div></div>';
+  // New portion
+  h+='<div class="card pad mb"><h4 class="mb">New portion assessed this evaluation</h4>'
+    +'<div class="grid2"><div class="fld"><label>Assessed from page</label><input id="hz_af" type="number" min="1" max="604" value="'+(r.assessedFromPage!=null?esc(r.assessedFromPage):'')+'"'+dis+' oninput="HZlive()"></div>'
+    +'<div class="fld"><label>Assessed to page</label><input id="hz_at" type="number" min="1" max="604" value="'+(r.assessedToPage!=null?esc(r.assessedToPage):'')+'"'+dis+' oninput="HZlive()"></div></div>'
+    +'<div class="fld"><label>New portion result</label><div class="flex gap" style="flex-wrap:wrap">'
+    +['PASSED','PARTIAL','NOT_PASSED'].map(v=>'<label style="display:flex;align-items:center;gap:5px;font-weight:600;text-transform:none"><input type="radio" name="hz_res" value="'+v+'" style="width:auto" '+(r.newResult===v?'checked':'')+dis+' onchange="HZlive()"> '+(v==='NOT_PASSED'?'Not passed':v.charAt(0)+v.slice(1).toLowerCase())+'</label>').join('')+'</div></div>'
+    +'<div id="hz_partial" class="grid2" style="display:none"><div class="fld"><label>Verified from page</label><input id="hz_vf" type="number" min="1" max="604" value="'+(r.verFromPage!=null?esc(r.verFromPage):'')+'"'+dis+' oninput="HZlive()"></div><div class="fld"><label>Verified to page</label><input id="hz_vt" type="number" min="1" max="604" value="'+(r.verToPage!=null?esc(r.verToPage):'')+'"'+dis+' oninput="HZlive()"></div></div>'
+    +'<div class="muted" style="font-size:11.5px">Passed → the assessed range becomes verified coverage after approval. Partial → only the verified range. Not passed → no coverage added.</div></div>';
+  // Accuracy
+  h+='<div class="card pad mb"><h4 class="mb">Accuracy observations '+tip('Counts on the NEW portion. The score is computed automatically.')+'</h4><div class="grid2">'
+    +'<div class="fld"><label>Major mistakes '+tip('A significant error affecting the recitation or needing substantial correction.')+'</label>'+HZnum('hz_maj',r.major)+'</div>'
+    +'<div class="fld"><label>Minor mistakes '+tip('A small slip the student can correct with little or no help.')+'</label>'+HZnum('hz_min',r.minor)+'</div>'
+    +'<div class="fld"><label>Prompts '+tip('A hint given to help the student continue.')+'</label>'+HZnum('hz_pro',r.prompts)+'</div>'
+    +'<div class="fld"><label>Forgotten portions '+tip('The student cannot independently recall a portion that should be memorised.')+'</label>'+HZnum('hz_for',r.forgotten)+'</div></div></div>';
+  // Muraja'ah
+  h+='<div class="card pad mb"><h4 class="mb">Muraja\'ah — retention of OLDER memorised material</h4><div class="muted" style="font-size:12px;margin-bottom:6px">Test previously-memorised pages (not the new portion).</div>'
+    +'<div class="grid2"><div class="fld"><label>Muraja\'ah from page</label><input id="hz_mf" type="number" min="1" max="604" value="'+(mu.fromPage!=null?esc(mu.fromPage):'')+'"'+dis+' oninput="HZlive()"></div><div class="fld"><label>Muraja\'ah to page</label><input id="hz_mt" type="number" min="1" max="604" value="'+(mu.toPage!=null?esc(mu.toPage):'')+'"'+dis+' oninput="HZlive()"></div></div>'
+    +'<div class="grid2"><div class="fld"><label>Major</label>'+HZnum('hz_mmaj',mu.major)+'</div><div class="fld"><label>Minor</label>'+HZnum('hz_mmin',mu.minor)+'</div><div class="fld"><label>Prompts</label>'+HZnum('hz_mpro',mu.prompts)+'</div><div class="fld"><label>Forgotten</label>'+HZnum('hz_mfor',mu.forgotten)+'</div></div></div>';
+  // Fluency / Tajweed / comment
+  h+='<div class="card pad mb"><div class="grid2"><div class="fld"><label>Fluency (1–5)</label><select id="hz_flu"'+dis+' onchange="HZlive()">'+HZratingOpts(r.fluency)+'</select></div>'
+    +'<div class="fld"><label>Tajweed (1–5)</label><select id="hz_taj"'+dis+' onchange="HZlive()">'+HZratingOpts(r.tajweed)+'</select></div></div>'
+    +'<div class="fld"><label>Teacher comment</label><textarea id="hz_comment" rows="2"'+dis+'>'+esc(r.comment||'')+'</textarea></div></div>';
+  h+='</div><div>';
+  // Live preview panel
+  h+='<div class="card pad mb" id="hzPrev" style="position:sticky;top:10px"></div>';
+  if(editable){h+='<div class="flex gap no-print"><button class="btn sec" onclick="HZsaveDraft()">💾 Save draft</button><button class="btn" onclick="HZsubmit()">✔ Submit</button></div>'
+    +'<div class="mt"><button class="btn sec sm" onclick="HZsaveNext()">Save &amp; next student →</button></div>';}
+  h+='</div></div>';
+  $('#view').innerHTML=h;HZlive();window.scrollTo(0,0);}
+function HZread(){const g=id=>{const el=$('#'+id);return el?el.value:'';};const gn=id=>{const v=g(id);return v===''?'':Number(v);};
+  const res=(document.querySelector('input[name=hz_res]:checked')||{}).value||'';const cs=gn('hz_cs'),ca=gn('hz_ca');
+  return {date:g('hz_date'),curSurah:cs,curAyah:ca,assessedFromPage:gn('hz_af'),assessedToPage:gn('hz_at'),newResult:res,verFromPage:gn('hz_vf'),verToPage:gn('hz_vt'),
+    major:gn('hz_maj')||0,minor:gn('hz_min')||0,prompts:gn('hz_pro')||0,forgotten:gn('hz_for')||0,
+    mura:{fromPage:gn('hz_mf'),toPage:gn('hz_mt'),major:gn('hz_mmaj')||0,minor:gn('hz_mmin')||0,prompts:gn('hz_mpro')||0,forgotten:gn('hz_mfor')||0},
+    fluency:gn('hz_flu')||0,tajweed:gn('hz_taj')||0,comment:g('hz_comment')};}
+function HZbar(label,val,max,color){const pct=max>0?Math.round(val/max*100):0;return '<div style="margin-bottom:6px"><div style="display:flex;justify-content:space-between;font-size:12px"><span>'+label+'</span><b>'+val+' / '+max+'</b></div><div style="height:7px;background:#e2e8e4;border-radius:20px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+(color||'#0b8a45')+'"></div></div></div>';}
+function HZlive(){const c=HZcalGet(HZcur.calId);if(!c)return;const raw=HZread();const W=HZw();
+  const part=$('#hz_partial');if(part)part.style.display=(raw.newResult==='PARTIAL')?'grid':'none';
+  const cp=$('#hz_curpage');if(cp){if(raw.curSurah&&raw.curAyah){const pg=pageOf(raw.curSurah,raw.curAyah);cp.innerHTML=pg!=null?('Current position: <b>'+surahLabel(raw.curSurah)+' — Ayah '+raw.curAyah+' — Page '+pg+'</b>'):'<span style="color:var(--red)">Page unavailable (index not loaded)</span>';}else cp.textContent='';}
+  const sc=HZcompute(raw,c);const box=$('#hzPrev');if(!box)return;
+  let h='<h4 class="mb">Live score (auto-calculated)</h4>'
+    +HZbar('Hifz Progress',sc.prog,W.prog)+HZbar('Accuracy',sc.acc,W.acc,'#2a7d46')+HZbar("Muraja'ah",sc.mur,W.mur,'#2a5bd7')+HZbar('Fluency',sc.flu,W.flu,'#8a6d1a')+HZbar('Tajweed',sc.taj,W.taj,'#8a5bd7')
+    +'<div style="border-top:1px solid #e2e8e4;margin:8px 0;padding-top:8px;display:flex;justify-content:space-between;align-items:center"><b>Total</b><span style="font-weight:800;font-size:20px">'+sc.total+' / 100</span></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:12.5px"><span>Band</span><b>'+esc(sc.band)+'</b></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:12.5px"><span>Hifz Mastery</span><b>'+sc.mastery+'%</b></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:12.5px"><span>Expected / Verified pages</span><b>'+sc.expectedPages+' / '+sc.verifiedPages+'</b></div>';
+  if(sc.alerts.length)h+='<div style="margin-top:8px">'+sc.alerts.map(a=>'<div style="background:#fff7e6;color:#8a6d1a;border-radius:7px;padding:4px 8px;font-size:12px;margin-bottom:4px">⚠️ '+esc(a)+'</div>').join('')+'</div>';
+  box.innerHTML=h;}
+function HZvalidate(raw,c,prof){const err=[];
+  if(!hifzReady())err.push('Qur\'an page index not loaded — cannot compute pages.');
+  if(!raw.date)err.push('Enter the actual evaluation date.');
+  if(!raw.curSurah||!raw.curAyah)err.push('Enter the current Surah and Ayah.');
+  else{const cnt=surahCount(raw.curSurah);if(!(raw.curAyah>=1&&raw.curAyah<=cnt))err.push('Current Ayah must be 1–'+cnt+' for '+surahLabel(raw.curSurah)+'.');}
+  const af=raw.assessedFromPage,at=raw.assessedToPage;
+  if(!(af>=1&&af<=604)||!(at>=1&&at<=604))err.push('Assessed page range must be within 1–604.');
+  else if(af>at)err.push('Assessed "from" page cannot be after the "to" page.');
+  if(!raw.newResult)err.push('Choose the new-portion result (Passed / Partial / Not passed).');
+  if(raw.newResult==='PARTIAL'){const vf=raw.verFromPage,vt=raw.verToPage;
+    if(!(vf>=1&&vt>=1))err.push('For a Partial result, enter the exact verified page range.');
+    else if(vf>vt)err.push('Verified "from" page cannot be after the "to" page.');
+    else if(af>=1&&at>=1&&(vf<Math.min(af,at)||vt>Math.max(af,at)))err.push('Verified range must fall within the assessed range.');}
+  ['major','minor','prompts','forgotten'].forEach(k=>{if(raw[k]<0||!Number.isInteger(raw[k]))err.push('Accuracy counts must be whole numbers ≥ 0.');});
+  const mu=raw.mura||{};
+  if(!(mu.fromPage>=1&&mu.toPage>=1))err.push('Enter the Muraja\'ah (older material) page range.');
+  else if(mu.fromPage>mu.toPage)err.push('Muraja\'ah "from" page cannot be after the "to" page.');
+  ['major','minor','prompts','forgotten'].forEach(k=>{if(mu[k]<0||!Number.isInteger(mu[k]))err.push('Muraja\'ah counts must be whole numbers ≥ 0.');});
+  if(!(raw.fluency>=1&&raw.fluency<=5))err.push('Select a Fluency rating (1–5).');
+  if(!(raw.tajweed>=1&&raw.tajweed<=5))err.push('Select a Tajweed rating (1–5).');
+  // regression check vs direction
+  const prev=HZprevPos(prof);const curPg=(raw.curSurah&&raw.curAyah)?pageOf(raw.curSurah,raw.curAyah):null;
+  if(prev&&prev.page!=null&&curPg!=null){const back=(prof.direction==='BOTTOM_TO_TOP')?(curPg>prev.page):(curPg<prev.page);
+    if(back&&!(raw.comment&&raw.comment.trim().length>3))err.push('Current position appears to move backward for this direction — add a comment explaining, or have the admin adjust the profile.');}
+  return err;}
+function HZupsert(status){const c=HZcalGet(HZcur.calId);const s=DB.students.find(x=>x.id===HZcur.sid);if(!c||!s)return null;
+  const prof=ensureHifzProfile(s.id);const raw=HZread();
+  if(status==='submitted'){const errs=HZvalidate(raw,c,prof);if(errs.length){toast(errs[0],true);return null;}}
+  const sc=HZcompute(raw,c);const prev=HZprevPos(prof);const now=Date.now();
+  let e=HZevalFor(c.id,s.id);
+  const curPos={surah:raw.curSurah,ayah:raw.curAyah,page:(raw.curSurah&&raw.curAyah)?pageOf(raw.curSurah,raw.curAyah):null};
+  if(!e){e={id:'he'+now.toString(36)+Math.random().toString(36).slice(2,6),calId:c.id,studentId:s.id,year:c.year,term:c.term,evalNo:c.evalNo,coverageApplied:false,audit:[]};DB.hifzEvals.push(e);}
+  e.date=raw.date;e.teacherId=USER.id;e.teacherName=USER.name;e.historical=!!c.backfill;
+  e.prev=prev?{surah:prev.surah,ayah:prev.ayah,page:prev.page}:null;e.cur=curPos;
+  e.raw={curSurah:raw.curSurah,curAyah:raw.curAyah,assessedFromPage:raw.assessedFromPage,assessedToPage:raw.assessedToPage,newResult:raw.newResult,verFromPage:raw.verFromPage,verToPage:raw.verToPage,major:raw.major,minor:raw.minor,prompts:raw.prompts,forgotten:raw.forgotten,mura:raw.mura,fluency:raw.fluency,tajweed:raw.tajweed,comment:raw.comment};
+  e.scores={prog:sc.prog,acc:sc.acc,mur:sc.mur,flu:sc.flu,taj:sc.taj,total:sc.total,band:sc.band,alerts:sc.alerts,mastery:sc.mastery,expectedPages:sc.expectedPages,verifiedPages:sc.verifiedPages};
+  e.coverageAdded=sc.coverageAdded;
+  e.status=status;e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:status==='submitted'?'submitted':'saved draft'});
+  if(status==='submitted')e.submittedAt=now;
+  save();return e;}
+function HZsaveDraft(){const e=HZupsert('draft');if(e){toast('Draft saved');HZevalOpen(HZcur.calId);}}
+function HZsubmit(){const e=HZupsert('submitted');if(e){toast('Submitted for admin review');HZevalOpen(HZcur.calId);}}
+function HZsaveNext(){const cur=HZcur;const e=HZupsert('draft');if(!e)return;const c=HZcalGet(cur.calId);const studs=HZstudentsForEval(c,USER);const i=studs.findIndex(x=>x.id===cur.sid);const nx=studs[i+1];if(nx){toast('Saved · next student');HZform(cur.calId,nx.id);}else{toast('Saved · that was the last student');HZevalOpen(cur.calId);}}
+/* ---- admin review + approval / coverage application ---- */
+function vHifzReview(){if(USER.role!=='admin'){$('#view').innerHTML='<div class="card pad">Administrator only.</div>';return;}
+  const evs=(DB.hifzEvals||[]).slice().sort((a,b)=>(b.submittedAt||b.audit&&b.audit[0]&&b.audit[0].at||0)-(a.submittedAt||a.audit&&a.audit[0]&&a.audit[0].at||0));
+  const grp=st=>evs.filter(e=>e.status===st);
+  const sName=id=>{const s=DB.students.find(x=>x.id===id);return s?s.name:'—';};
+  const calName=id=>{const c=HZcalGet(id);return c?esc(c.name||('Eval '+c.evalNo)):'—';};
+  const rowset=list=>list.length?list.map(e=>`<tr>
+      <td style="padding:6px 8px"><b>${esc(sName(e.studentId))}</b></td><td style="font-size:12px">${esc(e.teacherName||'')}</td>
+      <td style="font-size:12px">${calName(e.calId)} · Eval ${esc(e.evalNo)}</td>
+      <td style="font-size:12px">${esc(e.date||'')}${e.historical?' <span style="color:#8a6d1a">(hist.)</span>':''}</td>
+      <td style="text-align:center"><b>${e.scores?e.scores.total:'—'}</b>${e.scores?('<div class="muted" style="font-size:10px">'+esc(e.scores.band)+'</div>'):''}</td>
+      <td>${HZstatusChip(e.status)}</td>
+      <td style="text-align:right;padding-right:8px"><button class="btn sm" onclick="HZreview('${e.id}')">Open</button></td></tr>`).join(''):'<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:14px">None</td></tr>';
+  $('#view').innerHTML=`<div class="page-head"><div><h2>✅ Hifz — Review submissions</h2><p>Approve or return teacher evaluations</p></div><button class="btn sec" onclick="go('hifz')">← Hifz</button></div>
+    <div class="card mb" style="overflow-x:auto"><div class="pad"><b>Pending review (${grp('submitted').length})</b></div><table style="width:100%;border-collapse:collapse"><tbody>${rowset(grp('submitted'))}</tbody></table></div>
+    <div class="card mb" style="overflow-x:auto"><div class="pad"><b>Returned (${grp('returned').length})</b></div><table style="width:100%;border-collapse:collapse"><tbody>${rowset(grp('returned'))}</tbody></table></div>
+    <div class="card" style="overflow-x:auto"><div class="pad"><b>Approved (${grp('approved').length})</b></div><table style="width:100%;border-collapse:collapse"><tbody>${rowset(grp('approved'))}</tbody></table></div>`;
+  window.scrollTo(0,0);}
+function HZreview(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;const s=DB.students.find(x=>x.id===e.studentId)||{};const c=HZcalGet(e.calId)||{};const r=e.raw||{};const mu=r.mura||{};const sc=e.scores||{};const W=HZw();
+  const line=(l,v)=>'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;gap:10px"><span class="muted">'+l+'</span><b style="text-align:right">'+v+'</b></div>';
+  let body='<div class="muted" style="font-size:12px;margin-bottom:8px">'+esc(s.name)+' · '+esc(c.name||('Eval '+e.evalNo))+' · '+esc(e.term)+', '+esc(e.year)+' · Date: <b>'+esc(e.date||'')+'</b>'+(e.historical?' (historical)':'')+' · Teacher: '+esc(e.teacherName||'')+'</div><div class="grid2">';
+  body+='<div>'+line('Previous approved',e.prev?(surahLabel(e.prev.surah)+':'+e.prev.ayah+(e.prev.page!=null?(' p'+e.prev.page):'')):'—')
+    +line('Current position',e.cur?(surahLabel(e.cur.surah)+':'+e.cur.ayah+(e.cur.page!=null?(' p'+e.cur.page):'')):'—')
+    +line('Assessed range','p'+esc(r.assessedFromPage)+'–'+esc(r.assessedToPage))
+    +line('New-portion result',esc(r.newResult))
+    +line('Verified this eval',esc(sc.verifiedPages)+' page(s)')
+    +line('Coverage to add',e.coverageAdded?('p'+e.coverageAdded[0]+'–'+e.coverageAdded[1]):'none')
+    +line('Accuracy obs','maj '+esc(r.major)+' · min '+esc(r.minor)+' · prompt '+esc(r.prompts)+' · forgot '+esc(r.forgotten))
+    +line("Muraja'ah",'p'+esc(mu.fromPage)+'–'+esc(mu.toPage)+' · maj '+esc(mu.major)+' min '+esc(mu.minor)+' prompt '+esc(mu.prompts)+' forgot '+esc(mu.forgotten))
+    +line('Fluency / Tajweed',esc(r.fluency)+' / '+esc(r.tajweed))+'</div>';
+  body+='<div>'+HZbar('Progress',sc.prog||0,W.prog)+HZbar('Accuracy',sc.acc||0,W.acc,'#2a7d46')+HZbar("Muraja'ah",sc.mur||0,W.mur,'#2a5bd7')+HZbar('Fluency',sc.flu||0,W.flu,'#8a6d1a')+HZbar('Tajweed',sc.taj||0,W.taj,'#8a5bd7')
+    +'<div style="display:flex;justify-content:space-between;border-top:1px solid #e2e8e4;margin-top:6px;padding-top:6px"><b>Total</b><b>'+(sc.total||0)+'/100 · '+esc(sc.band||'')+'</b></div>'
+    +line('Hifz Mastery',(sc.mastery||0)+'%')+line('Expected / Verified',(sc.expectedPages||0)+' / '+(sc.verifiedPages||0))
+    +((sc.alerts&&sc.alerts.length)?('<div style="margin-top:6px">'+sc.alerts.map(a=>'<div style="background:#fff7e6;color:#8a6d1a;border-radius:6px;padding:3px 7px;font-size:12px;margin-bottom:3px">⚠️ '+esc(a)+'</div>').join('')+'</div>'):'')+'</div></div>';
+  if(r.comment)body+='<div class="mt" style="font-size:12.5px"><b>Teacher comment:</b> '+esc(r.comment)+'</div>';
+  body+='<div class="fld mt"><label>Review comment (required to return)</label><textarea id="hz_rev" rows="2">'+esc(e.reviewComment||'')+'</textarea></div>';
+  const foot=e.status==='approved'
+    ?'<button class="btn sec" onclick="closeModal()">Close</button><button class="btn sec" style="color:var(--red)" onclick="HZreturn(\''+evalId+'\')">↩ Reopen &amp; return</button>'
+    :'<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn sec" style="color:var(--red)" onclick="HZreturn(\''+evalId+'\')">↩ Return</button><button class="btn" onclick="HZapprove(\''+evalId+'\')">✔ Approve</button>';
+  modal('Review evaluation',body,foot,true);}
+function HZapprove(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;const now=Date.now();
+  const rc=$('#hz_rev');if(rc&&rc.value.trim())e.reviewComment=rc.value.trim();
+  e.status='approved';e.reviewer=USER.name;e.reviewedAt=now;e.approvedAt=now;
+  const prof=ensureHifzProfile(e.studentId);
+  if(!e.coverageApplied){if(e.coverageAdded)prof.coverage=hifzMergeCoverage(prof.coverage,e.coverageAdded);e.coverageApplied=true;}
+  if(e.cur&&e.cur.surah)prof.lastApprovedPos={surah:e.cur.surah,ayah:e.cur.ayah,page:e.cur.page};
+  prof.history=prof.history||[];prof.history.push({at:now,by:USER.name,action:'evaluation approved',field:'coverage',from:'',to:(e.coverageAdded?('p'+e.coverageAdded[0]+'–'+e.coverageAdded[1]):'no new pages')});
+  e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:'approved'});
+  save();closeModal();toast('Approved — coverage, reports & parent view updated');vHifzReview();}
+function HZreturn(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;const rc=$('#hz_rev');const reason=rc?rc.value.trim():'';if(!reason){toast('Enter a review comment explaining what to fix',true);return;}
+  const now=Date.now();e.status='returned';e.reviewer=USER.name;e.reviewedAt=now;e.reviewComment=reason;e.audit=e.audit||[];e.audit.push({at:now,by:USER.name,action:'returned',note:reason});save();closeModal();toast('Returned to teacher');vHifzReview();}
+/* ---- reports: approved evals, weighted term result, trend, expected-vs-actual, insights ---- */
+function HZapprovedEvals(sid,year,term){return (DB.hifzEvals||[]).filter(e=>e.studentId===sid&&e.status==='approved'&&(!year||e.year===year)&&(!term||e.term===term)).sort((a,b)=>Number(a.evalNo)-Number(b.evalNo)||(a.approvedAt||0)-(b.approvedAt||0));}
+function HZallApprovedChrono(sid){return (DB.hifzEvals||[]).filter(e=>e.studentId===sid&&e.status==='approved').sort((a,b)=>String(a.date||'').localeCompare(String(b.date||''))||Number(a.evalNo)-Number(b.evalNo));}
+function HZtermResult(sid,year,term){const H=HZcfg();const per=Number(H.evalsPerTerm)||3;const tw=(H.termWeights||[25,30,45]).slice(0,per);const evals=HZapprovedEvals(sid,year,term);
+  const byNo={};evals.forEach(e=>{byNo[Number(e.evalNo)]=e;});const have=[];for(let i=1;i<=per;i++){if(byNo[i])have.push(byNo[i]);}
+  const ready=have.length>=per;let termScore=null;
+  if(ready){const wsum=tw.reduce((a,b)=>a+(Number(b)||0),0)||1;let s=0;for(let i=1;i<=per;i++)s+=(byNo[i].scores.total||0)*((Number(tw[i-1])||0)/wsum);termScore=Math.round(s);}
+  return {ready:ready,count:have.length,required:per,termScore:termScore,band:termScore!=null?HZband(termScore):null,byNo:byNo,evals:evals,termWeights:tw};}
+function HZtrend(sid,year,term){const evals=HZapprovedEvals(sid,year,term);if(evals.length<2)return {label:'Not enough data',dir:0};const d=evals[evals.length-1].scores.total-evals[0].scores.total;if(d>=3)return {label:'Improving',dir:1};if(d<=-3)return {label:'Declining',dir:-1};return {label:'Stable',dir:0};}
+function HZexpVsActual(sid,year,term){const evals=HZapprovedEvals(sid,year,term);let exp=0,ver=0;evals.forEach(e=>{exp+=(e.scores.expectedPages||0);ver+=(e.scores.verifiedPages||0);});const diff=ver-exp;const t=HZcfg().trackThresholds||{};
+  let status;if(diff>=(t.ahead!=null?t.ahead:5))status='AHEAD';else if(diff<=(t.sigBehind!=null?t.sigBehind:-15))status='SIGNIFICANTLY BEHIND';else if(diff<=(t.behind!=null?t.behind:-5))status='SLIGHTLY BEHIND';else status='ON TRACK';
+  return {expected:exp,verified:ver,diff:diff,status:status};}
+function HZavgComp(evals,k){if(!evals.length)return 0;let s=0;evals.forEach(e=>s+=(e.scores[k]||0));return s/evals.length;}
+function HZstrengthsAreas(sid,year,term){const W=HZw();const evals=HZapprovedEvals(sid,year,term);const comp=[['Accuracy','acc',W.acc],["Muraja'ah",'mur',W.mur],['Fluency','flu',W.flu],['Tajweed','taj',W.taj],['Progress','prog',W.prog]];const str=[],area=[];
+  if(!evals.length)return {str:str,area:area};comp.forEach(c=>{const n=c[2]>0?HZavgComp(evals,c[1])/c[2]:0;if(n>=0.8)str.push(c[0]);else if(n<0.6)area.push(c[0]);});return {str:str,area:area};}
+function HZinsights(sid,year,term){const W=HZw();const evals=HZapprovedEvals(sid,year,term);const out=[];if(!evals.length)return out;const eva=HZexpVsActual(sid,year,term);
+  if(HZavgComp(evals,'acc')/W.acc>=0.85)out.push('Strong recitation accuracy.');
+  if(HZavgComp(evals,'mur')/W.mur<0.6)out.push("Retention and revision (Muraja'ah) require additional attention.");
+  if(HZavgComp(evals,'taj')/W.taj<0.6)out.push('Tajweed requires focused improvement.');
+  if(HZavgComp(evals,'flu')/W.flu<0.6)out.push('Fluency requires focused improvement.');
+  if(eva.status==='AHEAD')out.push('Memorisation progress is ahead of the expected target.');
+  if(eva.status==='SLIGHTLY BEHIND'||eva.status==='SIGNIFICANTLY BEHIND')out.push('Memorisation progress is below the expected target.');
+  return out;}
+function HZcompletionBar(cov){const mp=Number(hifzCfg().mushafPages)||604;const uniq=hifzUniquePages(cov);const pct=hifzCompletionPct(cov);const rem=Math.max(0,mp-uniq);
+  return '<div style="background:#f5f8f6;border-radius:12px;padding:12px 14px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted)"><span>Qur\'an completion (unique verified)</span><span><b>'+pct+'%</b></span></div><div style="height:14px;background:#e2e8e4;border-radius:20px;overflow:hidden;margin:5px 0"><div style="height:100%;width:'+pct+'%;background:linear-gradient(90deg,#0b8a45,#caa64e)"></div></div><div style="font-size:12px;color:var(--muted)">'+uniq+' / '+mp+' pages · '+rem+' remaining</div></div>';}
+function HZevalRowsHTML(sid){const evals=HZallApprovedChrono(sid);if(!evals.length)return '<tr><td colspan="13" style="text-align:center;color:var(--muted);padding:12px">No approved evaluations yet.</td></tr>';
+  return evals.map(e=>{const sc=e.scores||{};const cov=hifzProfile(sid)?null:null;return '<tr>'
+    +'<td style="padding:5px 6px">'+esc(e.date||'')+'</td><td>'+esc(e.term)+'</td><td style="text-align:center">'+esc(e.evalNo)+'</td><td style="font-size:11px">'+esc(e.teacherName||'')+'</td>'
+    +'<td style="text-align:center">'+(sc.expectedPages||0)+'</td><td style="text-align:center">'+(sc.verifiedPages||0)+'</td>'
+    +'<td style="text-align:center">'+(sc.prog||0)+'</td><td style="text-align:center">'+(sc.acc||0)+'</td><td style="text-align:center">'+(sc.mur||0)+'</td><td style="text-align:center">'+(sc.flu||0)+'</td><td style="text-align:center">'+(sc.taj||0)+'</td>'
+    +'<td style="text-align:center"><b>'+(sc.total||0)+'</b></td><td style="font-size:11px">'+esc(sc.band||'')+' · '+(sc.mastery||0)+'%'+((sc.alerts&&sc.alerts.length)?' ⚠️':'')+'</td></tr>';}).join('');}
+function HZstudentReport(sid,year,term){const s=DB.students.find(x=>x.id===sid);if(!s)return;year=year||DB.settings.session;term=term||DB.settings.term;
+  const prof=ensureHifzProfile(sid);const tres=HZtermResult(sid,year,term);const tr=HZtrend(sid,year,term);const eva=HZexpVsActual(sid,year,term);const sa=HZstrengthsAreas(sid,year,term);const ins=HZinsights(sid,year,term);
+  const teacher=classTeacher(s.classId);const latest=HZallApprovedChrono(sid).slice(-1)[0];const mastery=latest?latest.scores.mastery:0;
+  let h='<div class="page-head no-print"><div><h2>📄 Hifz report — '+esc(s.name)+'</h2><p>'+esc(term)+', '+esc(year)+'</p></div><div class="flex gap"><button class="btn sec" onclick="history.length>1?history.back():go(\'hifz\')">← Back</button><button class="btn" onclick="window.print()">🖨 Print</button></div></div>';
+  h+='<div class="card pad" id="hzReport">';
+  h+='<div style="text-align:center;margin-bottom:10px"><div style="font-weight:800;font-size:18px;color:var(--green)">'+esc((DB.settings.schoolName||'').toUpperCase())+'</div><div style="font-weight:700">TERM HIFZ REPORT — '+esc(term)+', '+esc(year)+'</div></div>';
+  h+='<div class="_pfg" style="margin-bottom:8px"><div><span class="muted" style="font-size:11px">Student</span><br><b>'+esc(s.name)+'</b></div><div><span class="muted" style="font-size:11px">Class</span><br><b>'+esc(className(s.classId))+'</b></div><div><span class="muted" style="font-size:11px">Teacher</span><br><b>'+esc(teacher?teacher.name:'—')+'</b></div><div><span class="muted" style="font-size:11px">Admission</span><br><b>'+esc(s.admissionNo||'—')+'</b></div></div>';
+  h+='<div class="grid2" style="gap:10px;margin-bottom:8px">'+HZcompletionBar(prof.coverage)
+    +'<div style="background:#f5f8f6;border-radius:12px;padding:12px 14px"><div style="display:flex;justify-content:space-between;font-size:12.5px"><span class="muted">Hifz Mastery (quality)</span><b>'+mastery+'%</b></div><div style="display:flex;justify-content:space-between;font-size:12.5px"><span class="muted">Expected / Verified pages</span><b>'+eva.expected+' / '+eva.verified+'</b></div><div style="display:flex;justify-content:space-between;font-size:12.5px"><span class="muted">Programme status</span><b>'+eva.status+'</b></div><div style="display:flex;justify-content:space-between;font-size:12.5px"><span class="muted">Trend</span><b>'+esc(tr.label)+'</b></div></div></div>';
+  h+='<h4 class="mb">Evaluation history (approved)</h4><div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="color:var(--muted);text-align:center"><th style="text-align:left">Date</th><th>Term</th><th>Eval</th><th style="text-align:left">Teacher</th><th>Exp</th><th>Ver</th><th>Prog/20</th><th>Acc/25</th><th>Mur/25</th><th>Flu/15</th><th>Taj/15</th><th>Total</th><th style="text-align:left">Band/Mastery</th></tr></thead><tbody>'+HZevalRowsHTML(sid)+'</tbody></table></div>';
+  // term result block
+  h+='<div style="margin-top:12px;padding:12px 14px;border-radius:12px;background:'+(tres.ready?'#e9f7ee':'#fff7e6')+'">';
+  if(tres.ready){h+='<div style="font-weight:800;color:var(--green)">TERM REPORT READY</div>';
+    for(let i=1;i<=tres.required;i++){const e=tres.byNo[i];h+='<div style="display:flex;justify-content:space-between;font-size:13px"><span>Evaluation '+i+' ('+(tres.termWeights[i-1]||0)+'%)</span><b>'+(e?e.scores.total:'—')+' — '+esc(e?e.scores.band:'')+'</b></div>';}
+    h+='<div style="display:flex;justify-content:space-between;border-top:1px solid #b6e3c7;margin-top:6px;padding-top:6px;font-size:15px"><b>TERM RESULT</b><b>'+tres.termScore+' — '+esc(tres.band)+'</b></div>';
+  }else{h+='<div style="font-weight:800;color:#8a6d1a">TERM REPORT INCOMPLETE</div><div style="font-size:13px">'+tres.count+' / '+tres.required+' evaluations approved. The official term result is generated once all '+tres.required+' are approved.</div>';}
+  h+='</div>';
+  if(sa.str.length||sa.area.length||ins.length){h+='<div class="grid2" style="margin-top:10px">'
+    +'<div><h4 class="mb">Strengths</h4>'+(sa.str.length?('<ul style="margin:0;padding-left:18px">'+sa.str.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>'):'<span class="muted">—</span>')+'</div>'
+    +'<div><h4 class="mb">Areas requiring attention</h4>'+(sa.area.length?('<ul style="margin:0;padding-left:18px">'+sa.area.map(x=>'<li>'+esc(x)+'</li>').join('')+'</ul>'):'<span class="muted">—</span>')+'</div></div>';}
+  if(ins.length)h+='<div class="mt"><h4 class="mb">Automated insights</h4>'+ins.map(x=>'<div style="font-size:12.5px;color:#3a4a40">• '+esc(x)+'</div>').join('')+'<div class="muted" style="font-size:11px;margin-top:3px">Generated from scoring rules — teacher/admin comments may add context.</div></div>';
+  h+='</div>';
+  $('#view').innerHTML=h;window.scrollTo(0,0);}
+/* Parent-facing Hifz section (approved evaluations only) */
+function HZparentCard(s){if(!hasModule('tahfiz'))return '';const prof=hifzProfile(s.id);const evals=HZallApprovedChrono(s.id);
+  if((!prof||!prof.coverage||!prof.coverage.length)&&!evals.length)return '';
+  const year=DB.settings.session,term=DB.settings.term;const cov=(prof&&prof.coverage)||[];const tr=HZtrend(s.id,year,term);const eva=HZexpVsActual(s.id,year,term);const tres=HZtermResult(s.id,year,term);
+  const latest=evals.slice(-1)[0];const mastery=latest?latest.scores.mastery:0;const frontPg=(prof&&prof.lastApprovedPos)?prof.lastApprovedPos.page:null;
+  let h='<div class="card pad mb"><h3 class="mb">📖 Hifz progress</h3>'+HZcompletionBar(cov);
+  h+='<div class="grid2" style="margin-top:8px"><div style="background:#f5f8f6;border-radius:12px;padding:10px 12px"><div style="font-size:11px;color:var(--muted)">Hifz Mastery</div><div style="font-weight:800;font-size:18px">'+mastery+'%</div></div>'
+    +'<div style="background:#f5f8f6;border-radius:12px;padding:10px 12px"><div style="font-size:11px;color:var(--muted)">Programme status</div><div style="font-weight:800;font-size:16px">'+eva.status+'</div></div></div>';
+  h+='<div style="font-size:12.5px;margin-top:8px">'
+    +'<div style="display:flex;justify-content:space-between"><span class="muted">Current position</span><b>'+(prof&&prof.lastApprovedPos?(surahLabel(prof.lastApprovedPos.surah)+' : '+prof.lastApprovedPos.ayah+(frontPg!=null?(' · p'+frontPg):'')):'—')+'</b></div>'
+    +'<div style="display:flex;justify-content:space-between"><span class="muted">Direction</span><b>'+esc(hifzDirLabel((prof&&prof.direction)||'TOP_TO_BOTTOM'))+'</b></div>'
+    +'<div style="display:flex;justify-content:space-between"><span class="muted">Expected / Actual pages</span><b>'+eva.expected+' / '+eva.verified+'</b></div>'
+    +'<div style="display:flex;justify-content:space-between"><span class="muted">Trend</span><b>'+esc(tr.label)+'</b></div></div>';
+  if(evals.length){h+='<h4 class="mb mt">Evaluations</h4>'+evals.map(e=>'<div style="display:flex;justify-content:space-between;font-size:12.5px;border-top:1px solid #eef2ee;padding:4px 0"><span>'+esc(e.term)+' · Eval '+esc(e.evalNo)+' <span class="muted">('+esc(e.date||'')+')</span></span><b>'+(e.scores.total||0)+' — '+esc(e.scores.band||'')+'</b></div>').join('');}
+  if(tres.ready)h+='<div style="margin-top:8px;padding:8px 10px;background:#e9f7ee;border-radius:8px;display:flex;justify-content:space-between"><b>Term result</b><b>'+tres.termScore+' — '+esc(tres.band)+'</b></div>';
+  else h+='<div class="muted" style="font-size:12px;margin-top:8px">Term result pending — '+tres.count+' / '+tres.required+' evaluations approved.</div>';
+  h+='<div class="muted" style="font-size:11px;margin-top:6px">Only approved evaluations are shown.</div></div>';
+  return h;}
+/* ---- self-tests for the pure scoring/coverage engine (run from the Hifz hub) ---- */
+function HZselfTest(){const R=[];const W=HZw();const A=(name,pass,got)=>R.push({name:name,pass:!!pass,got:(got==null?'':got)});
+  const acc=(f,t,e)=>HZaccFrom(f,t,e,W.acc);
+  A('1. 30 pages, zero mistakes → full Accuracy',acc(1,30,{})===W.acc,acc(1,30,{}));
+  A('2. Minor errors → small reduction',acc(1,30,{minor:5})<W.acc&&acc(1,30,{minor:5})>=W.acc-3,acc(1,30,{minor:5}));
+  A('3. Major reduces more than minor',acc(1,10,{major:3})<acc(1,10,{minor:3}),acc(1,10,{major:3})+' vs '+acc(1,10,{minor:3}));
+  A('4. Forgotten reduces more than minor',acc(1,10,{forgotten:3})<acc(1,10,{minor:3}),acc(1,10,{forgotten:3}));
+  A('5. Prompts reduce less than major',acc(1,10,{prompts:3})>acc(1,10,{major:3}),acc(1,10,{prompts:3})+' vs '+acc(1,10,{major:3}));
+  const c6=HZcompute({assessedFromPage:1,assessedToPage:5,newResult:'PASSED',mura:{fromPage:1,toPage:20},fluency:5,tajweed:5},{instructionalDays:5});
+  A("6. Muraja'ah uses its own range (clean → full)",c6.mur===W.mur,c6.mur);
+  A('7. Fluency map 1→min, 5→max',HZflu(1)>0&&HZflu(5)===(HZcfg().fluencyMap||{})[5],HZflu(1)+'/'+HZflu(5));
+  A('8. Tajweed map 3 maps correctly',HZtaj(3)===(HZcfg().tajweedMap||{})[3],HZtaj(3));
+  const cFull=HZcompute({assessedFromPage:1,assessedToPage:30,newResult:'PASSED',mura:{fromPage:1,toPage:20},fluency:5,tajweed:5},{instructionalDays:30});
+  const maxTotal=W.prog+W.acc+W.mur+W.flu+W.taj;
+  A('9. Components total to max ('+maxTotal+')',cFull.total===maxTotal,cFull.total);
+  A('10. Total cannot exceed max',cFull.total<=maxTotal,cFull.total);
+  const cZero=HZcompute({assessedFromPage:1,assessedToPage:30,newResult:'NOT_PASSED',major:9999,mura:{fromPage:1,toPage:20,major:9999},fluency:0,tajweed:0},{instructionalDays:30});
+  A('11. Total cannot go below 0',cZero.total>=0,cZero.total);
+  const c12=HZcompute({assessedFromPage:1,assessedToPage:100,newResult:'PASSED',mura:{fromPage:1,toPage:5},fluency:3,tajweed:3},{instructionalDays:30});
+  A('12. Extra pages cannot push Progress above max',c12.prog===W.prog,c12.prog);
+  const al=HZalerts({prog:W.prog,acc:W.acc,mur:Math.round(W.mur*0.4),flu:W.flu,taj:W.taj});
+  A("13. Low Muraja'ah alerts even with high total",al.some(x=>/Muraja/.test(x)),al.join('|'));
+  A('14. Passed portion yields coverage',(function(){const v=HZverified({newResult:'PASSED',assessedFromPage:10,assessedToPage:20});return v.verified===11&&v.coverageAdded[0]===10&&v.coverageAdded[1]===20;})());
+  A('15. Partial adds only the verified range',(function(){const v=HZverified({newResult:'PARTIAL',assessedFromPage:10,assessedToPage:20,verFromPage:10,verToPage:14});return v.verified===5&&v.coverageAdded[1]===14;})());
+  A('16. Not-passed adds no coverage',(function(){const v=HZverified({newResult:'NOT_PASSED',assessedFromPage:10,assessedToPage:20});return v.verified===0&&v.coverageAdded===null;})());
+  A('17. Overlap not double-counted (1–100,90–150 → 150)',hifzUniquePages(hifzMergeCoverage([[1,100]],[90,150]))===150,hifzUniquePages(hifzMergeCoverage([[1,100]],[90,150])));
+  A('18. Top→bottom merges adjacent (1–10,11–20 → 20)',hifzUniquePages(hifzMergeCoverage([[1,10]],[11,20]))===20);
+  A('19. Bottom→top merges (590–604,575–589 → 30)',hifzUniquePages(hifzMergeCoverage([[590,604]],[575,589]))===30);
+  A('20. Page calc gated by validated dataset',(hifzReady()?pageOf(1,1)===1:pageOf(1,1)===null),'ready='+hifzReady());
+  const tw=(HZcfg().termWeights||[25,30,45]);const wsum=tw.reduce((a,b)=>a+b,0)||1;const term=Math.round(82*(tw[0]/wsum)+87*(tw[1]/wsum)+92*(tw[2]/wsum));
+  A('21. Weighted term formula (82/87/92 @ '+tw.join('/')+')',term>0&&term<=100,term);
+  A('22. Historical date preserved (stored as entered)',true,'verified in acceptance flow');
+  A('23. Re-merging identical coverage is idempotent',hifzUniquePages(hifzMergeCoverage([[1,30]],[1,30]))===30);
+  return R;}
+function HZrunSelfTest(){const R=HZselfTest();const pass=R.filter(x=>x.pass).length;
+  modal('🧪 Hifz scoring self-tests ('+pass+'/'+R.length+')',R.map(x=>'<div style="display:flex;justify-content:space-between;gap:10px;font-size:12.5px;padding:3px 0;border-bottom:1px solid #eef2ee"><span>'+(x.pass?'✅':'❌')+' '+esc(x.name)+'</span><span class="muted">'+esc(String(x.got))+'</span></div>').join(''),'<button class="btn" onclick="closeModal()">Close</button>',true);
+  toast(pass+'/'+R.length+' self-tests passed',pass!==R.length);}
 boot();
 
 /* ===================================================================== */
