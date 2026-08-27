@@ -3585,7 +3585,141 @@ function tahfizReportHTML(sid,sess,term){const s=DB.students.find(x=>x.id===sid)
     </div>
     <div style="background:linear-gradient(135deg,var(--rg),var(--rgd));color:var(--rgold);text-align:center;font-size:11px;font-weight:700;font-style:italic;padding:7px">${esc(DB.settings.motto||'Knowledge is Light')}</div>
   </div>`;}
-function reportHTML(sid,sess,term){if(hasModule('tahfiz'))return tahfizReportHTML(sid,sess,term);
+/* ===================== HIFZ REPORT CARD (Phase B) =====================
+   Shares the exact ceremonial letterhead / student-info strip / signature footer with tahfizReportHTML,
+   but the memorization body is the new Hifz Evaluation system: approved-only evaluations from
+   DB.hifzEvals, cumulative coverage from DB.hifzProfiles, term result from HZtermResult, weighted per
+   the existing 25/30/45 rule. Never invents a score, never displays a non-approved eval. When the term
+   is INCOMPLETE it says so honestly and lets the reader see progress-so-far via the latest approved
+   eval and the cumulative profile. Reuses the existing QR pipeline (data-qr → renderQRs / print iframe
+   rehydration). No new scoring, no new coverage maths, no legacy tahfiz reads. */
+function _hzRcLatestApproved(sid,sess,term){
+  const inTerm=HZapprovedEvals(sid,sess,term);
+  if(inTerm.length)return inTerm[inTerm.length-1];   /* latest for this term */
+  const any=HZallApprovedChrono(sid);
+  return any.length?any[any.length-1]:null;   /* fall back to most recent across all terms so the profile still has context */
+}
+function hifzReportHTML(sid,sess,term){
+  const s=DB.students.find(x=>x.id===sid);if(!s)return '';
+  sess=sess||DB.settings.session;term=term||DB.settings.term;
+  const rem=DB.remarks[rkey(sid,sess,term)]||{};
+  const prof=ensureHifzProfile(s.id);
+  const evalsChrono=HZallApprovedChrono(s.id);
+  const latest=_hzRcLatestApproved(s.id,sess,term);
+  const latestForTerm=(latest&&latest.year===sess&&latest.term===term)?latest:null;
+  const tres=HZtermResult(s.id,sess,term);
+  const W=HZw();
+  const mp=Number(hifzCfg().mushafPages)||604;
+  const uniq=hifzUniquePages(prof.coverage||[]);
+  const pct=hifzCompletionPct(prof.coverage||[]);
+  const startPg=prof.startSurah?pageOf(prof.startSurah,prof.startAyah):null;
+  const frontPg=prof.lastApprovedPos?(prof.lastApprovedPos.page!=null?prof.lastApprovedPos.page:pageOf(prof.lastApprovedPos.surah,prof.lastApprovedPos.ayah)):null;
+  const eva=HZexpVsActual(s.id,sess,term);const tr=HZtrend(s.id,sess,term);
+  let daysOpen=0;Object.keys(DB.attendance).forEach(k=>{const p=k.split('|');if(p[1]===s.classId){const rec=DB.attendance[k];if(rec&&Object.keys(rec).length)daysOpen++;}});
+  const overall=tres.ready?tres.termScore:null;const overallBand=tres.ready?tres.band:null;
+  const feesNote=(DB.settings.nextTermFeesNote||'').trim()||naira(studentDue(sid,sess,term));
+  const logoImg=DB.settings.logo?`<img src="${DB.settings.logo}" style="height:54px;width:auto;background:#fff;border-radius:8px;padding:3px;flex:0 0 auto">`:'';
+  const tbl='width:100%;border-collapse:collapse;font-size:12px';
+  const thc='background:var(--rg);color:#fff;padding:5px 8px;border:1px solid var(--rgd);font-size:10.5px;text-align:center';
+  const cell='border:1px solid #d9cba5;padding:5px 9px';
+  const cellL='border:1px solid #d9cba5;padding:5px 9px;background:#f0ede0;font-weight:700;color:var(--rg)';
+  const sec=(txt)=>`<div style="background:var(--rg);color:#fff;font-weight:800;font-size:10px;letter-spacing:.14em;text-transform:uppercase;padding:5px 16px;border-left:6px solid var(--rgold);margin-top:2px">${txt}</div>`;
+  const finfo=(l,v)=>`<div><div style="font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:#9a8a55">${l}</div><div style="font-weight:700;color:#23302a;font-size:11.5px">${v}</div></div>`;
+  /* ---- profile block: always rendered so the report has context even mid-term ---- */
+  const profileTable=`<table style="${tbl}"><tbody>
+    <tr><td style="${cellL};width:32%">Direction</td><td style="${cell};width:18%">${esc(hifzDirLabel(prof.direction))}</td>
+        <td style="${cellL};width:32%">Starting position</td><td style="${cell};width:18%">${prof.startSurah?esc(surahLabel(prof.startSurah))+', Ayah '+esc(prof.startAyah||1)+(startPg!=null?(' — p'+startPg):''):'—'}</td></tr>
+    <tr><td style="${cellL}">Current frontier</td><td style="${cell};background:#fdfaf0">${prof.lastApprovedPos?esc(surahLabel(prof.lastApprovedPos.surah))+', Ayah '+esc(prof.lastApprovedPos.ayah)+(frontPg!=null?(' — p'+frontPg):''):'— (updates on approval)'}</td>
+        <td style="${cellL}">Verified coverage</td><td style="${cell};background:#fdfaf0">${esc(hifzCoverageLabel(prof.coverage||[]))}</td></tr>
+    <tr><td style="${cellL}">Verified pages</td><td style="${cell}"><b>${uniq}</b> / ${mp}</td>
+        <td style="${cellL}">Qur'an completion</td><td style="${cell}"><b>${pct}%</b></td></tr>
+  </tbody></table>
+  <div style="padding:6px 16px 0"><div style="height:10px;background:#e2e8e4;border-radius:20px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0b8a45,#caa64e)"></div></div><div style="display:flex;justify-content:space-between;font-size:10px;color:#6b5e33;margin-top:2px"><span>${uniq} / ${mp} pages verified</span><span>${eva.status?'Progress: '+esc(eva.status)+(tr.label&&tr.label!=='Not enough data'?(' · '+esc(tr.label)):''):''}</span></div></div>`;
+  /* ---- latest evaluation score card (only when we have one for this term) ---- */
+  let latestBlock='';
+  if(latestForTerm){
+    const sc=latestForTerm.scores||{};const raw=latestForTerm.raw||{};
+    const rowE=(label,score,max,color)=>`<tr><td style="${cell}">${esc(label)}</td><td style="${cell};text-align:center;font-weight:700;color:${color||'var(--rg)'}">${score||0}</td><td style="${cell};text-align:center">${max}</td></tr>`;
+    const alerts=(sc.alerts||[]).map(a=>`<div style="display:inline-block;background:#fff7e6;color:#8a6d1a;border:1px solid #e6d8a8;border-radius:12px;padding:2px 8px;font-size:10.5px;margin:2px 4px 0 0">⚠ ${esc(a)}</div>`).join('');
+    const teacherComment=raw.comment||latestForTerm.reviewComment||'';
+    latestBlock=`${sec('Hifz Evaluation — Evaluation '+esc(latestForTerm.evalNo))}
+      <table style="${tbl}"><tbody>
+        <tr><td style="${cellL};width:22%">Date</td><td style="${cell};width:28%">${esc(latestForTerm.date||'—')}${latestForTerm.historical?' <span style="color:#8a6d1a">(historical)</span>':''}</td>
+            <td style="${cellL};width:22%">Teacher</td><td style="${cell};width:28%">${esc(latestForTerm.teacherName||'—')}</td></tr>
+        <tr><td style="${cellL}">Assessed range</td><td style="${cell};background:#fdfaf0">p${esc(raw.assessedFromPage||'')}${raw.assessedToPage?'–p'+esc(raw.assessedToPage):''}</td>
+            <td style="${cellL}">Pages verified this eval</td><td style="${cell};background:#fdfaf0"><b>${sc.verifiedPages||0}</b> / ${sc.expectedPages||0} expected</td></tr>
+        <tr><td style="${cellL}">New-portion result</td><td style="${cell}">${esc(raw.newResult||'—')}</td>
+            <td style="${cellL}">Coverage added</td><td style="${cell}">${latestForTerm.coverageAdded?('p'+latestForTerm.coverageAdded[0]+'–p'+latestForTerm.coverageAdded[1]):'—'}</td></tr>
+      </tbody></table>
+      <table style="${tbl};margin-top:4px"><thead>
+        <tr><th style="${thc};text-align:left">Area</th><th style="${thc}">Score</th><th style="${thc}">Out of</th></tr></thead><tbody>
+        ${rowE('Hifz Progress',sc.prog,W.prog)}
+        ${rowE('Accuracy',sc.acc,W.acc,'#2a7d46')}
+        ${rowE("Muraja'ah",sc.mur,W.mur,'#2a5bd7')}
+        ${rowE('Fluency',sc.flu,W.flu,'#8a6d1a')}
+        ${rowE('Tajweed',sc.taj,W.taj,'#8a5bd7')}
+        <tr style="background:var(--rg);color:#fff;font-weight:800"><td style="${cell};border-color:var(--rgd)">Total</td><td style="${cell};text-align:center;border-color:var(--rgd);color:var(--rgold)">${sc.total||0}</td><td style="${cell};text-align:center;border-color:var(--rgd)">100</td></tr>
+      </tbody></table>
+      <div style="display:flex;flex-wrap:wrap;gap:8px 18px;padding:6px 16px 0;font-size:12px"><span><b style="color:var(--rg)">Band:</b> ${esc(sc.band||'—')}</span><span><b style="color:var(--rg)">Hifz Mastery:</b> ${sc.mastery||0}%</span></div>
+      ${alerts?`<div style="padding:2px 16px">${alerts}</div>`:''}
+      ${teacherComment?`<div style="margin:6px 16px 0;padding:8px;border:1px solid #d9cba5;background:var(--cream);border-radius:4px;font-size:12px"><b style="color:var(--rg)">Teacher's comment:</b> ${esc(teacherComment)}</div>`:''}`;
+  }else if(evalsChrono.length){
+    latestBlock=`${sec('Latest approved evaluation')}<div style="padding:8px 16px;font-size:12px;color:#6b5e33">Most recent approved evaluation is from <b>${esc(evalsChrono[evalsChrono.length-1].term)}, ${esc(evalsChrono[evalsChrono.length-1].year)}</b> — no evaluation has been approved yet for <b>${esc(term)}, ${esc(sess)}</b>.</div>`;
+  }else{
+    latestBlock=`${sec('Latest approved evaluation')}<div style="padding:8px 16px;font-size:12px;color:#6b5e33">No approved Hifz evaluations yet.</div>`;
+  }
+  /* ---- term result — READY vs INCOMPLETE (never a fake score) ---- */
+  const tw=tres.termWeights||[];const byNo=tres.byNo||{};
+  const breakdown=tw.map((w,i)=>{const n=i+1;const e=byNo[n];return `<span>Eval ${n}${e?': <b>'+(e.scores.total||0)+'/100</b>':' <span style="color:#8a6d1a">(pending)</span>'} <span style="color:#6b5e33">· ${w}%</span></span>`;}).join(' <span style="color:#c2b48a">·</span> ');
+  const termRow=tres.ready
+    ?`<tr style="background:var(--rg);color:#fff;font-weight:800"><td style="${cell};border-color:var(--rgd)">First Term Hifz Result</td><td style="${cell};text-align:center;border-color:var(--rgd);color:var(--rgold)">${tres.termScore}</td><td style="${cell};text-align:center;border-color:var(--rgd)">100</td></tr>`
+    :`<tr style="background:#fff7e6"><td style="${cell};color:#8a6d1a;font-weight:700">${esc(term)} Hifz Result</td><td style="${cell};text-align:center;color:#8a6d1a" colspan="2">INCOMPLETE — ${tres.count}/${tres.required} evaluations approved</td></tr>`;
+  const termBlock=`${sec('Term Hifz Result')}
+    <table style="${tbl}"><tbody>${termRow}</tbody></table>
+    <div style="padding:6px 16px;font-size:11px;color:#6b5e33">${breakdown}</div>
+    ${tres.ready?`<div style="padding:0 16px 4px;font-size:11px;color:#6b5e33">Band: <b style="color:var(--rg)">${esc(tres.band)}</b> · weighted per Hifz Settings (Eval 1: ${tw[0]||0}% · Eval 2: ${tw[1]||0}% · Eval 3: ${tw[2]||0}%).</div>`:`<div style="padding:0 16px 4px;font-size:11px;color:#6b5e33">The term result becomes READY once all ${tres.required} evaluations are approved. It is intentionally not computed from partial data.</div>`}`;
+  /* ---- overall grade badge (only when term is READY, otherwise a discreet marker) ---- */
+  const badge=tres.ready
+    ?`<div style="width:66px;height:66px;border-radius:50%;background:var(--rg);border:3px solid var(--rgold);display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-size:16px;font-weight:800;color:var(--rgold);line-height:1;text-align:center;padding:0 4px">${esc(overallBand||'')}</div><div style="font-size:9px;color:#fff;margin-top:2px">${overall}/100</div></div>`
+    :`<div style="width:66px;height:66px;border-radius:50%;background:var(--rg);border:3px dashed var(--rgold);display:flex;flex-direction:column;align-items:center;justify-content:center"><div style="font-size:9px;font-weight:800;color:var(--rgold);line-height:1.05;text-align:center;padding:0 4px">TERM<br>PENDING</div><div style="font-size:8px;color:#fff;margin-top:2px">${tres.count}/${tres.required}</div></div>`;
+  /* ---- assembled card, same shell as tahfizReportHTML so print/mobile behaviour is bit-identical ---- */
+  return `<div class="rc" style="${themeVars()};--cream:#fbf6ea;font-family:Arial,Helvetica,sans-serif;color:#1c1c1c;background:#fff;padding:0;overflow:hidden">
+    <div style="background:linear-gradient(135deg,var(--rg),var(--rgd));color:#fff;padding:11px 16px">
+      ${isIslamic()?`<div style="text-align:center;color:var(--rgold);font-size:13px;margin-bottom:3px">۞ ${BISMILLAH.a} ۞</div>`:''}
+      <div style="display:flex;align-items:center;gap:12px;justify-content:center;text-align:center">${logoImg}
+        <div><div style="font-size:18px;font-weight:800;letter-spacing:.3px;text-transform:uppercase;line-height:1.1">${esc(DB.settings.schoolName)}</div>
+          <div style="font-size:10px;color:#e9dfc7;margin-top:2px">${esc(DB.settings.address||'')}${DB.settings.phone?' · ☎ '+esc(DB.settings.phone):''}</div>
+          <div style="font-size:11px;font-style:italic;color:var(--rgold);font-weight:700;margin-top:2px">${esc(DB.settings.motto||'Knowledge is Light')}</div></div></div>
+    </div>
+    <div style="background:var(--rgold);color:#3a2c06;text-align:center;font-weight:800;letter-spacing:2px;font-size:11.5px;padding:5px">END OF TERM REPORT &nbsp;·&nbsp; ${esc(term)} &nbsp;·&nbsp; ${esc(sess)}</div>
+    <div style="display:flex;gap:12px;padding:11px 16px;background:var(--cream);align-items:center">
+      <div style="text-align:center;flex:0 0 auto">
+        <div style="width:78px;height:92px;border:3px solid var(--rg);border-radius:8px;background:#fff;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:32px">${s.photo?`<img src="${s.photo}" style="width:100%;height:100%;object-fit:cover">`:'👤'}</div>
+        <div style="font-size:8px;letter-spacing:.1em;color:#8a7a45;margin-top:2px">PASSPORT</div></div>
+      <div style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;align-content:center">
+        ${finfo('Student Name',esc(s.name))}${finfo('Admission No',esc(s.admissionNo||'—'))}
+        ${finfo('Class',esc(className(s.classId)))}${finfo('Section',esc(s.section||'Day'))}
+        ${finfo('Session',esc(sess))}${finfo('Term',esc(term))}
+        ${finfo('Days Open',daysOpen+' Days')}${finfo('Next Term Begins',esc(DB.settings.nextResumption||'—'))}</div>
+      <div style="flex:0 0 auto;display:flex;flex-direction:column;align-items:center;gap:6px">
+        ${badge}
+        <img class="qrimg" data-qr="${esc(s.admissionNo||s.id)}" style="width:56px;height:56px;background:#fff"></div>
+    </div>
+    <div style="background:var(--rg);color:#fff;font-size:10.5px;padding:4px 16px;text-align:center">Hifz Result: <b style="color:var(--rgold)">${tres.ready?(overall+'/100 · '+esc(overallBand||'')):'INCOMPLETE ('+tres.count+'/'+tres.required+' approved)'}</b> &nbsp;·&nbsp; Next Term Fees: <b style="color:var(--rgold)">${esc(feesNote)}</b></div>
+    ${sec("Hifz Profile — Qur'an Memorization")}
+    ${profileTable}
+    ${latestBlock}
+    ${termBlock}
+    ${sec("Teacher's Comment")}
+    <div style="border:1px solid #d9cba5;background:var(--cream);margin:0 16px;padding:9px;min-height:38px;font-size:12px">${esc(rem.teacher||(latestForTerm&&latestForTerm.raw&&latestForTerm.raw.comment)||(tres.ready?('Weighted term result: '+tres.termScore+'/100 ('+esc(tres.band||'')+').'):(evalsChrono.length?'Progress recorded across approved evaluations. Term result finalises once all '+tres.required+' evaluations are approved.':'Awaiting the first approved evaluation for this term.')))}</div>
+    <div style="display:flex;justify-content:space-around;gap:24px;margin-top:auto;padding:24px 24px 10px">
+      <div style="flex:0 1 220px;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="height:28px">${sigImg((classTeacher(s.classId)||{}).signature,28)}</div><div style="border-top:1.5px solid var(--rg);padding-top:3px">Class Teacher</div></div>
+      <div style="flex:0 1 220px;text-align:center;font-size:11px;font-weight:700;color:var(--rg)"><div style="height:28px">${sigImg((directorUser()||{}).signature,28)}</div><div style="border-top:1.5px solid var(--rg);padding-top:3px">School Director</div></div>
+    </div>
+    <div style="background:linear-gradient(135deg,var(--rg),var(--rgd));color:var(--rgold);text-align:center;font-size:11px;font-weight:700;font-style:italic;padding:7px">${esc(DB.settings.motto||'Knowledge is Light')}</div>
+  </div>`;
+}
+function reportHTML(sid,sess,term){if(isHifzOfficial())return hifzReportHTML(sid,sess,term);if(hasModule('tahfiz'))return tahfizReportHTML(sid,sess,term);
   const s=DB.students.find(x=>x.id===sid);const {rows,size}=computeClassResults(s.classId,sess,term);const row=rows.find(r=>r.s.id===sid);
   const g=G();const subsList=DB.subjects[s.classId]||[];const rem=DB.remarks[rkey(sid,sess,term)]||{};const isl=isIslamic();
   const logo=DB.settings.logo?`<img src="${DB.settings.logo}">`:'🎓';const issue=new Date().toLocaleDateString('en-GB',{day:'numeric',month:'long',year:'numeric'});
