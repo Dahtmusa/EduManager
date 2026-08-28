@@ -296,6 +296,46 @@ tbody tr:hover{background:#fafbfa}
 .btn:focus-visible,.nav-item:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .dash-attention-item:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 @media (max-width:640px){.btn{min-height:44px;padding:11px 16px}.btn.sm{min-height:38px;padding:9px 13px}}
+/* ===== Teacher Dashboard (scoped tdash-* — no global override) ===== */
+.tdash-header{display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap;background:linear-gradient(135deg,var(--green),var(--green-dark));color:#fff;padding:20px 22px;border-radius:14px;margin-bottom:18px;box-shadow:0 8px 20px rgba(11,90,45,.12)}
+.tdash-header-left{display:flex;gap:16px;align-items:center;min-width:0}
+.tdash-avatar{width:60px;height:60px;border-radius:50%;overflow:hidden;background:rgba(255,255,255,.14);border:2px solid rgba(255,255,255,.5);flex:0 0 auto;display:flex;align-items:center;justify-content:center;font-size:28px}
+.tdash-avatar img{width:100%;height:100%;object-fit:cover}
+.tdash-hello-greet{font-size:20px;font-weight:800;letter-spacing:-.2px;line-height:1.15}
+.tdash-hello-sub{font-size:12.5px;color:rgba(255,255,255,.88);margin-top:2px}
+.tdash-hello-meta{font-size:12.5px;color:rgba(255,255,255,.85);margin-top:6px}
+.tdash-hello-meta .muted{color:rgba(255,255,255,.7)}
+.tdash-header-actions{display:flex;gap:8px;flex-wrap:wrap}
+.tdash-header-actions .btn.sec{background:rgba(255,255,255,.14);color:#fff;border:1px solid rgba(255,255,255,.22)}
+.tdash-header-actions .btn.sec:hover{background:rgba(255,255,255,.22)}
+.tdash-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.tdash-kpi{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:2px;transition:box-shadow .18s,transform .12s}
+.tdash-kpi:hover{box-shadow:0 6px 18px rgba(0,0,0,.06)}
+.tdash-kpi-label{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.tdash-kpi-value{font-size:26px;font-weight:800;color:var(--ink);line-height:1.05;margin-top:2px}
+.tdash-kpi-sub{font-size:11.5px;color:var(--muted)}
+.tdash-kpi.danger .tdash-kpi-value{color:#b45309}
+.tdash-grid{display:grid;grid-template-columns:1.35fr 1fr;gap:16px;margin-bottom:18px}
+.tdash-card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px 18px;box-shadow:0 1px 2px rgba(0,0,0,.02)}
+.tdash-card-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:10px}
+.tdash-card-head h3{font-size:15px;margin:0;color:var(--ink);font-weight:700;letter-spacing:-.1px}
+.tdash-list{display:flex;flex-direction:column;gap:8px}
+.tdash-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 12px;background:#f8faf9;border:1px solid #eef1ef;border-radius:10px;transition:background .12s}
+.tdash-row:hover{background:#f2f6f4}
+.tdash-row-main{min-width:0;display:flex;flex-direction:column;gap:2px}
+.tdash-row-main b{font-size:13.5px;color:var(--ink);font-weight:600}
+.tdash-row-main small{font-size:12px;color:var(--muted)}
+.tdash-empty{padding:22px;text-align:center;color:var(--muted);font-size:13px}
+.tdash-mini-actions{display:flex;gap:6px;flex-wrap:wrap}
+.tdash-classes-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.tdash-class{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;transition:box-shadow .18s,transform .12s}
+.tdash-class:hover{box-shadow:0 5px 14px rgba(0,0,0,.05)}
+.tdash-class-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:4px}
+.tdash-class-head b{font-size:14px;color:var(--ink);font-weight:700}
+.tdash-class-meta{font-size:12px;color:var(--muted);margin-bottom:10px}
+.tdash-class-actions{display:flex;gap:6px;flex-wrap:wrap}
+@media (max-width:900px){.tdash-grid{grid-template-columns:1fr}.tdash-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.tdash-header{padding:16px 16px}.tdash-hello-greet{font-size:17px}.tdash-kpi-value{font-size:22px}.tdash-header-actions{width:100%}.tdash-header-actions .btn{flex:1}}
 .nav-item{transition:background .15s,color .15s}.card,.stat{transition:box-shadow .18s,transform .12s}
 .stat:hover{box-shadow:0 6px 18px rgba(0,0,0,.08)}
 .t-wrap tbody tr{transition:background .12s}
@@ -738,7 +778,11 @@ async function cloudCommit(id){id=id||SCHOOL_CODE;
   if(!res.ok)return {ok:false,error:res.error};
   const authoritative=res.data;
   STORE[id]=authoritative;BASE[id]=_clone(authoritative);if(id===SCHOOL_CODE)DB=authoritative;if(id==='__master__')MASTER=authoritative;
-  saveStoreLocal();saveBase();setSync('on','Database saved');return {ok:true};
+  saveStoreLocal();saveBase();setSync('on','Database saved');
+  /* Every successful CAS commit brings DB to the authoritative merged state; mark it fresh so the
+     Hifz screens don't re-pull the entire school_data row for _HZ_FRESH_MS milliseconds. */
+  if(id===SCHOOL_CODE)_hzFreshAt=Date.now();
+  return {ok:true};
 }
 /* ---- authoritative refresh: reread THIS school's row from the database into DB (tenant-scoped) ---- */
 async function HZpull(){if(!supa)return false;try{const d=await pullRow(SCHOOL_CODE);if(d){DB=d;STORE[SCHOOL_CODE]=d;return true;}}catch(e){console.warn('HZpull failed',e);}return false;}
@@ -858,6 +902,7 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(!d.hifzProfiles||typeof d.hifzProfiles!=='object')d.hifzProfiles={};
   if(!Array.isArray(d.hifzCal))d.hifzCal=[];
   if(!Array.isArray(d.hifzEvals))d.hifzEvals=[];
+  if(!Array.isArray(d.notifications))d.notifications=[];
   if(d.settings.hifzOfficial==null)d.settings.hifzOfficial=false;   /* Phase-A retirement flag — false keeps legacy Memorization visible & editable; true hides it from nav and puts the /tahfiz route into read-only archive mode */
   if(!d.settings.hifz||typeof d.settings.hifz!=='object')d.settings.hifz={};
   {const H=d.settings.hifz;
@@ -993,6 +1038,68 @@ function teacherClasses(){return USER.role==='admin'?DB.classes:DB.classes.filte
 const POSITION_RANK={'Proprietor / Director':1,'Director':1,'Proprietor':1,'Assistant Director':2,'School Supervisor':3,'Principal':2,'Vice Principal':3,'Head Teacher':4,'Assistant Head Teacher':5,'Senior Master / Mistress':6,'Head of Department':7,'Exam Officer':8,'Accountant / Bursar':9,'Counsellor':10,'Sports Master / Mistress':11,'ICT Teacher':12,'Mu’allim / Islamic Studies':13,'Imam / Chaplain':14,'Librarian':15,'Form Teacher':16,'Teacher':20};
 function rankOf(u){if(u.rank!=null&&u.rank!=='')return Number(u.rank);const p=u.position||'Teacher';return POSITION_RANK[p]!=null?POSITION_RANK[p]:22;}
 function staffGroup(u){if(u.group)return u.group;if(u.showOnSite===false)return 'hidden';return ((u.position||'Teacher')!=='Teacher')?'leadership':'teaching';}
+/* ---- staff label: show the person's job position (management/director/etc.) when set;
+   fall back to the system role text only when no position exists. Fixes management staff
+   incorrectly labelled "Teacher" just because their system role !== 'admin'. Callers that
+   want the SYSTEM role (permissions) must still read u.role directly. ---- */
+function staffRoleLabel(u){if(!u)return '';const pos=(u.position||'').trim();if(pos)return pos;return u.role==='admin'?'Administrator':(u.role==='teacher'?'Teacher':(u.role||''));}
+/* ---- Hifz freshness gate: HZteacherHome / vHifzHub / vHifzReview used to await HZpull() on every
+   navigation, downloading the entire school_data row from Supabase each time. This gate skips the
+   pull when DB was last authoritatively refreshed within FRESH_MS. Every successful cloudCommit()
+   already returns/adopts the authoritative merged row, so we also stamp _hzFreshAt there. Never
+   sacrifices correctness: a stale gate only means "we trust DB for FRESH_MS"; write paths still go
+   through _commitRowCAS which rereads the row under a lock before writing. ---- */
+let _hzFreshAt=0;const _HZ_FRESH_MS=30000;
+async function HZpullIfStale(force){if(!supa)return true;const now=Date.now();if(!force&&DB&&(now-_hzFreshAt<_HZ_FRESH_MS))return true;const ok=await HZpull();if(ok)_hzFreshAt=Date.now();return ok;}
+/* ---- Notifications (in-app inbox stored on DB.notifications).
+   - Uses the existing CAS/row-lock cloudCommit for database-confirmed writes.
+   - notify() dedupes by (type|recipient|evalId|studentId) against unread within 60s so a double-click
+     never creates a duplicate. Failure of the notification write is surfaced and does NOT roll back
+     the caller's already-committed Hifz operation. ---- */
+function ensureNotifs(){if(!Array.isArray(DB.notifications))DB.notifications=[];return DB.notifications;}
+function _notifKey(n){return [n.type||'',n.recipientId||'',n.evalId||'',n.studentId||''].join('|');}
+async function notify(recipientId,p){
+  if(!recipientId||!p||!p.type)return {ok:false,error:'invalid payload'};
+  if(!DB)return {ok:false,error:'no DB'};
+  const list=ensureNotifs();const now=Date.now();
+  const rec={id:'n'+now.toString(36)+Math.random().toString(36).slice(2,6),
+    recipientId:recipientId,type:p.type,title:p.title||'',message:p.message||'',
+    studentId:p.studentId||'',studentName:p.studentName||'',evalId:p.evalId||'',
+    route:p.route||'',action:p.action||'',
+    senderId:(USER&&USER.id)||'',senderName:(USER&&USER.name)||'',
+    createdAt:now,read:false};
+  const key=_notifKey(rec);
+  const dup=list.find(x=>_notifKey(x)===key&&!x.read&&(now-(x.createdAt||0))<60000);
+  if(dup)return {ok:true,dedup:true,id:dup.id};
+  list.push(rec);
+  const res=await cloudCommit();
+  if(!res.ok){const i=(DB.notifications||[]).indexOf(rec);if(i>=0)DB.notifications.splice(i,1);return {ok:false,error:res.error};}
+  return {ok:true,id:rec.id};
+}
+function notifsForUser(uid){uid=uid||(USER&&USER.id);const list=(DB&&DB.notifications)||[];return list.filter(n=>n.recipientId===uid).slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));}
+function notifsUnreadCount(uid){try{return notifsForUser(uid).filter(n=>!n.read).length;}catch(e){return 0;}}
+async function markAllNotifsRead(){const list=((DB&&DB.notifications)||[]).filter(n=>n.recipientId===(USER&&USER.id)&&!n.read);if(!list.length)return;const now=Date.now();list.forEach(n=>{n.read=true;n.readAt=now;});const res=await cloudCommit();if(!res.ok){list.forEach(n=>{n.read=false;delete n.readAt;});toast('Could not mark as read — database error',true);return;}buildNav();if(CURRENT==='notifs')vNotifs();}
+async function openNotif(id){const n=((DB&&DB.notifications)||[]).find(x=>x.id===id&&x.recipientId===(USER&&USER.id));if(!n)return;
+  if(!n.read){n.read=true;n.readAt=Date.now();cloudCommit().catch(()=>{});buildNav();}
+  if(n.evalId){const e=(DB.hifzEvals||[]).find(x=>x.id===n.evalId);if(e&&typeof HZform==='function'){go('hifz');setTimeout(()=>{try{HZform(e.calId,e.studentId);}catch(err){}},50);return;}}
+  if(n.route){go(n.route);return;}
+  go('hifz');
+}
+function vNotifs(){
+  if(!USER){$('#view').innerHTML='';return;}
+  const list=notifsForUser(USER.id);const unread=list.filter(n=>!n.read).length;
+  const items=list.length?list.map(n=>{const bg=n.read?'#fff':'#eef7ee';const stamp=new Date(n.createdAt||0).toLocaleString();
+    return '<div class="card pad mb" style="background:'+bg+';cursor:pointer" onclick="openNotif(\''+esc(n.id)+'\')">'
+      +'<div class="flex" style="justify-content:space-between;gap:10px;align-items:flex-start">'
+      +'<div style="flex:1"><b>'+esc(n.title||n.type)+'</b>'+(n.read?'':' <span class="pill amber" style="font-size:10px">NEW</span>')
+      +'<div style="margin-top:3px;font-size:12.5px">'+esc(n.message||'')+(n.studentName?' <span class="muted">· '+esc(n.studentName)+'</span>':'')+'</div>'
+      +'<div class="muted" style="font-size:11px;margin-top:3px">'+esc(stamp)+(n.senderName?' · from '+esc(n.senderName):'')+'</div></div></div></div>';
+  }).join(''):'<div class="card pad"><div class="empty"><div class="big">🔔</div>No notifications yet.</div></div>';
+  $('#view').innerHTML='<div class="page-head"><div><h2>🔔 Notifications</h2><p>'+(unread?unread+' unread':'All read')+'</p></div>'+(unread?'<button class="btn sec" onclick="markAllNotifsRead()">Mark all read</button>':'')+'</div>'+items;
+}
+/* ---- Photo safety: bytes size of a data URL (base64 length ≈ 4/3 of raw bytes) ---- */
+const PHOTO_MAX_BYTES=350*1024;   /* ~350KB after compression — keeps rows under Supabase limits */
+function _dataURLBytes(d){if(!d||typeof d!=='string')return 0;const i=d.indexOf(',');const b64=i>=0?d.slice(i+1):d;return Math.floor(b64.length*3/4);}
 function classTeacher(classId){return DB.users.find(u=>u.role==='teacher'&&(u.classes||[]).includes(classId))||null;}
 function headTeacher(){const staff=DB.users.filter(u=>u.role==='teacher');const order=['Principal','Head Teacher','Vice Principal','Assistant Head Teacher'];for(const p of order){const m=staff.find(u=>u.position===p);if(m)return m;}return staff.slice().sort((a,b)=>rankOf(a)-rankOf(b))[0]||null;}
 function proprietor(){const staff=DB.users.filter(u=>u.role==='teacher');const order=['Proprietor / Director','Proprietor','Director'];for(const p of order){const m=staff.find(u=>u.position===p);if(m)return m;}return null;}
@@ -1041,7 +1148,26 @@ function photoField(cur){_photo=cur||'';return `<label>Photo</label><div class="
    <div class="flex gap mt"><button type="button" class="btn sm" onclick="snap()">Capture</button><button type="button" class="btn sec sm" onclick="stopCam()">Cancel</button></div></div>`;}
 function setPrev(){$('#phPrev').innerHTML=_photo?`<img src="${_photo}" style="width:100%;height:100%;object-fit:cover;border-radius:10px">`:'📷';}
 function clearPhoto(){_photo='';setPrev();}
-function pickPhoto(inp){const f=inp.files[0];if(!f)return;const r=new FileReader();r.onload=e=>compress(e.target.result,d=>{_photo=d;setPrev();});r.readAsDataURL(f);}
+function pickPhoto(inp){const f=inp.files[0];if(!f){return;}
+  /* Type + raw-size guard before we even read: reject non-images and refuse anything so large it
+     will produce an oversized data URL even after compression. */
+  if(f.type&&!/^image\//.test(f.type)){toast('Please pick an image file (JPG/PNG/WebP)',true);inp.value='';return;}
+  if(f.size>10*1024*1024){toast('Image too large (over 10MB). Please pick a smaller photo.',true);inp.value='';return;}
+  const r=new FileReader();
+  r.onload=e=>compress(e.target.result,d=>{
+    /* Post-compression size guard: if it's still above PHOTO_MAX_BYTES the row will bloat and the
+       image may vanish for parents/reports. Recompress harder once, then reject if still too big. */
+    if(_dataURLBytes(d)>PHOTO_MAX_BYTES){
+      compress(d,d2=>{
+        if(_dataURLBytes(d2)>PHOTO_MAX_BYTES){toast('Photo could not be compressed enough — please pick a smaller/simpler image.',true);return;}
+        _photo=d2;setPrev();
+      },200,.5);
+      return;
+    }
+    _photo=d;setPrev();
+  });
+  r.onerror=()=>toast('Could not read that image',true);
+  r.readAsDataURL(f);}
 function compress(dataURL,cb,max=260,q=.6){const img=new Image();img.decoding='async';img.onload=()=>{let w=img.width,h=img.height;if(w>h){if(w>max){h=h*max/w;w=max;}}else{if(h>max){w=w*max/h;h=max;}}
   const cv=document.createElement('canvas');cv.width=Math.max(1,Math.round(w));cv.height=Math.max(1,Math.round(h));cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);let out;try{out=cv.toDataURL('image/jpeg',q);}catch(e){out=dataURL;}cb(out);};img.onerror=()=>cb(dataURL);img.src=dataURL;}
 /* fast, reliable image compressor straight from a File (no FileReader) */
@@ -1518,7 +1644,7 @@ function vStaffAtt(){
     <div style="margin-left:auto"><div class="stat" style="padding:8px 14px"><div class="lbl">Charges enforced (all-time)</div><div class="num" style="font-size:18px;color:var(--red)">${naira(totalCharges)}</div></div></div></div>
   <div class="t-wrap"><table><thead><tr><th>Staff</th><th class="center">Status</th><th class="right">Charge</th><th>Reason (absent)</th><th class="center">Decision</th></tr></thead><tbody>
   ${staff.map(u=>{const r=rec[u.id]||{};return `<tr>
-    <td><b>${esc(u.name)}</b><br><span class="muted" style="font-size:11px">${u.role==='admin'?'Administrator':'Teacher'}</span></td>
+    <td><b>${esc(u.name)}</b><br><span class="muted" style="font-size:11px">${esc(staffRoleLabel(u))}</span></td>
     <td class="center"><div class="flex gap" style="justify-content:center">${[['P','Present','green'],['L','Late','gold'],['A','Absent','danger']].map(([k,l,c])=>`<button class="btn sm ${r.status===k?c:'sec'}" onclick="setStaffAtt('${u.id}','${k}')">${l}</button>`).join('')}</div></td>
     <td class="right">${r.charge?naira(r.charge):'—'}</td>
     <td>${r.status==='A'?`<input value="${esc(r.reason||'')}" placeholder="Reason for absence" onchange="setStaffReason('${u.id}',this.value)" style="font-size:12px">`:'<span class="muted">—</span>'}</td>
@@ -1606,42 +1732,130 @@ function parentLogin(){const adm=$('#pp_adm').value.trim(),pw=$('#pp_pw').value.
   const gpn=(s.guardianPhone||'').replace(/\D/g,'');
   window._parentKids=(gpn&&gpn.length>=7)?DB.students.filter(x=>!x.graduated&&((x.guardianPhone||'').replace(/\D/g,'')===gpn)).sort((a,b)=>(a.name||'').localeCompare(b.name||'')):[s];
   renderParentDash(s);}
-function renderParentDash(s){const t=theme();const due=studentDue(s),paid=approvedPaid(s.id),bal=due-paid;const bk=DB.settings.bank||{};
-  let pres=0,tot=0;Object.keys(DB.attendance).forEach(k=>{const cid=k.split('|')[1];if(cid===s.classId){const v=DB.attendance[k][s.id];if(v!==undefined){tot++;if(v==='P')pres++;}}});
+/* Safe child-switcher helper — resolves ID → student without nested quotes inside onclick attributes. */
+function pdashSwitchChild(id){const s=(DB.students||[]).find(x=>x.id===id);if(s)renderParentDash(s);}
+function renderParentDash(s){
+  /* Existing authoritative data — preserve every source, do not duplicate calculations */
+  const t=theme();const due=studentDue(s),paid=approvedPaid(s.id),bal=due-paid;const bk=DB.settings.bank||{};
+  let pres=0,tot=0,late=0,abs=0;Object.keys(DB.attendance).forEach(k=>{const cid=k.split('|')[1];if(cid===s.classId){const v=DB.attendance[k][s.id];if(v!==undefined){tot++;if(v==='P')pres++;else if(v==='L')late++;else if(v==='A')abs++;}}});
   const tah=hasModule('tahfiz');let comp;
   if(tah){comp=studentsIn(s.classId).map(x=>({s:x,score:tahTermScore(x.id).total})).sort((a,b)=>b.score-a.score);}
   else{const {rows}=computeClassResults(s.classId);comp=rows.slice().sort((a,b)=>(b.count?b.total:-1)-(a.count?a.total:-1)).map(r=>({s:r.s,score:r.count?Math.round(r.avg):null}));}
-  const unit=tah?'':'%';const myPos=comp.findIndex(x=>x.s.id===s.id)+1;
+  const unit=tah?'':'%';const myPos=comp.findIndex(x=>x.s.id===s.id)+1;const myEntry=comp.find(x=>x.s.id===s.id);const myScore=myEntry?myEntry.score:null;
   const rcpts=DB.payments.filter(p=>p.studentId===s.id&&p.status==='approved').slice().reverse();
   const incs=(DB.incidents||[]).filter(i=>i.studentId===s.id).slice().reverse();
-  $('#screen').innerHTML=`<div style="min-height:100vh;background:#eef3f8;padding:18px 14px">
-    <div style="max-width:760px;margin:0 auto">
-      <div class="flex no-print" style="justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px"><div><b>${esc(DB.settings.schoolName)}</b> — Parent Portal</div>
-        <button class="btn sec sm" onclick="MODE='school';renderAuth()">← Home</button></div>
-      <div class="card pad mb"><div class="flex gap">${s.photo?`<img src="${s.photo}" style="width:64px;height:64px;border-radius:12px;object-fit:cover">`:'<div style="width:64px;height:64px;border-radius:12px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:30px">👧</div>'}
-        <div><div style="font-size:19px;font-weight:800">${esc(s.name)}</div><div class="muted">${esc(className(s.classId))} · Adm ${esc(s.admissionNo||'—')}</div></div></div></div>
-      ${(window._parentKids&&window._parentKids.length>1)?`<div class="card pad mb"><div class="muted" style="font-size:11px;margin-bottom:5px">My children</div><div class="flex gap" style="flex-wrap:wrap">${window._parentKids.map(k=>`<button class="btn sm ${k.id===s.id?'':'sec'}" onclick="renderParentDash(DB.students.find(x=>x.id==='${k.id}'))">${esc(k.name)}</button>`).join('')}</div></div>`:''}
-      ${HZparentCard(s)}
-      <div class="cards-row">
-        <div class="stat"><div class="lbl">Balance</div><div class="num" style="font-size:20px;color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</div><div class="meta">${naira(paid)} of ${naira(due)} paid</div></div>
-        <div class="stat"><div class="lbl">Attendance</div><div class="num" style="font-size:20px">${tot?Math.round(pres/tot*100)+'%':'—'}</div><div class="meta">${pres}/${tot} present</div></div>
-        <div class="stat"><div class="lbl">Class position</div><div class="num" style="font-size:20px">${myPos?ord(myPos):'—'}</div><div class="meta">of ${comp.length}</div></div></div>
-      <div class="card pad mb"><h3 class="mb">📊 Class performance — ${esc(className(s.classId))}</h3>
-        <div class="t-wrap"><table><thead><tr><th>#</th><th>Pupil</th><th class="right">${tah?'Total /100':'Average'}</th></tr></thead><tbody>
-        ${comp.map((x,i)=>`<tr${x.s.id===s.id?' style="background:'+t.rg+'12;font-weight:700"':''}><td>${i+1}</td><td>${esc(x.s.name)}${x.s.id===s.id?' <span class="pill green" style="font-size:9px">Your child</span>':''}</td><td class="right">${x.score!=null&&!(tah&&x.score===0)?x.score+unit:'—'}</td></tr>`).join('')}
-        </tbody></table></div><p class="muted mt" style="font-size:11.5px">Shown so you can see how your child is doing relative to the class.</p></div>
-      <div class="card pad mb"><h3 class="mb">💳 Fees & receipts</h3>
-        ${bal>0?`<div style="background:#fbf6e7;border:1px dashed #caa64e;border-radius:10px;padding:11px 13px;font-size:13px;margin-bottom:10px">Outstanding: <b style="color:var(--red)">${naira(bal)}</b>.${bk.number?` Pay to <b>${esc(bk.name||'')}</b>, <b>${esc(bk.bank||'')}</b>, <b style="font-family:monospace">${esc(bk.number)}</b>, using <b>${esc(s.admissionNo||'')}</b> as the reference.`:' Please contact the school for payment details.'}</div>`:`<p style="color:var(--green);font-weight:600;font-size:13px">✓ Fully paid for this term.</p>`}
-        ${rcpts.length?`<div class="t-wrap"><table><thead><tr><th>Receipt</th><th>Date</th><th class="right">Amount</th><th></th></tr></thead><tbody>
-          ${rcpts.map(p=>`<tr><td class="muted" style="font-family:monospace;font-size:11.5px">${esc(p.receiptNo||'—')}</td><td class="muted">${esc(p.date||'')}</td><td class="right">${naira(p.amount)}</td><td class="right"><button class="btn sm sec" onclick="openReceipt('${p.id}')">View</button></td></tr>`).join('')}
-        </tbody></table></div>`:'<p class="muted" style="font-size:12.5px">No approved payments yet.</p>'}</div>
-      <div class="card pad mb"><h3 class="mb">🚩 Behaviour &amp; health</h3>
-        ${incs.length?incs.map(i=>`<div class="ev-item" style="display:block"><b>${esc(i.type)}</b> <span class="muted" style="font-size:11px">${esc(i.date||'')}</span><div style="font-size:13px">${esc(i.desc)}</div></div>`).join(''):'<p class="muted" style="font-size:12.5px">No incidents reported. 👍</p>'}
-        <p class="muted mt" style="font-size:11.5px">Your child's medical & emergency details are on file with the school. Please keep them updated with the office.</p></div>
-      <div class="card pad mb"><h3 class="mb">📄 Full result</h3><p class="muted mb">View &amp; print your child's full termly report with the PIN provided by the school.</p>
-        <button class="btn" onclick="MODE='check';renderChecker()">Check Result (PIN)</button></div>
-      <div class="card pad"><h3 class="mb">📢 Announcements</h3>${DB.announcements.length?DB.announcements.slice().reverse().slice(0,6).map(a=>`<div class="ev-item" style="display:block"><b>${esc(a.title)}</b> <span class="muted" style="font-size:11px">${esc(a.date)}</span><div style="font-size:13px">${esc(a.body)}</div></div>`).join(''):'<p class="muted">No announcements.</p>'}</div>
-    </div></div>`;window.scrollTo(0,0);}
+  const anns=(DB.announcements||[]).slice().reverse().slice(0,4);
+  const attPct=tot?Math.round(pres/tot*100):null;
+  /* Compute simple attention items — reuses the values above; no new business rules */
+  const attention=[];
+  if(bal>0)attention.push({label:'Outstanding fees',detail:naira(bal)+' due for this term',action:'View fees',anchor:'pdash-fees'});
+  if(attPct!=null&&attPct<80)attention.push({label:'Attendance concern',detail:pres+' present of '+tot+' recorded days',action:'View attendance',anchor:'pdash-att'});
+  if(incs.length)attention.push({label:'Behaviour note on record',detail:esc(incs[0].type||'Incident'),action:'View',anchor:'pdash-incidents'});
+  /* Compact Hifz snippet — reuses HZparentCard (existing Hifz function) for the full section */
+  const hifzBlockHTML=(typeof HZparentCard==='function')?HZparentCard(s):'';
+  const hifzKpi = tah?'Enabled':'—';
+  /* Safe child-switcher — pdashSwitchChild(id) resolves ID inside JS, no nested quotes in onclick */
+  const kids=(typeof window!=='undefined'&&window._parentKids)?window._parentKids:[s];
+  const admLabel=esc(DB.settings.admissionPrefix?(DB.settings.admissionPrefix+'/…'):'—');
+  /* Assemble HTML — string concatenation, static route strings, safe interpolation for IDs */
+  const nav='<header class="pdash-nav"><div class="pdash-nav-brand"><b>'+esc(DB.settings.schoolName||'')+'</b><span class="pdash-nav-tag">Parent Portal</span></div>'
+    +'<button class="btn sm sec" onclick="MODE=\'school\';renderAuth()">Home</button></header>';
+  const photo=s.photo?'<img class="pdash-photo-img" src="'+s.photo+'" alt="">':'<span class="pdash-photo-fallback" aria-hidden="true">👧</span>';
+  const identity='<section class="pdash-identity">'
+    +'<div class="pdash-photo">'+photo+'</div>'
+    +'<div class="pdash-identity-info">'
+    +'<h1 class="pdash-name">'+esc(s.name||'')+'</h1>'
+    +'<div class="pdash-identity-meta"><span>'+esc(className(s.classId))+'</span><span aria-hidden="true">·</span>'
+    +'<span>Adm '+esc(s.admissionNo||'—')+'</span><span aria-hidden="true">·</span>'
+    +'<span>'+esc(DB.settings.term||'')+', '+esc(DB.settings.session||'')+'</span></div>'
+    +'</div></section>';
+  const switcher=(kids.length>1)?
+    '<section class="pdash-switcher" aria-label="My children">'
+    +'<span class="pdash-switcher-label">My children</span>'
+    +'<div class="pdash-switcher-row">'
+    +kids.map(function(k){return '<button class="pdash-child-chip'+(k.id===s.id?' active':'')+'" onclick="pdashSwitchChild(\''+esc(k.id)+'\')">'+esc(k.name)+'</button>';}).join('')
+    +'</div></section>':'';
+  const kpi=function(label,val,sub,tone){return '<div class="pdash-kpi'+(tone?' '+tone:'')+'"><span class="pdash-kpi-label">'+esc(label)+'</span><span class="pdash-kpi-value">'+val+'</span><span class="pdash-kpi-sub">'+esc(sub||'')+'</span></div>';};
+  const kpiHTML='<section class="pdash-kpis" aria-label="Key figures">'
+    +kpi('Attendance',(attPct!=null?attPct+'%':'—'),(tot?(pres+' present of '+tot):'No records yet'))
+    +kpi('Academic',(myScore!=null?(myScore+unit):'—'),(myPos?('Class position '+ord(myPos)+' of '+comp.length):'—'))
+    +kpi('Fees',naira(bal),(bal>0?(naira(paid)+' of '+naira(due)+' paid'):'Fully paid'),(bal>0?'danger':'ok'))
+    +kpi('Hifz',hifzKpi,(tah?'View Hifz section below':'Not enabled'))
+    +'</section>';
+  const attentionHTML=attention.length
+    ?'<section class="pdash-card pdash-attention"><header class="pdash-card-head"><h2>Needs attention</h2></header>'
+      +'<ul class="pdash-attention-list">'
+      +attention.map(function(a){return '<li><div class="pdash-attention-main"><b>'+esc(a.label)+'</b><small>'+esc(a.detail)+'</small></div></li>';}).join('')
+      +'</ul></section>'
+    :'<section class="pdash-card pdash-attention-ok"><header class="pdash-card-head"><h2>All good</h2></header>'
+      +'<p class="pdash-empty-msg">No outstanding items for '+esc((s.name||'').split(' ')[0])+' right now.</p></section>';
+  /* Academic — top-3 class + your child's row, plus report-check CTA. Uses existing computeClassResults / tahTermScore */
+  const acadRows=comp.slice(0,5);
+  const yourRowInTop=acadRows.some(function(x){return x.s.id===s.id;});
+  const acadTableRows=acadRows.map(function(x,i){
+    const isYou=(x.s.id===s.id);
+    const val=(x.score!=null&&!(tah&&x.score===0))?(x.score+unit):'—';
+    return '<tr'+(isYou?' class="pdash-row-you"':'')+'><td>'+(i+1)+'</td><td>'+esc(x.s.name)+(isYou?' <span class="pdash-you-badge">Your child</span>':'')+'</td><td class="pdash-num">'+val+'</td></tr>';
+  }).join('');
+  const yourRowExtra=(!yourRowInTop&&myPos)?('<tr class="pdash-row-you"><td>'+myPos+'</td><td>'+esc(s.name)+' <span class="pdash-you-badge">Your child</span></td><td class="pdash-num">'+((myScore!=null&&!(tah&&myScore===0))?(myScore+unit):'—')+'</td></tr>'):'';
+  const academic='<section class="pdash-card"><header class="pdash-card-head"><h2>Academic snapshot</h2>'
+    +'<button class="btn sm sec" onclick="MODE=\'check\';renderChecker()">View full report (PIN)</button></header>'
+    +'<div class="pdash-table-wrap"><table class="pdash-table"><thead><tr><th>#</th><th>Pupil</th><th class="pdash-num">'+(tah?'Total /100':'Average')+'</th></tr></thead><tbody>'
+    +acadTableRows+yourRowExtra
+    +'</tbody></table></div>'
+    +'<p class="pdash-hint">Shown so you can see how '+esc((s.name||'').split(' ')[0])+' is progressing relative to the class.</p></section>';
+  /* Attendance breakdown from the walk above */
+  const attSection='<section class="pdash-card" id="pdash-att"><header class="pdash-card-head"><h2>Attendance</h2>'
+    +'<span class="pdash-att-pct'+((attPct!=null&&attPct<80)?' warn':'')+'">'+(attPct!=null?attPct+'%':'—')+'</span></header>'
+    +'<div class="pdash-att-grid">'
+    +'<div class="pdash-att-metric"><span>Present</span><b>'+pres+'</b></div>'
+    +'<div class="pdash-att-metric"><span>Absent</span><b>'+abs+'</b></div>'
+    +'<div class="pdash-att-metric"><span>Late</span><b>'+late+'</b></div>'
+    +'<div class="pdash-att-metric"><span>Recorded days</span><b>'+tot+'</b></div>'
+    +'</div>'
+    +(tot?'':'<p class="pdash-hint">No attendance recorded for this pupil yet.</p>')
+    +'</section>';
+  /* Hifz — reuse existing HZparentCard (no logic change) */
+  const hifz=hifzBlockHTML?('<section class="pdash-card"><header class="pdash-card-head"><h2>Hifz progress</h2></header>'+hifzBlockHTML+'</section>'):'';
+  /* Fees */
+  const bankLine=bk.number?('Pay to <b>'+esc(bk.name||'')+'</b>, <b>'+esc(bk.bank||'')+'</b>, <b class="pdash-mono">'+esc(bk.number)+'</b>. Use <b>'+esc(s.admissionNo||'')+'</b> as reference.'):'Please contact the school for payment details.';
+  const feesBanner=bal>0
+    ?'<div class="pdash-fees-outstanding"><div class="pdash-fees-amount">'+naira(bal)+' <span>outstanding</span></div><div class="pdash-fees-bank">'+bankLine+'</div></div>'
+    :'<div class="pdash-fees-clear">✓ Fully paid for this term.</div>';
+  const feesTable=rcpts.length
+    ?'<div class="pdash-table-wrap"><table class="pdash-table"><thead><tr><th>Receipt</th><th>Date</th><th class="pdash-num">Amount</th><th></th></tr></thead><tbody>'
+      +rcpts.map(function(p){return '<tr><td class="pdash-mono">'+esc(p.receiptNo||'—')+'</td><td>'+esc(p.date||'')+'</td><td class="pdash-num">'+naira(p.amount)+'</td><td class="pdash-row-action"><button class="btn sm sec" onclick="openReceipt(\''+esc(p.id)+'\')">View</button></td></tr>';}).join('')
+      +'</tbody></table></div>'
+    :'<p class="pdash-hint">No approved payments recorded yet.</p>';
+  const fees='<section class="pdash-card" id="pdash-fees"><header class="pdash-card-head"><h2>Fees</h2></header>'
+    +feesBanner+feesTable+'</section>';
+  /* Notices */
+  const noticesHTML=anns.length
+    ?anns.map(function(a){return '<article class="pdash-notice"><header><b>'+esc(a.title||'')+'</b><small>'+esc(a.date||'')+'</small></header><p>'+esc(a.body||'')+'</p></article>';}).join('')
+    :'<p class="pdash-hint">No school announcements right now.</p>';
+  const notices='<section class="pdash-card"><header class="pdash-card-head"><h2>Notices</h2></header>'+noticesHTML+'</section>';
+  /* Behaviour / health block — reuses incidents; no new business rules */
+  const incidents='<section class="pdash-card" id="pdash-incidents"><header class="pdash-card-head"><h2>Behaviour &amp; health</h2></header>'
+    +(incs.length
+      ?incs.slice(0,4).map(function(i){return '<article class="pdash-notice"><header><b>'+esc(i.type||'Incident')+'</b><small>'+esc(i.date||'')+'</small></header><p>'+esc(i.desc||'')+'</p></article>';}).join('')
+      :'<p class="pdash-empty-msg">No incidents on record.</p>')
+    +'<p class="pdash-hint">Medical &amp; emergency details are on file. Keep them updated with the office.</p>'
+    +'</section>';
+  $('#screen').innerHTML='<div class="pdash">'
+    +'<div class="pdash-inner">'
+    +nav
+    +identity
+    +switcher
+    +kpiHTML
+    +attentionHTML
+    +'<div class="pdash-grid">'+academic+attSection+'</div>'
+    +hifz
+    +fees
+    +notices
+    +incidents
+    +'</div></div>';
+  window.scrollTo(0,0);
+}
 
 /* ===================== ACCOUNTS & FINANCE ===================== */
 let finTab='overview';
@@ -1692,7 +1906,7 @@ function finSalaries(){const staff=DB.users.filter(u=>u.role!=='owner');
   const paidThis=sid=>DB.ledger.filter(l=>l.kind==='expense'&&l.category==='Salaries'&&l.staffId===sid&&l.session===DB.settings.session&&l.term===DB.settings.term).reduce((a,l)=>a+(+l.amount||0),0);
   $('#finArea').innerHTML=`<p class="muted mb">Set each staff salary, then record a payment — it posts to Expenditure automatically.</p>
   <div class="t-wrap"><table><thead><tr><th>Staff</th><th>Role</th><th>Monthly salary (₦)</th><th class="right">Paid this term</th><th></th></tr></thead><tbody>
-  ${staff.map(u=>`<tr><td><b>${esc(u.name)}</b></td><td class="muted">${u.role==='admin'?'Admin':'Teacher'}</td>
+  ${staff.map(u=>`<tr><td><b>${esc(u.name)}</b></td><td class="muted">${esc(staffRoleLabel(u))}</td>
     <td><input class="score-in" style="width:120px;text-align:right" type="number" value="${u.salary??''}" onchange="setSalary('${u.id}',this.value)"></td>
     <td class="right">${naira(paidThis(u.id))}</td>
     <td class="right"><button class="btn sm" onclick="paySalary('${u.id}')">Record payment</button></td></tr>`).join('')}
@@ -2601,8 +2815,8 @@ function buildNav(){
     items.push(['alumni','🎓','Alumni']);
     items.push(['messages','✉️','Messages',unreadMsgCount()]);
     items.push(['website','🌐','Website']);if(hasBackup())items.push(['backup','🛟','Backup']);}
-  else {items=[['tdash','🏠','My Space'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
-    if(hasModule('tahfiz')){items=items.filter(it=>it[0]!=='results');let i=3;if(!isHifzOfficial()){items.splice(i++,0,['tahfiz','📖','Memorization']);}items.splice(i,0,['hifz','📖','Hifz Eval']);}   /* Phase-A: same rule for teacher nav */
+  else {items=[['tdash','🏠','My Space'],['notifs','🔔','Notifications',notifsUnreadCount()||''],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
+    if(hasModule('tahfiz')){items=items.filter(it=>it[0]!=='results');let i=4;if(!isHifzOfficial()){items.splice(i++,0,['tahfiz','📖','Memorization']);}items.splice(i,0,['hifz','📖','Hifz Eval']);}   /* Phase-A: same rule for teacher nav */
     if(hasModule('lessonPlans'))items.push(['lessons','📚','Lesson Plans']);
     items.push(['incidents','🚩','Incidents']);
     items.push(['messages','✉️','Messages',unreadMsgCount()]);}
@@ -2620,7 +2834,7 @@ function buildNav(){
     const used={};const grouped=groups.map(([title,keys])=>{const rows=keys.map(k=>items.find(x=>x[0]===k)).filter(Boolean);rows.forEach(x=>used[x[0]]=1);return rows.length?`<div class="nav-group"><div class="nav-group-title">${title}</div>${rows.map(itemHTML).join('')}</div>`:'';}).join('');
     const other=items.filter(x=>!used[x[0]]);$('#sidebar').innerHTML=grouped+(other.length?`<div class="nav-group"><div class="nav-group-title">More</div>${other.map(itemHTML).join('')}</div>`:'');
   }else if(USER.role==='teacher'){
-    const groups=[['Overview',['tdash','myclasses']],['Teaching',['attendance','results','reports','tahfiz','hifz','lessons','scanner']],['Communication',['incidents','messages']]];
+    const groups=[['Overview',['tdash','myclasses','notifs']],['Teaching',['attendance','results','reports','tahfiz','hifz','lessons','scanner']],['Communication',['incidents','messages']]];
     const used={};const grouped=groups.map(([title,keys])=>{const rows=keys.map(k=>items.find(x=>x[0]===k)).filter(Boolean);rows.forEach(x=>used[x[0]]=1);return rows.length?`<div class="nav-group"><div class="nav-group-title">${title}</div>${rows.map(itemHTML).join('')}</div>`:'';}).join('');
     const other=items.filter(x=>!used[x[0]]);$('#sidebar').innerHTML=grouped+(other.length?`<div class="nav-group"><div class="nav-group-title">More</div>${other.map(itemHTML).join('')}</div>`:'');
   }else $('#sidebar').innerHTML=items.map(itemHTML).join('');
@@ -2636,7 +2850,7 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
     customers:vStoreCustomers,quotes:vStoreQuotes,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
-    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:()=>{return isHifzOfficial()?vTahfizArchive():vTahfiz();},hifz:vHifzHub,hifzreview:vHifzReview,messages:vMessages,alumni:vAlumni,incidents:vIncidents,tdash:vTdash,search:vSearch};
+    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:()=>{return isHifzOfficial()?vTahfizArchive():vTahfiz();},hifz:vHifzHub,hifzreview:vHifzReview,messages:vMessages,alumni:vAlumni,incidents:vIncidents,tdash:vTdash,search:vSearch,notifs:vNotifs};
   (map[p]||vDashboard)();}
 
 /* ===================== OWNER: DASHBOARD ===================== */
@@ -2775,7 +2989,7 @@ function manageSchool(code){
     <p class="muted" style="font-size:12.5px">Grading ${d.settings.grade.ca1}/${d.settings.grade.ca2}/${d.settings.grade.exam} · ${esc(d.settings.term)}, ${esc(d.settings.session)}</p>
     <label>Staff logins (passwords visible — reset any)</label>
     <div class="t-wrap" style="margin-bottom:6px"><table><tbody>
-      ${d.users.map(u=>`<tr><td><b>${esc(u.name)}</b><br><span class="muted" style="font-size:11px">${u.role==='admin'?'Administrator':'Teacher'}</span></td>
+      ${d.users.map(u=>`<tr><td><b>${esc(u.name)}</b><br><span class="muted" style="font-size:11px">${esc(staffRoleLabel(u))}${u.role==='admin'?' · <b style="color:var(--green)">Admin access</b>':''}</span></td>
         <td>${esc(u.username)}</td><td><span style="font-family:monospace;background:#f3f6f2;padding:1px 6px;border-radius:5px">${esc(u.password)}</span></td>
         <td class="right"><button class="btn sm sec" onclick="resetCred('${code}','${u.id}')">🔑 Reset</button></td></tr>`).join('')}
     </tbody></table></div>
@@ -3019,6 +3233,12 @@ function exportAll(){const blob=new Blob([JSON.stringify(STORE,null,2)],{type:'a
 function vDashboard(){
   const totalStu=DB.students.filter(s=>!s.graduated).length,totalTeach=DB.users.filter(u=>u.role==='teacher').length;
   const fs=feeSummary(),secc=sectionCounts(),t=today(),hasHifz=hasModule('tahfiz');
+  /* Gender breakdown — computed from the authoritative student.gender field, no new stored counter.
+     "Unspecified" is surfaced explicitly rather than being silently reclassified so admins can see
+     which records need cleaning. */
+  const _active=DB.students.filter(s=>!s.graduated);
+  const gCounts={female:_active.filter(s=>s.gender==='Female').length,male:_active.filter(s=>s.gender==='Male').length};
+  gCounts.unknown=Math.max(0,_active.length-gCounts.female-gCounts.male);
   let present=0,marked=0,markedClasses=0;DB.classes.forEach(c=>{const a=DB.attendance[t+'|'+c.id];if(a){markedClasses++;Object.values(a).forEach(v=>{marked++;if(v==='P')present++;});}});
   const att=marked?Math.round(present/marked*100):0,unmarkedClasses=Math.max(0,DB.classes.length-markedClasses),collPct=fs.expected?Math.round(fs.collected/fs.expected*100):0;
   const pendingPayments=pendingPayCount(),pendingApps=pendingAppCount(),incidents=openIncidentCount(),pendingHifz=hasHifz?HZpendingCount():0;
@@ -3045,6 +3265,8 @@ function vDashboard(){
     <div class="flex gap"><button class="btn sec sm" onclick="editAdminProfile()">My profile</button><button class="btn sec sm" onclick="exportSchool()">Export data</button><button class="btn sec sm" onclick="exportStudentsCSV()">Students CSV</button></div></div>
   <section class="dash-section"><div class="cards-row">
     <div class="stat accent"><div class="lbl">Active pupils</div><div class="num">${totalStu}</div><div class="meta">${secc.day} day · ${secc.boarding} boarding</div></div>
+    <div class="stat"><div class="lbl">Female students</div><div class="num" style="color:#c2185b">${gCounts.female}</div><div class="meta">${gCounts.male} male${gCounts.unknown?' · '+gCounts.unknown+' unspecified':''}</div></div>
+    <div class="stat"><div class="lbl">Male students</div><div class="num" style="color:#1e5fa8">${gCounts.male}</div><div class="meta">${gCounts.female} female${gCounts.unknown?' · '+gCounts.unknown+' unspecified':''}</div></div>
     <div class="stat"><div class="lbl">Attendance today</div><div class="num">${marked?att+'%':'—'}</div><div class="meta">${marked?present+'/'+marked+' present':'Not marked yet'}</div></div>
     <div class="stat"><div class="lbl">Outstanding fees</div><div class="num" style="color:var(--ui-danger)">${naira(fs.outstanding)}</div><div class="meta">${fs.part+fs.unpaid} pupil(s) with balance</div></div>
     <div class="stat"><div class="lbl">Hifz reviews</div><div class="num">${hasHifz?pendingHifz:'—'}</div><div class="meta">${hasHifz?(pendingHifz?'Awaiting administrator':'No pending review'):'Module not enabled'}</div></div>
@@ -3157,13 +3379,29 @@ function editStudent(id){const s=id?DB.students.find(x=>x.id===id):{};
     <div class="fld full"><label>Current medications</label><input id="f_meds" value="${esc(s.meds||'')}" placeholder="Any medication the pupil takes — or None"></div>
     <div class="fld full"><label>Special / spiritual or behavioural notes</label><textarea id="f_special" rows="2" placeholder="Anything else vital for the pupil's care">${esc(s.special||'')}</textarea></div></div>`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveStudent('${id||''}')">Save</button>`,true);}
-function saveStudent(id){const name=$('#f_name').value.trim();if(!name){toast('Name required',true);return;}
+async function saveStudent(id){const name=$('#f_name').value.trim();if(!name){toast('Name required',true);return;}
   const g=el=>{const e=$(el);return e?e.value.trim():'';};
+  /* Post-compression size guard so an oversized picked photo can never inflate DB row.
+     Same PHOTO_MAX_BYTES ceiling as the dedicated Change-photo path. */
+  if(_photo&&_dataURLBytes(_photo)>PHOTO_MAX_BYTES){toast('Photo too large — pick a smaller image or use Change photo on the profile',true);return;}
   const obj={name,photo:_photo,admissionNo:$('#f_adm').value.trim(),classId:$('#f_class').value,section:($('#f_section')&&$('#f_section').value)||'Day',gender:$('#f_gender').value,dob:$('#f_dob').value,
     guardianName:$('#f_gname').value.trim(),guardianPhone:$('#f_gphone').value.trim(),address:$('#f_addr').value.trim(),
     emName:g('#f_emname'),emPhone:g('#f_emphone'),blood:g('#f_blood'),geno:g('#f_geno'),allergies:g('#f_allergies'),health:g('#f_health'),meds:g('#f_meds'),special:g('#f_special')};
-  if(id)Object.assign(DB.students.find(x=>x.id===id),obj);else{obj.id=uid('s');DB.students.push(obj);}
-  save();closeModal();renderStuTable();toast('Pupil saved');}
+  /* Root-cause fix for "photo uploads but sometimes disappears": the previous debounced save() would
+     write locally and try to push to the cloud after 700ms. If the push failed AND the user reloaded
+     before the retry finished, the next pullRow overwrote the local (with-photo) row using the
+     server (photoless) copy. Now we commit synchronously via CAS and only report success when the
+     database confirms. On failure we roll back the in-memory mutation so the UI matches persistence. */
+  let snap=null;let created=false;
+  if(id){const cur=DB.students.find(x=>x.id===id);if(!cur){toast('Pupil not found',true);return;}snap=_clone(cur);Object.assign(cur,obj);}
+  else{obj.id=uid('s');DB.students.push(obj);created=true;}
+  const res=await cloudCommit();
+  if(!res.ok){
+    if(created){DB.students=DB.students.filter(x=>x.id!==obj.id);}
+    else if(snap){const cur=DB.students.find(x=>x.id===id);if(cur){Object.keys(cur).forEach(k=>{if(!(k in snap))delete cur[k];});Object.assign(cur,snap);}}
+    toast('Not saved — database error. Please retry.',true);return;
+  }
+  closeModal();renderStuTable();toast('Pupil saved');}
 function renumberAdmissions(){const pfx=(DB.settings.admissionPrefix||'ADM').trim()||'ADM';const yr=((DB.settings.admissionSession||DB.settings.session||'').slice(0,4))||(''+new Date().getFullYear());
   const list=DB.students.filter(s=>!s.graduated);
   modal('Renumber admission numbers?',`<p>This sets <b>every current pupil's</b> admission number to the format <b>${esc(pfx)}/${esc(yr)}/001</b>, numbered in class order.</p>
@@ -3348,16 +3586,93 @@ function vIncidents(){const admin=USER.role==='admin';const list=(DB.incidents||
   </tbody></table></div>`:`<div class="card"><div class="empty"><div class="big">🚩</div>No incidents reported.</div></div>`}`;}
 function markIncident(id){const i=(DB.incidents||[]).find(x=>x.id===id);if(i)i.status='seen';save();buildNav();vIncidents();}
 /* ===================== TEACHER DASHBOARD ===================== */
-function vTdash(){const u=USER;const un=unreadMsgCount();
-  $('#view').innerHTML=`<div class="page-head"><div><h2>My Dashboard</h2><p>${esc(DB.settings.term)}, ${esc(DB.settings.session)}</p></div><button class="btn" onclick="reportIncident()">🚩 Report incident</button></div>
-  <div class="card pad mb" style="display:flex;gap:14px;align-items:center;flex-wrap:wrap">
-    <div style="width:74px;height:74px;border-radius:50%;overflow:hidden;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:32px;flex:0 0 auto">${u.photo?`<img src="${u.photo}" style="width:100%;height:100%;object-fit:cover">`:'👩‍🏫'}</div>
-    <div style="flex:1;min-width:180px"><h3 style="margin:0">${esc(u.name)}</h3><div class="muted">${esc(u.position||'Teacher')}${u.staffId?' · '+esc(u.staffId):''}</div><div style="font-size:13px;margin-top:2px">${u.phone?'☎ '+esc(u.phone):'<span style="color:var(--red)">No phone on file — ask the admin to add it</span>'}</div></div>
-    <div class="flex gap" style="flex-wrap:wrap">${hasModule('tahfiz')?`<button class="btn sec sm" onclick="go('tahfiz')">📖 Evaluation</button>`:`<button class="btn sec sm" onclick="go('results')">📝 Results</button>`}<button class="btn sec sm" onclick="go('attendance')">📅 Attendance</button><button class="btn sec sm" onclick="go('reports')">🏅 Reports</button><button class="btn sec sm" onclick="go('messages')">✉️ Messages${un?' ('+un+')':''}</button><button class="btn sec sm" onclick="openSignPad('staff','${u.id}')">✍️ ${u.signature?'Update':'Add'} my signature</button></div></div>
-  <div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">
-    ${teacherClasses().map(c=>{const n=studentsIn(c.id).length;return `<div class="card pad"><div class="flex" style="justify-content:space-between;align-items:center"><b>${esc(c.name)}</b><span class="pill grey">${n} pupil(s)</span></div>
-      <div class="flex gap mt" style="flex-wrap:wrap"><button class="btn sm sec" onclick="classAnalytics('${c.id}')">📊 Analytics</button><button class="btn sm sec" onclick="classPupils('${c.id}')">👦 Pupils</button></div></div>`;}).join('')||'<div class="card pad muted">No classes assigned yet. Ask the admin to assign your classes.</div>'}
-  </div>`;}
+function vTdash(){
+  const u=USER;const un=unreadMsgCount();const hasHifz=hasModule('tahfiz');
+  const myClasses=teacherClasses();const t=today();
+  /* Greeting derived from local time (existing pattern in the app). No new data source. */
+  const hr=new Date().getHours();const greet=hr<12?'Good morning':(hr<17?'Good afternoon':'Good evening');
+  const nowLabel=new Date().toLocaleDateString(undefined,{weekday:'long',day:'numeric',month:'long'});
+  /* Aggregate Today's Work from existing authoritative functions only — never invent numbers. */
+  let attendanceDue=0,resultsIncomplete=0,hifzMine=0,totalPupils=0;
+  const perClass=myClasses.map(c=>{
+    const pupils=studentsIn(c.id);totalPupils+=pupils.length;
+    const attRec=DB.attendance[t+'|'+c.id]||{};const marked=Object.keys(attRec).length;
+    const attFull=marked>=pupils.length&&pupils.length>0;
+    if(!attFull)attendanceDue++;
+    const cr=computeClassResults(c.id);const subj=(DB.subjects[c.id]||[]).length;
+    let resPending=0;if(subj>0){const complete=cr.rows.filter(r=>r.count===subj).length;resPending=Math.max(0,pupils.length-complete);}
+    resultsIncomplete+=resPending;
+    return {c,pupils:pupils.length,marked,attFull,resPending,subj};
+  });
+  if(hasHifz){const cals=HZcalList().filter(c=>HZaccessible(c)&&HZteacherAuth(c,u));
+    cals.forEach(c=>{const studs=HZstudentsForEval(c,u);const done=studs.filter(s=>{const st=HZstatusOf(c.id,s.id);return st==='submitted'||st==='approved';}).length;hifzMine+=Math.max(0,studs.length-done);});}
+  const events=upcomingEvents(3);
+  const totalPending=attendanceDue+resultsIncomplete+hifzMine;
+  /* Prebuild the safe HTML fragments — no dynamic content ever placed inside onclick attributes.
+     Every onclick uses static string constants defined here in the source. Class IDs are alphanumeric
+     tokens generated by the app (safe to interpolate). */
+  const tworkRows=[];
+  if(attendanceDue>0)tworkRows.push({label:'Attendance to mark',detail:attendanceDue+' class'+(attendanceDue===1?'':'es')+' pending',route:'attendance',cta:'Mark'});
+  if(resultsIncomplete>0)tworkRows.push({label:'Results to enter',detail:resultsIncomplete+' pupil entr'+(resultsIncomplete===1?'y':'ies')+' pending',route:'results',cta:'Enter'});
+  if(hasHifz&&hifzMine>0)tworkRows.push({label:'Hifz evaluations',detail:hifzMine+' pupil'+(hifzMine===1?'':'s')+' awaiting evaluation',route:'hifz',cta:'Evaluate'});
+  if(un>0)tworkRows.push({label:'Messages',detail:un+' unread message'+(un===1?'':'s'),route:'messages',cta:'Open'});
+  if(!tworkRows.length)tworkRows.push({label:'All caught up',detail:'Nothing pending right now',route:'',cta:''});
+  const tworkHTML=tworkRows.map(r=>{
+    const btn=r.route?('<button class="btn sm" onclick="go(\''+r.route+'\')">'+esc(r.cta)+' →</button>'):'<span class="pill green">✓ Done</span>';
+    return '<div class="tdash-row"><div class="tdash-row-main"><b>'+esc(r.label)+'</b><small>'+esc(r.detail)+'</small></div>'+btn+'</div>';
+  }).join('');
+  /* KPI row values are display-only summaries of the counts above — same functions, no new sources. */
+  const kpis=[
+    {k:'My classes',v:myClasses.length,sub:totalPupils+' pupil'+(totalPupils===1?'':'s')+' total'},
+    {k:'Attendance tasks',v:attendanceDue,sub:attendanceDue?'class'+(attendanceDue===1?'':'es')+' to mark':'All marked',danger:attendanceDue>0},
+    {k:'Results tasks',v:resultsIncomplete,sub:resultsIncomplete?'entries pending':'Up to date',danger:resultsIncomplete>0},
+    hasHifz?{k:'Hifz tasks',v:hifzMine,sub:hifzMine?'pupils to evaluate':'Up to date',danger:hifzMine>0}:{k:'Unread messages',v:un,sub:un?'in your inbox':'Inbox clear',danger:un>0}
+  ];
+  const kpiHTML=kpis.map(x=>'<div class="tdash-kpi'+(x.danger?' danger':'')+'"><span class="tdash-kpi-label">'+esc(x.k)+'</span><span class="tdash-kpi-value">'+x.v+'</span><span class="tdash-kpi-sub">'+esc(x.sub)+'</span></div>').join('');
+  const classesHTML=perClass.map(x=>{
+    const attPct=x.pupils?Math.round(x.marked/x.pupils*100):0;
+    const attState=x.attFull?'<span class="pill green">Marked</span>':(x.marked?'<span class="pill amber">'+x.marked+'/'+x.pupils+'</span>':'<span class="pill red">Not marked</span>');
+    const pending=(x.resPending>0?('· '+x.resPending+' result'+(x.resPending===1?'':'s')+' pending'):'');
+    /* Class IDs are safe to interpolate (alphanumeric generator output) — but double-check with esc for defence. */
+    const cid=esc(x.c.id);
+    return '<article class="tdash-class"><header class="tdash-class-head"><b>'+esc(x.c.name)+'</b>'+attState+'</header>'
+      +'<div class="tdash-class-meta">'+x.pupils+' pupil'+(x.pupils===1?'':'s')+' '+pending+'</div>'
+      +'<div class="tdash-class-actions"><button class="btn sm" onclick="go(\'attendance\')">Attendance</button>'
+      +'<button class="btn sm sec" onclick="classAnalytics(\''+cid+'\')">Analytics</button>'
+      +'<button class="btn sm sec" onclick="classPupils(\''+cid+'\')">Pupils</button></div></article>';
+  }).join('')||'<div class="card pad muted">No classes assigned yet. Ask the administrator to assign your classes.</div>';
+  const upcomingHTML=events.length
+    ? '<div class="tdash-list">'+events.slice(0,3).map(function(e){return '<div class="tdash-row"><div class="tdash-row-main"><b>'+esc(e.title)+'</b><small>'+esc(e.date)+'</small></div><button class="btn sm sec" onclick="go(\'calendar\')">Open</button></div>';}).join('')+'</div>'
+    : '<div class="tdash-empty">No upcoming events in the school calendar.</div>';
+  const hifzQuickBtn=hasHifz?'<button class="btn sm sec" onclick="go(\'hifz\')">Hifz Evaluation</button>':'';
+  const sigBtn=u.signature?'Update':'Add';
+  const phoneLine=u.phone?'☎ '+esc(u.phone):'<span class="muted">Add your phone in profile</span>';
+  $('#view').innerHTML=
+    '<section class="tdash-header">'
+    +'<div class="tdash-header-left">'
+    +'<div class="tdash-avatar">'+(u.photo?'<img src="'+u.photo+'" alt="">':'<span aria-hidden="true">👤</span>')+'</div>'
+    +'<div class="tdash-hello"><div class="tdash-hello-greet">'+esc(greet)+', '+esc((u.name||'').split(' ')[0])+'</div>'
+    +'<div class="tdash-hello-sub">'+esc(nowLabel)+' · '+esc(DB.settings.term||'')+', '+esc(DB.settings.session||'')+'</div>'
+    +'<div class="tdash-hello-meta">'+phoneLine+'</div></div></div>'
+    +'<div class="tdash-header-actions">'
+    +'<button class="btn sm sec" onclick="openSignPad(\'staff\',\''+esc(u.id)+'\')">'+sigBtn+' signature</button>'
+    +'<button class="btn sm" onclick="reportIncident()">Report incident</button></div></section>'
+    +'<section class="tdash-kpis" aria-label="Today at a glance">'+kpiHTML+'</section>'
+    +'<div class="tdash-grid">'
+    +'<section class="tdash-card"><header class="tdash-card-head"><h3>Today\'s work</h3>'
+    +(totalPending>0?'<span class="pill amber">'+totalPending+' pending</span>':'<span class="pill green">All caught up</span>')
+    +'</header><div class="tdash-list">'+tworkHTML+'</div></section>'
+    +'<section class="tdash-card"><header class="tdash-card-head"><h3>Upcoming</h3>'
+    +'<button class="btn sm sec" onclick="go(\'calendar\')">Calendar</button></header>'
+    +upcomingHTML+'</section></div>'
+    +'<section class="tdash-card"><header class="tdash-card-head"><h3>My classes</h3>'
+    +'<div class="tdash-mini-actions"><button class="btn sm sec" onclick="go(\'attendance\')">Attendance</button>'
+    +'<button class="btn sm sec" onclick="go(\'results\')">Results</button>'
+    +hifzQuickBtn
+    +'<button class="btn sm sec" onclick="go(\'messages\')">Messages'+(un?' ('+un+')':'')+'</button></div></header>'
+    +'<div class="tdash-classes-grid">'+classesHTML+'</div></section>';
+  window.scrollTo(0,0);
+}
 function classScoreList(cid){const list=studentsIn(cid);if(hasModule('tahfiz'))return list.map(s=>({s,score:tahTermScore(s.id).total})).filter(x=>x.score>0);
   const {rows}=computeClassResults(cid);return rows.filter(r=>r.count).map(r=>({s:r.s,score:Math.round(r.avg)}));}
 function classAnalytics(cid){const arr=classScoreList(cid).sort((a,b)=>b.score-a.score);const unit=hasModule('tahfiz')?'/100':'%';
@@ -3404,7 +3719,32 @@ function openStudentProfile(id){const s=DB.students.find(x=>x.id===id);if(!s)ret
     +(ck.length?_pfSection('📋 Other details')+_pfGrid(ck.map(k=>[k,esc(custom[k])+(admin?` <button class="btn icon" style="padding:0 5px;vertical-align:middle" onclick="delStudentDetail('${s.id}','${jq(k)}')">🗑️</button>`:'')])):'')
     +(incs.length?_pfSection('🚩 Incidents')+incs.map(i=>`<div class="ev-item" style="display:block"><b>${esc(i.type)}</b> <span class="muted" style="font-size:11px">${esc(i.date||'')}</span><div style="font-size:12.5px">${esc(i.desc)}</div></div>`).join(''):'')
     +`</div>`,
-    `<button class="btn sec" onclick="closeModal()">Close</button>${admin?`<button class="btn sec" onclick="openSignPad('student','${s.id}')">✍️ Signature</button><button class="btn sec" onclick="addStudentDetail('${s.id}')">＋ Add detail</button><button class="btn" onclick="editStudent('${s.id}')">✏️ Edit</button>`:''}`,true);}
+    `<button class="btn sec" onclick="closeModal()">Close</button>${admin?`<button class="btn sec" onclick="openSignPad('student','${s.id}')">✍️ Signature</button><button class="btn sec" onclick="changeStudentPhoto('${s.id}')">📷 Change photo</button>${s.photo?`<button class="btn sec" onclick="removeStudentPhoto('${s.id}')">🗑️ Remove photo</button>`:''}<button class="btn sec" onclick="addStudentDetail('${s.id}')">＋ Add detail</button><button class="btn" onclick="editStudent('${s.id}')">✏️ Edit</button>`:''}`,true);}
+/* ---- Change/Remove student photo: database-confirmed writes so the photo actually persists
+   through cloudCommit's CAS instead of the debounced push (which was the root cause of "uploaded
+   but not displaying" — a failed push would leave the local base64 present until reload, then
+   silently disappear on the next pull). Every write path also enforces PHOTO_MAX_BYTES. ---- */
+function changeStudentPhoto(sid){if(USER.role!=='admin'){toast('Administrator only',true);return;}
+  const s=DB.students.find(x=>x.id===sid);if(!s)return;
+  _photo=s.photo||'';
+  modal('Change photo — '+esc(s.name),photoField(s.photo)+'<p class="muted" style="font-size:12px">JPG, PNG or WebP up to 10MB. The image is compressed to keep the school database fast.</p>',
+    '<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveStudentPhoto(\''+sid+'\',this)">Save photo</button>');}
+async function saveStudentPhoto(sid,btn){if(USER.role!=='admin')return;const s=DB.students.find(x=>x.id===sid);if(!s)return;
+  if(_photo&&_dataURLBytes(_photo)>PHOTO_MAX_BYTES){toast('Photo too large — please pick a smaller/simpler image',true);return;}
+  const prev=s.photo||'';s.photo=_photo||'';
+  if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  const res=await cloudCommit();
+  if(!res.ok){s.photo=prev;if(btn){btn.disabled=false;btn.textContent='Save photo';}toast('Photo NOT saved — database error. Please retry.',true);return;}
+  closeModal();toast('✔ Photo saved');openStudentProfile(sid);
+}
+async function removeStudentPhoto(sid){if(USER.role!=='admin'){toast('Administrator only',true);return;}
+  const s=DB.students.find(x=>x.id===sid);if(!s||!s.photo)return;
+  if(!confirm('Remove '+(s.name||'this pupil')+"'s photo? A fallback avatar will show until a new photo is added."))return;
+  const prev=s.photo;s.photo='';
+  const res=await cloudCommit();
+  if(!res.ok){s.photo=prev;toast('Photo NOT removed — database error. Please retry.',true);return;}
+  toast('✔ Photo removed');openStudentProfile(sid);
+}
 function addStudentDetail(id){modal('Add detail',`<p class="muted mb">Add any extra information to this pupil's profile.</p><div class="fld"><label>Detail label</label><input id="cd_k" placeholder="e.g. Previous school, NIN, State of origin, Hobby"></div><div class="fld"><label>Value</label><input id="cd_v"></div>`,
     `<button class="btn sec" onclick="openStudentProfile('${id}')">Cancel</button><button class="btn" onclick="saveStudentDetail('${id}')">Save</button>`);}
 function saveStudentDetail(id){const k=$('#cd_k').value.trim(),v=$('#cd_v').value.trim();if(!k){toast('Enter a label',true);return;}const s=DB.students.find(x=>x.id===id);s.custom=s.custom||{};s.custom[k]=v;save();closeModal();openStudentProfile(id);toast('Detail added');}
@@ -5147,7 +5487,7 @@ async function _hzCalCommit(id,busyLabel,applyFn,undoFn){
 }
 async function vHifzHub(){if(!hasModule('tahfiz')){$('#view').innerHTML='<div class="card pad">The Memorization/Hifz module is not enabled for this school.</div>';return;}
   if(USER.role!=='admin')return HZteacherHome();
-  await HZpull();   /* authoritative refresh so pending counts reflect the database */
+  await HZpullIfStale();   /* skip network re-fetch if the DB was refreshed within _HZ_FRESH_MS (cloudCommit stamps freshness after every write) */
   const ready=hifzReady();const cals=HZcalList();
   const rows=cals.map(c=>_hzCalRowHTML(c)).join('');
   $('#view').innerHTML=`<div class="page-head"><div><h2>📖 Hifz Evaluation</h2><p>3 evaluations per term · ${esc(DB.settings.term)}, ${esc(DB.settings.session)}</p></div>
@@ -5184,6 +5524,13 @@ async function HZcalSaveNew(){if(USER.role!=='admin')return;
   closeModal();toast('✔ Evaluation created (saved)');
   const tbody=document.querySelector('#view table tbody');
   if(tbody)tbody.insertAdjacentHTML('beforeend',_hzCalRowHTML(c));else vHifzHub();   /* first-ever row: repaint hub to swap the empty-state card for the table */
+  /* Notify teachers assigned via classes (they'll see this eval in their Hifz Home once open/backfill).
+     One notification per unique teacher; notify() dedupes by (type|recipient|evalId). */
+  try{const teachers=(DB.users||[]).filter(u=>u.role==='teacher'&&(u.classes||[]).some(cid=>(c.classIds||[]).indexOf(cid)>-1));
+    for(const t of teachers){await notify(t.id,{type:'hifz_assigned',title:'New Hifz evaluation assigned',
+      message:'A new evaluation has been created for your class: '+(c.name||('Eval '+c.evalNo))+' ('+(c.term||'')+', '+(c.year||'')+').',
+      evalId:c.id,route:'hifz'});}   /* c.id used as the dedup key so double-clicking Create can't produce two notifications per teacher */
+  }catch(err){console.warn('assign notifications failed',err);}
 }
 function HZcalEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(id);if(!c)return;const cls=DB.classes||[];
   modal('Edit evaluation',`
@@ -5207,7 +5554,19 @@ async function HZcalSaveEdit(id){if(USER.role!=='admin')return;const c=HZcalGet(
   const r=await _hzCalCommit(id,'Saving…',
     ()=>{c.year=newYear;c.term=newTerm;c.evalNo=newNo;c.name=newName;c.open=newOpen;c.close=newClose;c.classIds=newClassIds;},
     ()=>{c.year=prev.year;c.term=prev.term;c.evalNo=prev.evalNo;c.name=prev.name;c.open=prev.open;c.close=prev.close;c.classIds=prev.classIds;});
-  if(r.ok){_hzBtnClear(btn);closeModal();toast('✔ Saved');return;}
+  if(r.ok){_hzBtnClear(btn);closeModal();toast('✔ Saved');
+    /* If classIds gained any new classes, notify teachers of those classes that weren't already
+       responsible via the prior class set. notify() dedupes by (type|recipient|evalId) so a teacher
+       who was already notified when the eval was first created will not receive a duplicate. */
+    try{const addedClassIds=newClassIds.filter(cid=>prev.classIds.indexOf(cid)===-1);
+      if(addedClassIds.length){
+        const prevTeachers=new Set();(DB.users||[]).forEach(u=>{if(u.role==='teacher'&&(u.classes||[]).some(cid=>prev.classIds.indexOf(cid)>-1))prevTeachers.add(u.id);});
+        const nowTeachers=(DB.users||[]).filter(u=>u.role==='teacher'&&(u.classes||[]).some(cid=>addedClassIds.indexOf(cid)>-1)&&!prevTeachers.has(u.id));
+        for(const t of nowTeachers){await notify(t.id,{type:'hifz_assigned',title:'New Hifz evaluation assigned',
+          message:'You have been added to the evaluation: '+(c.name||('Eval '+c.evalNo))+' ('+(c.term||'')+', '+(c.year||'')+').',
+          evalId:c.id,route:'hifz'});}
+      }}catch(err){console.warn('assign notifications on edit failed',err);}
+    return;}
   if(r.busy){_hzBtnClear(btn);return;}
   _hzBtnFail(btn,'— DATABASE UPDATE FAILED');toast('Not saved — database error. Your edits are kept in the form; retry to try again.',true);
 }
@@ -5271,7 +5630,7 @@ function _hzBtnFail(btn,marker){
 function HZprevPos(prof){if(prof&&prof.lastApprovedPos)return prof.lastApprovedPos;if(prof&&prof.startSurah)return {surah:prof.startSurah,ayah:prof.startAyah,page:(prof.startPage!=null?prof.startPage:pageOf(prof.startSurah,prof.startAyah))};return null;}
 function HZstatusOf(calId,sid){const e=HZevalFor(calId,sid);return e?e.status:'none';}
 function HZstatusChip(st){const m={none:['#eef1ee','#5a6b5f','Not started'],draft:['#fff7e6','#8a6d1a','Draft'],submitted:['#e9f0ff','#2a5bd7','Submitted'],returned:['#fdeceb','#b00020','Returned'],approved:['#e9f7ee','#0b8a45','Approved']};const x=m[st]||m.none;return '<span style="background:'+x[0]+';color:'+x[1]+';border-radius:20px;padding:1px 9px;font-size:11px;font-weight:700">'+x[2]+'</span>';}
-async function HZteacherHome(){await HZpull();const cals=HZcalList().filter(c=>HZaccessible(c)&&HZteacherAuth(c,USER));
+async function HZteacherHome(){await HZpullIfStale();const cals=HZcalList().filter(c=>HZaccessible(c)&&HZteacherAuth(c,USER));
   const cards=cals.map(c=>{const studs=HZstudentsForEval(c,USER);const done=studs.filter(s=>{const st=HZstatusOf(c.id,s.id);return st==='submitted'||st==='approved';}).length;const pct=studs.length?Math.round(done/studs.length*100):0;
     return `<div class="card pad" style="cursor:pointer" onclick="HZevalOpen('${c.id}')">
       <div class="flex" style="justify-content:space-between;align-items:flex-start"><div><b>${esc(c.name||('Evaluation '+c.evalNo))}</b> ${HZstateBadge(c)}<div class="muted" style="font-size:12px">${esc(c.year||'')} · ${esc(c.term||'')} · Eval ${esc(c.evalNo)}</div></div><div style="text-align:right"><div style="font-weight:800;font-size:15px">${done}/${studs.length}</div><div class="muted" style="font-size:11px">completed</div></div></div>
@@ -5571,7 +5930,7 @@ async function HZsaveNext(btn){const cur=HZcur;const key='hzform:'+cur.calId+':'
 /* ---- admin review + approval / coverage application ---- */
 async function vHifzReview(){if(USER.role!=='admin'){$('#view').innerHTML='<div class="card pad">Administrator only.</div>';return;}
   $('#view').innerHTML='<div class="card pad"><div class="muted">Loading the latest evaluations from the database…</div></div>';
-  await HZpull();   /* read authoritative records from the database every time this screen opens */
+  await HZpullIfStale();   /* re-pull only when DB is older than _HZ_FRESH_MS; cloudCommit already stamps freshness after every write, so a just-committed review no longer needs another round-trip */
   const evs=(DB.hifzEvals||[]).slice().sort((a,b)=>(b.submittedAt||b.audit&&b.audit[0]&&b.audit[0].at||0)-(a.submittedAt||a.audit&&a.audit[0]&&a.audit[0].at||0));
   const grp=st=>evs.filter(e=>e.status===st);
   const sName=id=>{const s=DB.students.find(x=>x.id===id);return s?s.name:'—';};
@@ -5588,7 +5947,14 @@ async function vHifzReview(){if(USER.role!=='admin'){$('#view').innerHTML='<div 
     <div class="card mb" style="overflow-x:auto"><div class="pad"><b>Returned (${grp('returned').length})</b></div><table style="width:100%;border-collapse:collapse"><tbody>${rowset(grp('returned'))}</tbody></table></div>
     <div class="card" style="overflow-x:auto"><div class="pad"><b>Approved (${grp('approved').length})</b></div><table style="width:100%;border-collapse:collapse"><tbody>${rowset(grp('approved'))}</tbody></table></div>`;
   window.scrollTo(0,0);}
-function HZreview(evalId){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;const s=DB.students.find(x=>x.id===e.studentId)||{};const c=HZcalGet(e.calId)||{};const r=e.raw||{};const mu=r.mura||{};const sc=e.scores||{};const W=HZw();
+async function HZreview(evalId){if(USER.role!=='admin')return;
+  /* Force-refresh from the database before showing the review modal. The 30-second freshness gate is
+     for cheap navigation; an admin about to Approve/Return an evaluation must decide against the
+     current server state, not a possibly-stale cached copy. This is one extra network hit per review
+     open, which is the correct trade-off for the highest-stakes admin action in the Hifz workflow. */
+  await HZpullIfStale(true);
+  const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e){toast('This evaluation is no longer available',true);return;}
+  const s=DB.students.find(x=>x.id===e.studentId)||{};const c=HZcalGet(e.calId)||{};const r=e.raw||{};const mu=r.mura||{};const sc=e.scores||{};const W=HZw();
   const line=(l,v)=>'<div style="display:flex;justify-content:space-between;font-size:12.5px;padding:2px 0;gap:10px"><span class="muted">'+l+'</span><b style="text-align:right">'+v+'</b></div>';
   let body='<div class="muted" style="font-size:12px;margin-bottom:8px">'+esc(s.name)+' · '+esc(c.name||('Eval '+e.evalNo))+' · '+esc(e.term)+', '+esc(e.year)+' · Date: <b>'+esc(e.date||'')+'</b>'+(e.historical?' (historical)':'')+' · Teacher: '+esc(e.teacherName||'')+'</div><div class="grid2">';
   /* Prefer the stored Surah/Ayah source labels; fall back to page numbers for historical (pre-migration) evals. */
@@ -5641,6 +6007,16 @@ async function HZapprove(evalId,btn){if(USER.role!=='admin')return;const e=(DB.h
       _hzBtnFail(btn,'— DATABASE UPDATE FAILED');toast('Approval NOT saved — database error. Nothing was finalised; tap Approve again to retry.',true);return;
     }
     closeModal();toast('✔ Approved & saved — coverage/reports updated');vHifzReview();
+    /* Non-blocking teacher notification. If it fails, the approval remains valid — only the
+       notification is missing, and the admin sees the failure toast. */
+    try{if(e.teacherId){const s=(DB.students||[]).find(x=>x.id===e.studentId)||{};
+      const c=HZcalGet(e.calId)||{};
+      const nr=await notify(e.teacherId,{type:'hifz_approved',
+        title:'Evaluation approved',
+        message:'Your Hifz evaluation for '+(s.name||'a pupil')+' ('+(c.name||('Eval '+e.evalNo))+') was approved.',
+        studentId:e.studentId,studentName:s.name||'',evalId:e.id});
+      if(!nr.ok)toast('Approved, but teacher notification failed to save',true);
+    }}catch(err){console.warn('notify failed',err);}
   }finally{_hzBusy.delete(key);}}
 async function HZreturn(evalId,btn){if(USER.role!=='admin')return;const e=(DB.hifzEvals||[]).find(x=>x.id===evalId);if(!e)return;
   const rc=$('#hz_rev');const reason=rc?rc.value.trim():'';if(!reason){toast('Enter a review comment explaining what to fix',true);return;}
@@ -5654,6 +6030,16 @@ async function HZreturn(evalId,btn){if(USER.role!=='admin')return;const e=(DB.hi
       _hzBtnFail(btn,'— DATABASE UPDATE FAILED');toast('Not saved — database error. Tap Return again to retry.',true);return;
     }
     closeModal();toast('✔ Returned to teacher (saved)');vHifzReview();
+    /* Fire a database-confirmed notification to the assigned teacher. Failure here does NOT roll back
+       the already-committed return action — the review state is authoritative regardless. */
+    try{if(e.teacherId){const s=(DB.students||[]).find(x=>x.id===e.studentId)||{};
+      const c=HZcalGet(e.calId)||{};
+      const nr=await notify(e.teacherId,{type:'hifz_returned',
+        title:'Evaluation returned for correction',
+        message:'Your Hifz evaluation for '+(s.name||'a pupil')+' ('+(c.name||('Eval '+e.evalNo))+') was returned. Reviewer: '+reason,
+        studentId:e.studentId,studentName:s.name||'',evalId:e.id});
+      if(!nr.ok)toast('Returned, but teacher notification failed to save',true);
+    }}catch(err){console.warn('notify failed',err);}
   }finally{_hzBusy.delete(key);}}
 /* ---- reports: approved evals, weighted term result, trend, expected-vs-actual, insights ---- */
 function HZapprovedEvals(sid,year,term){return (DB.hifzEvals||[]).filter(e=>e.studentId===sid&&e.status==='approved'&&(!year||e.year===year)&&(!term||e.term===term)).sort((a,b)=>Number(a.evalNo)-Number(b.evalNo)||(a.approvedAt||0)-(b.approvedAt||0));}
