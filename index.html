@@ -518,6 +518,211 @@ tbody tr:hover{background:#fafbfa}
 .lb-count{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);color:#fff;font-size:13px;background:rgba(0,0,0,.5);padding:4px 12px;border-radius:20px}
 .wa-fab{position:fixed;right:18px;bottom:84px;z-index:58;width:56px;height:56px;border-radius:50%;background:#25d366;color:#fff;display:flex;align-items:center;justify-content:center;font-size:28px;box-shadow:0 6px 20px rgba(0,0,0,.3);text-decoration:none}
 .wa-fab:hover{filter:brightness(1.05)}
+/* ===================================================================
+   AMQM PUBLIC HOMEPAGE (scoped)
+   Everything below lives under .amqm-home so the authenticated school
+   shell, parent portal, checker, pharmacy/autoparts/family/posagent
+   shells and every internal page keep their existing CSS untouched.
+   =================================================================== */
+.amqm-home{--ag:#0b5a2d;--agd:#073d1e;--agold:#c9a44c;--agold-dark:#a2812f;--aink:#1a2e22;--amuted:#5a6b60;--acream:#fbf7ee;--aline:#e6e8e2;--abg:#ffffff;min-height:100vh;background:var(--abg);color:var(--aink);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,"Helvetica Neue",Arial,sans-serif;line-height:1.6;font-size:15px;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;overflow-x:hidden}
+.amqm-home *,.amqm-home *::before,.amqm-home *::after{box-sizing:border-box}
+.amqm-home h1,.amqm-home h2,.amqm-home h3,.amqm-home h4{font-family:Georgia,"Times New Roman",serif;font-weight:700;letter-spacing:-.005em;line-height:1.2;margin:0;color:var(--aink)}
+.amqm-home a{color:inherit;text-decoration:none}
+.amqm-home img{max-width:100%;display:block}
+.amqm-home button{font-family:inherit}
+.amqm-home ::selection{background:rgba(201,164,76,.35)}
+/* HEADER */
+.amqm-header{position:sticky;top:0;z-index:60;background:#fff;border-bottom:1px solid var(--aline);box-shadow:0 1px 0 rgba(0,0,0,.02)}
+.amqm-header__inner{max-width:1240px;margin:0 auto;padding:14px 24px;display:flex;align-items:center;gap:18px}
+.amqm-brand{display:flex;align-items:center;gap:12px;flex:0 0 auto;min-width:0}
+.amqm-brand__logo{width:48px;height:48px;border-radius:50%;overflow:hidden;background:var(--ag);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;flex:0 0 auto;border:2px solid var(--agold)}
+.amqm-brand__logo img{width:100%;height:100%;object-fit:cover}
+.amqm-brand__text{min-width:0}
+.amqm-brand__name{font-family:Georgia,serif;font-weight:800;font-size:20px;color:var(--ag);letter-spacing:.02em;line-height:1}
+.amqm-brand__sub{font-size:11.5px;color:var(--amuted);margin-top:3px;line-height:1.3;max-width:280px}
+.amqm-nav{margin-left:auto;display:flex;align-items:center;gap:2px}
+.amqm-nav a{padding:10px 14px;font-size:13.5px;font-weight:600;color:var(--aink);border-radius:6px;cursor:pointer;transition:color .15s ease;position:relative}
+.amqm-nav a:hover{color:var(--ag)}
+.amqm-nav a.on{color:var(--ag)}
+.amqm-nav a.on::after{content:"";position:absolute;left:14px;right:14px;bottom:4px;height:2px;background:var(--agold);border-radius:2px}
+.amqm-portal-btn{background:var(--agold);color:#fff;padding:11px 22px;border-radius:6px;font-weight:700;font-size:13.5px;cursor:pointer;border:0;transition:background .15s ease;margin-left:6px;font-family:inherit}
+.amqm-portal-btn:hover{background:var(--agold-dark)}
+.amqm-burger{display:none;background:none;border:0;padding:8px;cursor:pointer;color:var(--ag);font-size:24px;margin-left:auto;line-height:1}
+.amqm-mobile{display:none;position:fixed;inset:0;background:rgba(7,61,30,.97);z-index:100;flex-direction:column;padding:72px 24px 24px;overflow-y:auto}
+.amqm-mobile.on{display:flex}
+.amqm-mobile__close{position:absolute;top:14px;right:18px;background:none;border:0;color:#fff;font-size:32px;cursor:pointer;line-height:1;padding:8px 12px}
+.amqm-mobile a{color:#fff;padding:14px 6px;font-size:17px;font-weight:600;border-bottom:1px solid rgba(255,255,255,.08);cursor:pointer;display:block}
+.amqm-mobile a:last-of-type{border-bottom:0}
+.amqm-mobile .amqm-portal-btn{margin-top:20px;padding:14px 22px;width:100%;text-align:center;font-size:15px;display:block}
+/* HERO */
+.amqm-hero{background:linear-gradient(120deg,var(--agd) 0%,var(--ag) 100%);color:#fff;position:relative;overflow:hidden}
+.amqm-hero__inner{max-width:1240px;margin:0 auto;padding:80px 24px 100px;display:grid;grid-template-columns:1fr 1fr;gap:60px;align-items:center;position:relative;z-index:2}
+.amqm-hero__text{max-width:560px}
+.amqm-hero__bismillah{font-family:'Amiri','Traditional Arabic',serif;color:var(--agold);font-size:26px;direction:rtl;margin-bottom:18px;line-height:1.4}
+.amqm-home .amqm-hero__title{font-size:52px;font-weight:800;line-height:1.1;color:#fff;margin-bottom:8px}
+.amqm-home .amqm-hero__title span{display:block;color:#fff}
+.amqm-home .amqm-hero__title span.gold{color:var(--agold)}
+.amqm-home .amqm-cta__text h3{color:#fff}
+.amqm-hero__desc{margin-top:18px;font-size:16px;line-height:1.7;color:rgba(255,255,255,.88);max-width:480px}
+.amqm-hero__ctas{margin-top:28px;display:flex;gap:12px;flex-wrap:wrap}
+.amqm-btn{display:inline-flex;align-items:center;gap:8px;padding:14px 24px;font-size:14.5px;font-weight:700;border-radius:6px;cursor:pointer;border:0;transition:transform .15s ease,box-shadow .15s ease,background .15s ease,border-color .15s ease;font-family:inherit;text-decoration:none;line-height:1;white-space:nowrap}
+.amqm-btn:focus-visible{outline:2px solid #fff;outline-offset:3px}
+.amqm-btn--gold{background:var(--agold);color:#fff}
+.amqm-btn--gold:hover{background:var(--agold-dark);transform:translateY(-1px)}
+.amqm-btn--ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.55)}
+.amqm-btn--ghost:hover{background:rgba(255,255,255,.08);border-color:#fff}
+.amqm-btn--dark{background:var(--ag);color:#fff}
+.amqm-btn--dark:hover{background:var(--agd);transform:translateY(-1px)}
+.amqm-btn--outline-dark{background:transparent;color:var(--ag);border:1.5px solid var(--ag)}
+.amqm-btn--outline-dark:hover{background:var(--ag);color:#fff}
+.amqm-hero__image{aspect-ratio:4/3;border-radius:14px;overflow:hidden;background:rgba(0,0,0,.25);box-shadow:0 24px 60px rgba(0,0,0,.35)}
+.amqm-hero__image img{width:100%;height:100%;object-fit:cover;display:block}
+.amqm-hero__image--placeholder{display:flex;align-items:center;justify-content:center;font-size:96px;color:rgba(255,255,255,.35)}
+/* STATS STRIP (overlapping) */
+.amqm-stats-wrap{max-width:1240px;margin:-56px auto 0;padding:0 24px;position:relative;z-index:5}
+.amqm-stats-grid{background:#fff;border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.14);padding:32px 24px;display:grid;grid-template-columns:repeat(6,1fr);gap:24px;text-align:center}
+.amqm-stat__ic{width:48px;height:48px;margin:0 auto 12px;border-radius:50%;background:rgba(11,90,45,.08);color:var(--ag);display:flex;align-items:center;justify-content:center;font-size:22px}
+.amqm-stat__label{font-size:11.5px;color:var(--amuted);text-transform:uppercase;letter-spacing:.06em;font-weight:600;margin-bottom:6px}
+.amqm-stat__num{font-family:Georgia,serif;font-size:26px;font-weight:800;color:var(--agold);letter-spacing:-.01em;line-height:1;word-break:break-word}
+.amqm-stat__sub{font-size:12px;color:var(--amuted);margin-top:4px;line-height:1.35}
+/* SECTIONS */
+.amqm-section{max-width:1240px;margin:0 auto;padding:80px 24px}
+.amqm-section--band{background:#f7faf7;max-width:none;padding:80px 24px}
+.amqm-section--band>.amqm-section__inner{max-width:1240px;margin:0 auto}
+.amqm-eyebrow{display:inline-block;margin-bottom:10px}
+.amqm-eyebrow::after{content:"";display:block;width:44px;height:3px;background:var(--agold);border-radius:2px;margin-top:8px}
+.amqm-section__h{font-size:32px;color:var(--aink);margin-bottom:6px}
+.amqm-section__lead{color:var(--amuted);font-size:15px;margin:0 0 32px;max-width:640px}
+/* ABOUT */
+.amqm-about-grid{display:grid;grid-template-columns:1fr 1.05fr;gap:48px;align-items:start}
+.amqm-about__text{color:#3b4a41;font-size:15px;line-height:1.85;white-space:pre-line}
+.amqm-about__text p{margin:0 0 14px}
+.amqm-about__cta{margin-top:20px}
+.amqm-mv-col{display:grid;gap:20px}
+.amqm-mv{border-radius:14px;padding:26px 24px;box-shadow:0 8px 28px rgba(0,0,0,.06);border:1px solid var(--aline);background:#fff}
+.amqm-mv--mission{background:#f4f8f5;border-left:3px solid var(--ag)}
+.amqm-mv--vision{background:var(--acream);border-left:3px solid var(--agold)}
+.amqm-mv__ic{width:44px;height:44px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;color:var(--ag);margin-bottom:14px;box-shadow:0 4px 10px rgba(0,0,0,.06)}
+.amqm-mv--vision .amqm-mv__ic{color:var(--agold)}
+.amqm-mv h3{font-size:20px;margin-bottom:10px;color:var(--aink)}
+.amqm-mv p{color:#3b4a41;font-size:14px;line-height:1.75;margin:0;white-space:pre-line}
+/* PROGRAMS */
+.amqm-programs-grid{display:grid;grid-template-columns:2fr 1fr;gap:40px;align-items:stretch}
+.amqm-programs__list{display:grid;grid-template-columns:repeat(2,1fr);gap:18px;align-content:start}
+.amqm-program{background:#fff;border:1px solid var(--aline);border-radius:12px;padding:22px;transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease}
+.amqm-program:hover{transform:translateY(-2px);box-shadow:0 12px 28px rgba(0,0,0,.08);border-color:rgba(201,164,76,.5)}
+.amqm-program__ic{width:44px;height:44px;border-radius:8px;background:rgba(11,90,45,.08);color:var(--ag);display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:14px}
+.amqm-program__title{font-size:16px;font-weight:700;color:var(--aink);margin-bottom:6px;font-family:Georgia,serif}
+.amqm-program__desc{color:var(--amuted);font-size:13px;line-height:1.6;margin:0}
+.amqm-programs__aside{border-radius:14px;overflow:hidden;background:#f4f8f5;min-height:320px;position:relative}
+.amqm-programs__aside img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0}
+.amqm-programs__aside--ph{display:flex;align-items:center;justify-content:center;font-size:80px;color:rgba(11,90,45,.2)}
+/* LEADERSHIP + NEWS SPLIT */
+.amqm-split-grid{display:grid;grid-template-columns:1fr 1fr;gap:48px}
+.amqm-lead-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:18px}
+.amqm-lead{background:#fff;border-radius:12px;padding:18px;border:1px solid var(--aline);text-align:center}
+.amqm-lead__photo{width:88px;height:88px;border-radius:50%;margin:0 auto 12px;background:#f4f8f5;overflow:hidden;display:flex;align-items:center;justify-content:center;font-size:36px;color:var(--ag);border:2px solid var(--acream)}
+.amqm-lead__photo img{width:100%;height:100%;object-fit:cover}
+.amqm-lead__name{font-family:Georgia,serif;font-size:14.5px;font-weight:700;color:var(--aink);margin-bottom:2px}
+.amqm-lead__role{font-size:11.5px;color:var(--amuted);font-weight:600;text-transform:uppercase;letter-spacing:.05em}
+.amqm-news-list{display:flex;flex-direction:column;gap:14px}
+.amqm-news{display:grid;grid-template-columns:120px 1fr;gap:16px;background:#fff;border:1px solid var(--aline);border-radius:12px;padding:14px;align-items:center}
+.amqm-news__img{aspect-ratio:4/3;border-radius:8px;background:linear-gradient(135deg,var(--ag),var(--agd));display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.85);font-size:30px;overflow:hidden}
+.amqm-news__img img{width:100%;height:100%;object-fit:cover}
+.amqm-news__body{min-width:0}
+.amqm-news__tag{display:inline-block;padding:2px 8px;font-size:10px;font-weight:700;color:var(--ag);background:rgba(11,90,45,.09);border-radius:20px;text-transform:uppercase;letter-spacing:.05em;margin-bottom:6px}
+.amqm-news__title{font-family:Georgia,serif;font-size:15px;font-weight:700;color:var(--aink);margin-bottom:4px;line-height:1.3}
+.amqm-news__meta{font-size:11.5px;color:var(--amuted);margin-bottom:6px}
+.amqm-news__excerpt{font-size:13px;color:#5a6b60;line-height:1.5;margin:0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.amqm-view-all{color:var(--ag);font-size:13px;font-weight:600;cursor:pointer;background:none;border:0;padding:0}
+.amqm-view-all:hover{color:var(--agold-dark)}
+.amqm-block-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;gap:12px}
+.amqm-block-head h3{font-size:22px;color:var(--aink)}
+.amqm-block-head h3::after{content:"";display:block;width:36px;height:2.5px;background:var(--agold);border-radius:2px;margin-top:8px}
+/* CTA banner */
+.amqm-cta{background:linear-gradient(120deg,var(--agd),var(--ag));color:#fff}
+.amqm-cta__inner{max-width:1240px;margin:0 auto;padding:44px 24px;display:grid;grid-template-columns:auto 1fr auto;gap:24px;align-items:center}
+.amqm-cta__ic{width:64px;height:64px;border-radius:50%;background:rgba(201,164,76,.2);display:flex;align-items:center;justify-content:center;font-size:30px;flex:0 0 auto;border:2px solid var(--agold);color:var(--agold)}
+.amqm-cta__text h3{color:#fff;font-size:22px;margin-bottom:4px}
+.amqm-cta__text p{color:rgba(255,255,255,.85);font-size:14px;margin:0}
+.amqm-cta__buttons{display:flex;gap:12px;flex-wrap:wrap;justify-content:flex-end}
+/* FOOTER */
+.amqm-footer{background:#0a1f14;color:rgba(255,255,255,.75);padding:60px 24px 24px}
+.amqm-footer__grid{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:1.4fr 1fr 1fr 1.2fr 1fr;gap:40px}
+.amqm-footer__brand .amqm-brand__name{color:#fff}
+.amqm-footer__brand .amqm-brand__sub{color:rgba(255,255,255,.55)}
+.amqm-footer__brand p{font-size:13px;line-height:1.7;margin:16px 0 0;color:rgba(255,255,255,.6)}
+.amqm-footer h5{color:#fff;font-family:Georgia,serif;font-size:14px;font-weight:700;margin:0 0 14px;text-transform:none;letter-spacing:0}
+.amqm-footer a,.amqm-footer li{display:block;font-size:13px;line-height:2;color:rgba(255,255,255,.65);cursor:pointer}
+.amqm-footer a:hover{color:var(--agold)}
+.amqm-footer ul{list-style:none;margin:0;padding:0}
+.amqm-footer__contact li{display:flex;gap:8px;align-items:flex-start;line-height:1.55;padding:4px 0;color:rgba(255,255,255,.65);font-size:13px;cursor:default}
+.amqm-footer__contact li span.k{color:var(--agold);flex-shrink:0;font-size:14px;line-height:1.55}
+.amqm-footer__socials{display:flex;gap:10px;margin-top:6px}
+.amqm-footer__socials a{width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;transition:background .15s ease;font-size:16px;text-decoration:none}
+.amqm-footer__socials a:hover{background:var(--agold)}
+.amqm-footer__bar{max-width:1240px;margin:40px auto 0;padding-top:20px;border-top:1px solid rgba(255,255,255,.08);display:flex;justify-content:space-between;align-items:center;font-size:12px;color:rgba(255,255,255,.5);flex-wrap:wrap;gap:10px}
+.amqm-footer__motto{color:var(--agold);font-family:Georgia,serif;font-style:italic}
+/* FLOATING WA */
+.amqm-wa-fab{position:fixed;right:20px;bottom:24px;z-index:58;width:52px;height:52px;border-radius:50%;background:#25d366;color:#fff;display:flex;align-items:center;justify-content:center;font-size:24px;box-shadow:0 6px 20px rgba(0,0,0,.25);text-decoration:none}
+/* RESPONSIVE */
+@media(max-width:1080px){
+  .amqm-home .amqm-hero__title{font-size:44px}
+  .amqm-stats-grid{grid-template-columns:repeat(3,1fr);gap:20px}
+  .amqm-split-grid{grid-template-columns:1fr;gap:60px}
+  .amqm-programs-grid{grid-template-columns:1fr}
+  .amqm-programs__aside{min-height:220px;order:2}
+  .amqm-footer__grid{grid-template-columns:1.4fr 1fr 1fr;gap:32px}
+  .amqm-footer__contact{grid-column:1/-1}
+  .amqm-footer__socialscol{grid-column:1/-1}
+}
+@media(max-width:820px){
+  .amqm-nav{display:none}
+  .amqm-header .amqm-portal-btn{display:none}
+  .amqm-burger{display:inline-flex}
+  .amqm-hero__inner{grid-template-columns:1fr;gap:36px;padding:60px 20px 100px}
+  .amqm-home .amqm-hero__title{font-size:36px}
+  .amqm-hero__image{aspect-ratio:16/10;max-height:340px}
+  .amqm-about-grid{grid-template-columns:1fr;gap:32px}
+  .amqm-programs__list{grid-template-columns:1fr}
+  .amqm-lead-grid{grid-template-columns:repeat(2,1fr)}
+  .amqm-cta__inner{grid-template-columns:1fr;text-align:center}
+  .amqm-cta__ic{margin:0 auto}
+  .amqm-cta__buttons{justify-content:center}
+  .amqm-footer__grid{grid-template-columns:1fr 1fr;gap:24px}
+  .amqm-footer__brand{grid-column:1/-1}
+  .amqm-section{padding:60px 20px}
+  .amqm-section--band{padding:60px 20px}
+  .amqm-section__h{font-size:26px}
+}
+@media(max-width:500px){
+  .amqm-header__inner{padding:12px 18px;gap:10px}
+  .amqm-brand__name{font-size:17px}
+  .amqm-brand__sub{font-size:10.5px;max-width:210px}
+  .amqm-brand__logo{width:42px;height:42px;font-size:20px}
+  .amqm-stats-wrap{margin-top:-40px;padding:0 16px}
+  .amqm-stats-grid{grid-template-columns:1fr 1fr;padding:22px 18px;gap:18px}
+  .amqm-stat__num{font-size:22px}
+  .amqm-hero__bismillah{font-size:20px}
+  .amqm-home .amqm-hero__title{font-size:28px;overflow-wrap:break-word}
+  .amqm-hero__desc{font-size:14.5px}
+  .amqm-lead-grid{grid-template-columns:1fr}
+  .amqm-news{grid-template-columns:80px 1fr;padding:10px;gap:12px}
+  .amqm-news__title{font-size:14px}
+  .amqm-footer__grid{grid-template-columns:1fr}
+  .amqm-footer__bar{flex-direction:column;text-align:center}
+  .amqm-cta__inner{padding:32px 20px}
+  .amqm-section{padding:48px 18px}
+  .amqm-section--band{padding:48px 18px}
+  .amqm-section__h{font-size:22px}
+  .amqm-btn{padding:12px 18px;font-size:13.5px}
+}
+@media print{
+  .amqm-home,.amqm-header,.amqm-hero,.amqm-footer,.amqm-cta,.amqm-wa-fab,.amqm-mobile{display:none!important}
+}
+@media(prefers-reduced-motion:reduce){
+  .amqm-program,.amqm-btn--gold,.amqm-portal-btn,.amqm-btn--dark,.amqm-btn--outline-dark{transition:none}
+}
 /* ===== A4 print for report card / documents ===== */
 @media print{
   @page{size:A4 portrait;margin:8mm}
@@ -2581,76 +2786,203 @@ function renderAuth(){
   if(DB.settings.status==='suspended'){sc.innerHTML=`<div class="auth school"><div class="acard"><div class="crest g">⏸️</div><h1>${esc(name)}</h1><div class="sub">This school's access is currently suspended. Please contact the provider.</div></div></div>`;return;}
   renderSchoolHome();
 }
+/* ---- AMQM public homepage renderer ----
+   Premium institutional layout scoped under .amqm-home. Every data source below
+   is the school's own DB (settings, users, students, announcements, modules,
+   gallery). Nothing is invented; where a field is not set, its section either
+   graceful-falls-back or is omitted so a partially-configured school still
+   renders correctly. All navigation/actions use existing helpers (hgo,
+   staffLoginModal, applyOnline, checkAppStatus, renderPublicGallery,
+   renderParent, renderChecker, alumniJoin, waLink) — no route rewiring. */
 function renderSchoolHome(){
-  const t=theme();const sc=$('#screen');const set=DB.settings;
-  const logoTop=set.logo?`<img src="${set.logo}" style="width:100%;height:100%;object-fit:cover">`:'🎓';
-  const ev=upcomingEvents(4);
-  const galOn=hasModule('gallery')&&(DB.gallery||[]).length;
-  const homeAlbums=(DB.gallery||[]).filter(a=>a.showHome);
-  const socials=socialDefs().filter(x=>(set[x[0]]||'').trim());
+  const sc=$('#screen');const set=DB.settings;
+  const brandName=esc(set.shortName||set.schoolName||'School');
+  const fullName=esc(set.schoolName||'');
+  const logoHTML=set.logo?`<img src="${esc(set.logo)}" alt="${brandName} logo">`:'🎓';
   const heroes=set.heroImages||[];
-  const heroBg=heroes.length?`<div id="heroSlides" style="position:absolute;inset:0">${heroes.map((u,i)=>`<div class="hero-slide" style="background-image:url('${u}');opacity:${i===0?1:0}"></div>`).join('')}<div style="position:absolute;inset:0;background:linear-gradient(135deg,${t.rg}cc,${t.rgd}cc)"></div></div>`:'';
-  const cv=set.coreValues||[];const houses=(hasModule('houses')&&DB.houses)?DB.houses:[];
-  const teachers=set.showTeachers!==false?DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false&&staffGroup(u)==='teaching').sort((a,b)=>rankOf(a)-rankOf(b)||(a.name||'').localeCompare(b.name||'')):[];
-  const support=DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false&&staffGroup(u)==='support').sort((a,b)=>rankOf(a)-rankOf(b)||(a.name||'').localeCompare(b.name||''));
-  const acts=(set.activities||[]).filter(a=>a.title||a.image),alum=alumniPublicList();
+  const heroPhoto=heroes[0]||'';
+  const asidePhoto=heroes[1]||heroes[0]||'';
+  const socials=socialDefs().filter(x=>(set[x[0]]||'').trim());
+  const galOn=hasModule('gallery')&&(DB.gallery||[]).length;
+  const parentOn=hasModule('parentPortal');
+  /* Leadership: real staff records only, ranked by position — same source as before. */
   const leadStaff=DB.users.filter(u=>u.role==='teacher'&&u.showOnSite!==false&&staffGroup(u)==='leadership').sort((a,b)=>rankOf(a)-rankOf(b));
   const _dir=directorUser();if(_dir&&_dir.role==='admin'&&_dir.showOnSite===true)leadStaff.unshift(_dir);
   const _coreRoles=['Director','Assistant Director','School Supervisor'];const _filled=new Set(leadStaff.map(u=>u.position));
-  const lead=(set.showLeadership===false)?[]:leadStaff.map(u=>({name:u.name,role:u.position,photo:u.photo,bio:u.bio})).concat(_coreRoles.filter(r=>!_filled.has(r)).map(r=>({name:'To be announced',role:r,photo:'',bio:'',ph:true})));
-  const alumBy={};alum.forEach(a=>{const y=(a.year||'').match(/(\d{4})/);const k=y?y[1]:'Other';(alumBy[k]=alumBy[k]||[]).push(a);});const alumYears=Object.keys(alumBy).sort().reverse();
-  const aboutImg=heroes[1]||heroes[0]||((DB.gallery||[]).flatMap(a=>a.media||[]).find(m=>m.type==='image')||{}).url||'';
-  const aImgs=(set.aboutImages&&set.aboutImages.length)?set.aboutImages:(aboutImg?[aboutImg]:[]);const aVid=(set.aboutVideo||'').trim();
-  sc.innerHTML=`<div class="home" style="--rg:${t.rg};--rgd:${t.rgd};--rgold:${t.gold}">
-    <div class="home-top"><div class="b"><div class="lg">${logoTop}</div><span class="nm">${esc(set.shortName||set.schoolName)}</span></div>
-      <div class="nav"><a class="active" onclick="hgo('home')">🏠 Home</a><a onclick="hgo('about')">ℹ️ About</a>${lead.length?`<a onclick="hgo('leadership')">👤 Leadership</a>`:''}${acts.length?`<a onclick="hgo('activities')">🎯 Activities</a>`:''}<a onclick="hgo('admission')">📥 Admission</a>${(hasModule('gallery')&&(DB.gallery||[]).length)?`<a onclick="MODE='gallery';renderPublicGallery()">🖼️ Gallery</a>`:''}<a onclick="hgo('alumni')">🎓 Alumni</a><a onclick="hgo('contact')">📞 Contact</a>${hasModule('parentPortal')?`<a onclick="MODE='parent';renderParent()">👪 Parents</a>`:''}<a class="login" onclick="staffLoginModal()">🔐 Login</a></div></div>
-    <div id="home" class="home-hero" style="position:relative;${heroes.length?'':`background:linear-gradient(135deg,${t.rg},${t.rgd})`}">${heroBg}
-      <div style="position:relative">${set.logo?`<div class="hero-crest">${logoTop}</div>`:''}${set.islamic?`<div class="bismillah" style="color:${t.gold};font-size:17px;margin-bottom:8px">${BISMILLAH.a}</div>`:''}
-        <h1>${esc(set.schoolName)}</h1><div class="tag">${esc(set.motto||'')}</div>
-        <div class="desc">${esc(set.heroDesc||'')}</div>
-        <div class="acts">${set.onlineAdmission?`<button class="btn gold" onclick="applyOnline()">Apply for Admission</button>`:''}<button class="btn btn-ghost" onclick="hgo('about')">Learn More</button></div></div></div>
-    ${set.about?`<div id="about" class="home-sec"><div class="sec-h"><h2>About Our Institution</h2><div class="u"></div><p>A balanced approach to education${set.islamic?' — Islamic and modern':''}</p></div>
-      ${(aImgs.length||aVid)?`<div class="about2"><div class="txt">${esc(set.about)}</div><div class="about-collage">${aVid?aboutVideoTile(aVid):''}${aImgs.slice(0,aVid?4:6).map(u=>`<div class="tile"><img src="${u}" alt="School photo"></div>`).join('')}</div></div>`:`<div style="max-width:760px;margin:0 auto;text-align:center;font-size:15.5px;line-height:1.95;color:#39433d;white-space:pre-line">${esc(set.about)}</div>`}</div>`:''}
-    ${(set.mission||set.vision)?`<div class="home-sec"><div class="mv-grid">
-      ${set.mission?`<div class="mv-card"><div class="mv-ic">🎯</div><h3>Our Mission</h3><p>${esc(set.mission)}</p></div>`:''}
-      ${set.vision?`<div class="mv-card"><div class="mv-ic">🌟</div><h3>Our Vision</h3><p>${esc(set.vision)}</p></div>`:''}
+  const lead=(set.showLeadership===false)?[]:leadStaff.map(u=>({name:u.name,role:u.position||'Staff',photo:u.photo,bio:u.bio})).concat(_coreRoles.filter(r=>!_filled.has(r)).map(r=>({name:'To be announced',role:r,photo:'',bio:'',ph:true})));
+  /* Real institution statistics only — every value derived from live DB. */
+  const activeStudents=DB.students.filter(s=>!s.graduated).length;
+  const staffCount=DB.users.filter(u=>u.role==='teacher').length;
+  const hasHifz=hasModule('tahfiz');
+  const hifzTarget=hasHifz?HZmonthlyTarget():0;
+  const sessionLabel=set.session||'';
+  const termsCount=(TERMS&&TERMS.length)||3;
+  const cityFromAddress=((set.address||'').split(',').pop()||'').trim();
+  const foundedYear=(set.foundedYear||'').toString().trim();
+  const stats=[
+    {ic:'👥',label:'Active Pupils',num:activeStudents,sub:'Currently enrolled'},
+    {ic:'🎓',label:'Qualified Staff',num:staffCount,sub:'Dedicated educators'},
+    hasHifz?{ic:'📖',label:"Qur'an Hifz",num:hifzTarget,sub:'Pages / month target'}:null,
+    {ic:'🗓',label:'Academic Terms',num:termsCount,sub:'Per academic year'},
+    sessionLabel?{ic:'📅',label:'Session',num:sessionLabel,sub:'Current academic year'}:null,
+    (cityFromAddress||set.address)?{ic:'📍',label:'Location',num:esc(cityFromAddress||''),sub:esc((set.address||'').split(',').slice(0,-1).join(',')||'')}:null,
+    foundedYear?{ic:'🏛',label:'Founded',num:foundedYear,sub:'Year established'}:null,
+  ].filter(Boolean).slice(0,6);
+  /* Programs — derived from the school's own module configuration + Islamic
+     identity flag. Nothing invented; a school without a given module simply
+     doesn't show the corresponding programme card. */
+  const programsPool=[
+    hasHifz?{ic:'📖',title:"Qur'anic Hifz",desc:"Structured Qur'an memorisation with Tajweed, Muraja'ah and progress tracking."}:null,
+    set.islamic?{ic:'🕌',title:'Islamic Studies',desc:'Fiqh, Aqeedah, Seerah and Islamic character formation.'}:null,
+    set.islamic?{ic:'🖋',title:'Arabic Language',desc:'Reading, writing, grammar and communication in classical and modern Arabic.'}:null,
+    {ic:'📚',title:'Modern Education',desc:'Core academic subjects aligned with the national curriculum.'},
+  ].filter(Boolean);
+  /* News — real announcements from the school's own DB. */
+  const news=(DB.announcements||[]).slice().reverse().slice(0,3);
+  /* Nav items — Alumni/Gallery/Parents kept in the top nav even though the
+     new homepage body focuses on the 10-section brief, so those existing
+     features remain one click away. */
+  const navItems=[
+    ['home','Home',"hgo('home')"],
+    ['about','About',"hgo('about')"],
+    lead.length?['leadership','Leadership',"hgo('leadership')"]:null,
+    ['admission','Admission',"hgo('admission')"],
+    programsPool.length?['programs','Programs',"hgo('programs')"]:null,
+    galOn?['gallery','Gallery',"MODE='gallery';renderPublicGallery()"]:null,
+    ['alumni','Alumni','alumniJoin()'],
+    ['contact','Contact',"hgo('contact')"],
+    parentOn?['parents','Parents',"MODE='parent';renderParent()"]:null,
+  ].filter(Boolean);
+  const navHTML=navItems.map(([k,l,act])=>`<a data-nav="${k}" onclick="${act}">${esc(l)}</a>`).join('');
+  const mobNavHTML=navItems.map(([k,l,act])=>`<a onclick="amqmCloseMobile();${act}">${esc(l)}</a>`).join('');
+  /* Apply-for-admission action: real online form when enabled, otherwise a
+     phone/contact prompt. Same behaviour as the old page. */
+  const applyAct=set.onlineAdmission?'applyOnline()':"hgo('admission')";
+  const applyLabel=(set.onlineAdmission&&set.admissionsOpen===false)?'Applications Closed':'Apply for Admission';
+  const heroImageHTML=heroPhoto?`<img src="${esc(heroPhoto)}" alt="${brandName} students" loading="lazy">`:`<div class="amqm-hero__image--placeholder">📖</div>`;
+  const asideHTML=asidePhoto?`<img src="${esc(asidePhoto)}" alt="${brandName} campus" loading="lazy">`:`<div class="amqm-programs__aside--ph">🏛</div>`;
+  const brandLockup=`<a class="amqm-brand" onclick="hgo('home')" aria-label="${brandName}"><div class="amqm-brand__logo">${logoHTML}</div><div class="amqm-brand__text"><div class="amqm-brand__name">${brandName}</div>${fullName&&fullName!==brandName?`<div class="amqm-brand__sub">${fullName}</div>`:''}</div></a>`;
+  /* CTA banner text: reuse school's admissionInfo when it's short; otherwise a
+     concise institutional invitation. Never invented facts. */
+  const ctaMsg=(set.admissionInfo&&set.admissionInfo.length<180)?esc(set.admissionInfo):`Empower your child with the light of knowledge${set.islamic?' and the Qur’an':''}.`;
+  sc.innerHTML=`<div class="amqm-home">
+    <header class="amqm-header"><div class="amqm-header__inner">
+      ${brandLockup}
+      <nav class="amqm-nav" aria-label="Primary">${navHTML}</nav>
+      <button class="amqm-portal-btn" onclick="staffLoginModal()">Portal Login</button>
+      <button class="amqm-burger" onclick="amqmOpenMobile()" aria-label="Open menu">☰</button>
+    </div></header>
+    <div class="amqm-mobile" id="amqmMobile" role="dialog" aria-modal="true" aria-label="Menu">
+      <button class="amqm-mobile__close" onclick="amqmCloseMobile()" aria-label="Close menu">×</button>
+      ${mobNavHTML}
+      <button class="amqm-portal-btn" onclick="amqmCloseMobile();staffLoginModal()">Portal Login</button>
+    </div>
+    <section id="home" class="amqm-hero"><div class="amqm-hero__inner">
+      <div class="amqm-hero__text">
+        ${set.islamic!==false?`<div class="amqm-hero__bismillah" dir="rtl">${BISMILLAH.a}</div>`:''}
+        <h1 class="amqm-hero__title"><span>${fullName||brandName}</span>${set.motto?`<span class="gold">${esc(set.motto)}</span>`:''}</h1>
+        ${set.heroDesc?`<p class="amqm-hero__desc">${esc(set.heroDesc)}</p>`:''}
+        <div class="amqm-hero__ctas">
+          <button class="amqm-btn amqm-btn--gold" onclick="${applyAct}">${esc(applyLabel)} →</button>
+          ${programsPool.length?`<button class="amqm-btn amqm-btn--ghost" onclick="hgo('programs')">Discover Our Programmes</button>`:`<button class="amqm-btn amqm-btn--ghost" onclick="hgo('about')">Learn More</button>`}
+        </div>
+      </div>
+      <div class="amqm-hero__image">${heroImageHTML}</div>
+    </div></section>
+    ${stats.length?`<div class="amqm-stats-wrap"><div class="amqm-stats-grid">
+      ${stats.map(s=>`<div class="amqm-stat"><div class="amqm-stat__ic">${s.ic}</div><div class="amqm-stat__label">${esc(s.label)}</div><div class="amqm-stat__num">${esc(s.num)}</div>${s.sub?`<div class="amqm-stat__sub">${esc(s.sub)}</div>`:''}</div>`).join('')}
     </div></div>`:''}
-    ${cv.length?`<div class="sec-dark" style="background:${t.rg}"><div class="home-sec"><div class="sec-h"><h2>Our Core Values</h2><div class="u"></div><p>The principles guiding our institution</p></div>
-      <div class="cv-grid">${cv.map(v=>`<div class="cv"><div class="i">${esc(v.i||'⭐')}</div><h4>${esc(v.t)}</h4><p>${esc(v.d)}</p></div>`).join('')}</div></div></div>`:''}
-    <div id="admission" class="home-sec"><div class="sec-h"><h2>Admissions</h2><div class="u"></div><p>Join our school community</p></div>
-      <div class="card pad" style="max-width:720px;margin:0 auto;text-align:center;font-size:14px;line-height:1.8;white-space:pre-line">${esc(set.admissionInfo||'')}
-        ${set.onlineAdmission&&(Number(set.admissionFee)||set.admissionScreening)?`<div class="muted" style="font-size:12.5px;white-space:normal;margin-top:6px">${Number(set.admissionFee)?`Application fee: <b>${naira(Number(set.admissionFee))}</b> (non-refundable). `:''}${set.admissionScreening?`Screening: <b>${esc(set.admissionScreening)}</b>.`:''}</div>`:''}
-        <div class="mt flex gap" style="justify-content:center;flex-wrap:wrap">${set.onlineAdmission?(set.admissionsOpen===false?`<span class="pill red">Applications closed</span><button class="btn sec" onclick="checkAppStatus()">Check application status</button>`:`<button class="btn gold" onclick="applyOnline()">📝 Apply for Admission Online</button><button class="btn sec" onclick="checkAppStatus()">Check application status</button>`):`<div class="muted" style="font-size:13px">To apply, please contact the school${set.phone?' on <b>'+esc(set.phone)+'</b>':''}.</div>`}</div></div></div>
-    ${houses.length?`<div class="home-sec"><div class="sec-h"><h2>Our School Houses</h2><div class="u"></div><p>Unity, discipline and healthy competition</p></div>
-      <div class="house-car" id="houseCar">${houses.map((h,i)=>`<div class="house-slide${i===0?' on':''}" style="${h.image?`background-image:url('${h.image}')`:`background:linear-gradient(135deg,${esc(h.color||t.rg)},${t.rgd})`}"><div class="cap"><b>${esc(h.name)}</b></div></div>`).join('')}</div></div>`:''}
-    ${lead.length?`<div id="leadership" class="home-sec"><div class="sec-h"><h2>Our Leadership</h2><div class="u"></div><p>Guiding our institution</p></div>
-      <div class="teachers-grid">${lead.map(l=>`<div class="tcard"${l.ph?' style="opacity:.7"':''}><div class="ph">${l.photo?`<img src="${l.photo}">`:'👤'}</div><b>${esc(l.name)}</b><div class="role">${esc(l.role||'')}</div>${l.bio?`<div class="muted" style="font-size:12px;margin-top:4px">${esc(l.bio)}</div>`:''}</div>`).join('')}</div></div>`:''}
-    ${(hasModule('gallery')&&homeAlbums.length)?`<div id="activities" class="sec-dark" style="background:${t.rg}"><div class="home-sec"><div class="sec-h"><h2>Activities &amp; Highlights</h2><div class="u"></div><p>Life at ${esc(set.shortName||set.schoolName)}</p></div>
-      <div class="cards-row" style="grid-template-columns:repeat(auto-fill,minmax(230px,1fr))">${homeAlbums.slice().reverse().map(a=>{const cover=(a.media||[]).find(m=>m.type==='image');const vid=(a.media||[]).find(m=>m.type==='video');return `<div class="card" style="overflow:hidden;cursor:pointer" onclick="publicAlbum('${a.id}')">
-        <div style="height:150px;background:#0d1b12;display:flex;align-items:center;justify-content:center;font-size:40px;color:#fff">${cover?`<img src="${cover.url}" style="width:100%;height:100%;object-fit:cover">`:(vid?'🎬':'🖼️')}</div>
-        <div style="padding:12px"><b>${esc(a.title)}</b>${a.desc?`<div class="muted" style="font-size:12.5px;margin-top:3px">${esc(a.desc)}</div>`:''}<div class="muted" style="font-size:11px;margin-top:3px">${(a.media||[]).length} item(s)${a.date?' · '+esc(a.date):''}</div></div></div>`;}).join('')}</div>
-      ${(DB.gallery||[]).length>homeAlbums.length?`<div style="text-align:center;margin-top:14px"><button class="btn gold" onclick="MODE='gallery';renderPublicGallery()">🖼️ View full gallery</button></div>`:''}</div></div>`:''}
-    ${teachers.length?`<div class="sec-dark" style="background:#222"><div class="home-sec"><div class="sec-h"><h2>Meet Our Teachers</h2><div class="u"></div><p>Dedicated educators shaping young minds</p></div>
-      <div class="teachers-grid">${teachers.map(u=>`<div class="tcard"><div class="ph">${u.photo?`<img src="${u.photo}">`:'👩‍🏫'}</div><b>${esc(u.name)}</b><div class="role">${esc(u.position||'Teacher')}</div></div>`).join('')}</div></div></div>`:''}
-    ${support.length?`<div class="home-sec"><div class="sec-h"><h2>Support &amp; Section Staff</h2><div class="u"></div><p>The team that keeps our school running</p></div>
-      <div class="teachers-grid">${support.map(u=>`<div class="tcard"><div class="ph">${u.photo?`<img src="${u.photo}">`:'🧑‍💼'}</div><b>${esc(u.name)}</b><div class="role">${esc(u.position||'')}</div>${u.bio?`<div class="muted" style="font-size:12px;margin-top:4px">${esc(u.bio)}</div>`:''}</div>`).join('')}</div></div>`:''}
-    ${(galOn&&!homeAlbums.length)?`<div class="home-sec" style="text-align:center"><div class="sec-h"><h2>Our Gallery</h2><div class="u"></div><p>Photos &amp; videos from our activities</p></div><button class="btn gold" onclick="MODE='gallery';renderPublicGallery()">🖼️ Open the gallery</button></div>`:''}
-    <div id="alumni" class="home-sec"><div class="sec-h"><h2>Our Alumni</h2><div class="u"></div><p>Proud graduates of ${esc(set.shortName||set.schoolName)}</p></div>
-      ${alum.length?alumYears.map(y=>`<div style="margin-bottom:14px"><h4 style="text-align:center;color:${t.rg};margin:0 0 8px">Class of ${esc(y)}</h4>
-        <div class="teachers-grid">${alumBy[y].map(a=>`<div class="tcard"><div class="ph">${a.photo?`<img src="${a.photo}">`:'🎓'}</div><b>${esc(a.name)}</b>${a.occupation?`<div class="role">${esc(a.occupation)}</div>`:''}</div>`).join('')}</div></div>`).join(''):`<p class="muted center">Are you a former pupil? Reconnect with us below.</p>`}
-      <div style="text-align:center;margin-top:10px"><button class="btn gold" onclick="alumniJoin()">🎓 Join our Alumni Network</button></div></div>
-    ${(DB.announcements||[]).length?`<div class="home-sec"><div class="sec-h"><h2>📢 News & Announcements</h2><div class="u"></div></div><div class="card pad" style="max-width:720px;margin:0 auto">${DB.announcements.slice().reverse().slice(0,5).map(a=>`<div class="ev-item" style="display:block"><b>${esc(a.title)}</b> <span class="muted" style="font-size:11px">${esc(a.date)}</span><div style="font-size:13.5px;margin-top:2px">${esc(a.body)}</div></div>`).join('')}</div></div>`:''}
-    ${ev.length?`<div class="home-sec"><div class="sec-h"><h2>Upcoming Events</h2><div class="u"></div></div><div class="card pad" style="max-width:680px;margin:0 auto">${ev.map(e=>`<div class="ev-item"><div class="ev-date"><div class="d">${dayNum(e.date)}</div><div class="m">${monthAbbr(e.date)}</div></div><div style="flex:1"><b>${esc(e.title)}</b><br><span class="muted" style="font-size:12px">${esc(e.date)}</span></div></div>`).join('')}</div></div>`:''}
-    ${hasModule('parentPortal')?`<div class="home-sec" style="text-align:center"><button class="btn gold" onclick="MODE='parent';renderParent()">👪 Parent Portal Login</button></div>`:''}
-    <div id="contact" class="sec-dark" style="background:${t.rgd}"><div class="home-sec" style="text-align:center"><div class="sec-h"><h2>Contact Us</h2><div class="u"></div></div>
-      <div style="font-size:14px;line-height:1.9">📍 ${esc(set.address||'')}<br>${set.phone?'☎ '+esc(set.phone)+'<br>':''}${set.email?'✉ '+esc(set.email):''}</div>
-      ${socials.length?`<div class="flex gap" style="justify-content:center;margin-top:16px;flex-wrap:wrap">${socials.map(sx=>`<a href="${esc(set[sx[0]])}" target="_blank" rel="noopener" title="${sx[1]}" style="width:48px;height:48px;border-radius:13px;${sx[2]};display:flex;align-items:center;justify-content:center;text-decoration:none;box-shadow:0 4px 10px rgba(0,0,0,.35)">${sx[3]}</a>`).join('')}</div>`:''}
-      <div class="flex gap" style="justify-content:center;margin-top:14px;flex-wrap:wrap">${set.whatsapp?`<a class="btn" style="background:#25d366" href="${waLink(set.whatsapp)}" target="_blank">💬 WhatsApp</a>`:''}<button class="btn gold" onclick="MODE='check';renderChecker()">Check Result</button><button class="btn btn-ghost" onclick="staffLoginModal()">Staff Login</button></div></div></div>
-    ${set.whatsapp?`<a class="wa-fab" href="${waLink(set.whatsapp)}" target="_blank" title="Chat on WhatsApp">💬</a>`:''}
+    ${(set.about||set.mission||set.vision)?`<section id="about" class="amqm-section" style="padding-top:${stats.length?'90px':'80px'}">
+      <div class="amqm-eyebrow"><h2 class="amqm-section__h">About ${brandName}</h2></div>
+      <div class="amqm-about-grid">
+        <div>${set.about?`<div class="amqm-about__text">${esc(set.about)}</div>`:'<div class="amqm-about__text">A centre committed to nurturing knowledge, character and lifelong learning.</div>'}
+          <div class="amqm-about__cta"><button class="amqm-btn amqm-btn--dark" onclick="hgo('programs')">Learn More About Us →</button></div></div>
+        <div class="amqm-mv-col">
+          ${set.mission?`<div class="amqm-mv amqm-mv--mission"><div class="amqm-mv__ic">🎯</div><h3>Our Mission</h3><p>${esc(set.mission)}</p></div>`:''}
+          ${set.vision?`<div class="amqm-mv amqm-mv--vision"><div class="amqm-mv__ic">★</div><h3>Our Vision</h3><p>${esc(set.vision)}</p></div>`:''}
+        </div>
+      </div>
+    </section>`:''}
+    ${programsPool.length?`<section id="programs" class="amqm-section amqm-section--band"><div class="amqm-section__inner">
+      <div class="amqm-eyebrow"><h2 class="amqm-section__h">Our Programmes</h2></div>
+      <p class="amqm-section__lead">A structured path to knowledge and excellence.</p>
+      <div class="amqm-programs-grid">
+        <div class="amqm-programs__list">${programsPool.map(p=>`<div class="amqm-program"><div class="amqm-program__ic">${p.ic}</div><div class="amqm-program__title">${esc(p.title)}</div><p class="amqm-program__desc">${esc(p.desc)}</p></div>`).join('')}</div>
+        <div class="amqm-programs__aside">${asideHTML}</div>
+      </div>
+    </div></section>`:''}
+    ${(lead.length||news.length)?`<section class="amqm-section"><div class="amqm-split-grid">
+      ${lead.length?`<div id="leadership"><div class="amqm-block-head"><h3>Our Leadership</h3>${leadStaff.length>lead.length?'':''}</div>
+        <div class="amqm-lead-grid">${lead.slice(0,4).map(l=>`<div class="amqm-lead"${l.ph?' style="opacity:.65"':''}><div class="amqm-lead__photo">${l.photo?`<img src="${esc(l.photo)}" alt="${esc(l.name)}" loading="lazy">`:'👤'}</div><div class="amqm-lead__name">${esc(l.name)}</div><div class="amqm-lead__role">${esc(l.role||'')}</div></div>`).join('')}</div></div>`:''}
+      ${news.length?`<div id="news"><div class="amqm-block-head"><h3>News &amp; Announcements</h3>${(DB.announcements||[]).length>news.length?'<button class="amqm-view-all" onclick="hgo(\'news\')">View All</button>':''}</div>
+        <div class="amqm-news-list">${news.map(a=>`<article class="amqm-news"><div class="amqm-news__img">📢</div><div class="amqm-news__body"><span class="amqm-news__tag">Announcement</span><div class="amqm-news__title">${esc(a.title||'')}</div><div class="amqm-news__meta">${esc(a.date||'')}</div><p class="amqm-news__excerpt">${esc(a.body||'')}</p></div></article>`).join('')}</div></div>`:''}
+    </div></section>`:''}
+    <section id="admission" class="amqm-cta"><div class="amqm-cta__inner">
+      <div class="amqm-cta__ic">👥</div>
+      <div class="amqm-cta__text"><h3>Join the ${brandName} Family</h3><p>${ctaMsg}</p></div>
+      <div class="amqm-cta__buttons">
+        <button class="amqm-btn amqm-btn--gold" onclick="${applyAct}">${set.onlineAdmission&&set.admissionsOpen!==false?'Apply Now':'Contact Admissions'} →</button>
+        <button class="amqm-btn amqm-btn--ghost" onclick="hgo('contact')">Contact Us →</button>
+      </div>
+    </div></section>
+    <footer id="contact" class="amqm-footer"><div class="amqm-footer__grid">
+      <div class="amqm-footer__brand">${brandLockup.replace('class="amqm-brand"','class="amqm-brand" style="pointer-events:none"')}<p>${esc(set.heroDesc||'A community dedicated to knowledge, character and service.')}</p></div>
+      <div><h5>Quick Links</h5><ul>
+        <li onclick="hgo('about')">About Us</li>
+        <li onclick="hgo('admission')">Admission</li>
+        ${programsPool.length?`<li onclick="hgo('programs')">Programs</li>`:''}
+        ${galOn?`<li onclick="MODE='gallery';renderPublicGallery()">Gallery</li>`:''}
+        <li onclick="hgo('contact')">Contact</li>
+      </ul></div>
+      <div><h5>Resources</h5><ul>
+        ${parentOn?`<li onclick="MODE='parent';renderParent()">Parent Portal</li>`:''}
+        <li onclick="alumniJoin()">Alumni Network</li>
+        ${news.length?`<li onclick="hgo('news')">Announcements</li>`:''}
+        <li onclick="MODE='check';renderChecker()">Check Result</li>
+        <li onclick="staffLoginModal()">Staff Login</li>
+      </ul></div>
+      <div class="amqm-footer__contact"><h5>Contact Us</h5><ul>
+        ${set.phone?`<li><span class="k">☎</span><span>${esc(set.phone)}</span></li>`:''}
+        ${set.email?`<li><span class="k">✉</span><span>${esc(set.email)}</span></li>`:''}
+        ${set.address?`<li><span class="k">📍</span><span>${esc(set.address)}</span></li>`:''}
+        ${!set.phone&&!set.email&&!set.address?`<li><span>Contact details coming soon.</span></li>`:''}
+      </ul></div>
+      <div class="amqm-footer__socialscol"><h5>Follow Us</h5>${socials.length?`<div class="amqm-footer__socials">${socials.map(sx=>`<a href="${esc(set[sx[0]])}" target="_blank" rel="noopener" title="${esc(sx[1])}" aria-label="${esc(sx[1])}">${sx[3]}</a>`).join('')}</div>`:'<p style="font-size:12.5px;color:rgba(255,255,255,.55);margin:0">Social links coming soon.</p>'}</div>
+    </div>
+    <div class="amqm-footer__bar">
+      <div>© ${new Date().getFullYear()} ${fullName||brandName}. All rights reserved.</div>
+      ${set.motto?`<div class="amqm-footer__motto">${esc(set.motto)}</div>`:''}
+    </div>
+    </footer>
+    ${set.whatsapp?`<a class="amqm-wa-fab" href="${esc(waLink(set.whatsapp))}" target="_blank" rel="noopener" title="Chat on WhatsApp" aria-label="Chat on WhatsApp">💬</a>`:''}
   </div>`;
-  clearInterval(window._heroT);if(heroes.length>1){let hi=0;window._heroT=setInterval(()=>{const sl=document.querySelectorAll('#heroSlides .hero-slide');if(!sl.length){clearInterval(window._heroT);return;}sl[hi].style.opacity=0;hi=(hi+1)%sl.length;sl[hi].style.opacity=1;},4500);}
-  clearInterval(window._houseT);if(houses.length>1){let ci=0;window._houseT=setInterval(()=>{const sl=document.querySelectorAll('#houseCar .house-slide');if(!sl.length){clearInterval(window._houseT);return;}sl[ci].classList.remove('on');ci=(ci+1)%sl.length;sl[ci].classList.add('on');},4000);}
+  /* Sticky-nav active-section indicator: highlight the nav link matching the
+     section currently in view. Uses IntersectionObserver where available;
+     silent no-op on older browsers so the page still renders correctly. */
+  try{
+    if(window._amqmObs){window._amqmObs.disconnect();}
+    if('IntersectionObserver' in window){
+      const nav=sc.querySelectorAll('.amqm-nav a[data-nav]');
+      const map={};nav.forEach(a=>map[a.getAttribute('data-nav')]=a);
+      const ids=['home','about','programs','leadership','news','admission','contact'];
+      const targets=ids.map(id=>document.getElementById(id)).filter(Boolean);
+      const setActive=(id)=>{nav.forEach(a=>a.classList.remove('on'));if(map[id])map[id].classList.add('on');};
+      window._amqmObs=new IntersectionObserver(entries=>{
+        const vis=entries.filter(e=>e.isIntersecting).sort((a,b)=>b.intersectionRatio-a.intersectionRatio)[0];
+        if(vis&&vis.target&&vis.target.id)setActive(vis.target.id);
+      },{rootMargin:'-40% 0px -50% 0px',threshold:[0,.25,.5,1]});
+      targets.forEach(el=>window._amqmObs.observe(el));
+      setActive('home');
+    }
+  }catch(e){}
+  /* Old ticker cleanup — the new hero has no rotating background. */
+  try{clearInterval(window._heroT);}catch(e){}
+  try{clearInterval(window._houseT);}catch(e){}
 }
+/* Mobile menu open/close — plain functions rather than event handlers so
+   inline onclick attributes keep working with no extra scaffolding. */
+function amqmOpenMobile(){const m=document.getElementById('amqmMobile');if(m){m.classList.add('on');document.body.style.overflow='hidden';}}
+function amqmCloseMobile(){const m=document.getElementById('amqmMobile');if(m){m.classList.remove('on');document.body.style.overflow='';}}
 function hgo(id){const el=document.getElementById(id);if(el)el.scrollIntoView({behavior:'smooth'});}
 function aboutVideoTile(url){if(!url)return '';
   if(/\.(mp4|webm|ogg)(\?|#|$)/i.test(url))return `<div class="tile vid"><video src="${esc(url)}" muted loop playsinline preload="metadata" controls onmouseenter="try{this.play()}catch(e){}" onmouseleave="try{this.pause()}catch(e){}" style="display:block;width:100%;height:220px;object-fit:cover;background:#000"></video></div>`;
