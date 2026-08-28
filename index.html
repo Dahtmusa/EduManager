@@ -291,7 +291,11 @@ tbody tr:hover{background:#fafbfa}
 .idc-foot{background:var(--green-light);color:var(--green-dark);font-size:9px;text-align:center;padding:7px;font-weight:600;margin-top:8px}
 .idc.staff .idc-foot{background:#e3eefb;color:var(--blue)}
 /* subtle interactive polish */
-.btn{transition:filter .15s,transform .05s,box-shadow .15s}.btn:active{transform:translateY(1px)}
+.btn{transition:filter .15s,transform .05s,box-shadow .15s;min-height:38px}.btn:active{transform:translateY(1px)}
+.btn.sm{min-height:32px}
+.btn:focus-visible,.nav-item:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.dash-attention-item:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+@media (max-width:640px){.btn{min-height:44px;padding:11px 16px}.btn.sm{min-height:38px;padding:9px 13px}}
 .nav-item{transition:background .15s,color .15s}.card,.stat{transition:box-shadow .18s,transform .12s}
 .stat:hover{box-shadow:0 6px 18px rgba(0,0,0,.08)}
 .t-wrap tbody tr{transition:background .12s}
@@ -511,42 +515,35 @@ tbody tr:hover{background:#fafbfa}
 .ayah{font-family:'Amiri','Traditional Arabic','Scheherazade',serif;font-size:21px;direction:rtl;text-align:right;line-height:2.1}
 .ayah-ans{font-family:'Amiri','Traditional Arabic',serif;font-size:17px;direction:rtl;text-align:right;color:var(--green-dark);border-right:3px solid var(--rgold,#caa64e);padding-right:8px;margin-top:4px}
 @media(max-width:760px){.rc-info{flex-wrap:wrap}.rc-fields{grid-template-columns:1fr 1fr}.rc-two,.rc-comments{grid-template-columns:1fr}}
-/* ===================== UI / UX POLISH ===================== */
-.card{border-radius:16px;border:1px solid #eef1ee;box-shadow:0 1px 2px rgba(16,40,30,.04),0 6px 22px rgba(16,40,30,.05);transition:box-shadow .18s ease,transform .18s ease}
-.card.pad{padding:20px}
-.stat{border-radius:16px;border:1px solid #eef1ee;padding:16px 18px;position:relative;overflow:hidden;background:#fff;box-shadow:0 1px 2px rgba(16,40,30,.04),0 6px 22px rgba(16,40,30,.05);transition:transform .18s ease,box-shadow .18s ease}
-.stat:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(16,40,30,.10)}
-.stat:before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:linear-gradient(180deg,var(--green,#0a7d33),var(--green-dark,#075e26));opacity:.85}
-.stat.accent.purple:before{background:linear-gradient(180deg,#7c4dff,#4a2a8a)}
-.stat .lbl{font-size:11.5px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#6b7280);font-weight:700}
-.stat .num{font-size:26px;font-weight:800;letter-spacing:-.01em;margin-top:2px}
-.stat .meta{font-size:11.5px;color:var(--muted,#6b7280);margin-top:2px}
-.cards-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:14px;margin-bottom:16px}
-.btn{border-radius:11px;font-weight:650;letter-spacing:.01em;transition:transform .12s ease,box-shadow .12s ease,filter .12s ease;box-shadow:0 1px 2px rgba(0,0,0,.06)}
-.btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.12);filter:brightness(1.03)}
-.btn:active{transform:translateY(0)}
-.btn.sm{border-radius:9px}
-.btn.icon{box-shadow:none}
-.page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid #eef1ee}
-.page-head h2{font-size:23px;font-weight:800;letter-spacing:-.02em}
-.page-head p{color:var(--muted,#6b7280);font-size:13px;margin-top:2px}
-.nav-item{border-radius:11px;transition:background .14s ease,color .14s ease;font-weight:600}
-.nav-item:hover{background:rgba(10,125,51,.08)}
-.nav-item.active{box-shadow:inset 3px 0 0 var(--green,#0a7d33)}
-table th{font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted,#6b7280);font-weight:700;background:#fafbfa}
-table td,table th{padding:11px 12px}
-tbody tr{transition:background .12s ease}
-tbody tr:hover{background:#f7faf8}
-.t-wrap{border-radius:14px;border:1px solid #eef1ee;overflow:hidden}
-.t-wrap table{margin:0}
-input,select,textarea{border-radius:10px;transition:border-color .14s ease,box-shadow .14s ease}
-input:focus,select:focus,textarea:focus{outline:none;border-color:var(--green,#0a7d33);box-shadow:0 0 0 3px rgba(10,125,51,.12)}
-.modal{border-radius:18px}
-.pill{border-radius:999px;font-weight:700;letter-spacing:.01em}
-.toolbar{gap:12px;flex-wrap:wrap}
-.empty{padding:30px 16px;color:var(--muted,#6b7280)}.empty .big{opacity:.5}
-.linkbox{border-radius:12px}
-@media(max-width:760px){.cards-row{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}.stat .num{font-size:22px}.page-head h2{font-size:20px}.card.pad{padding:15px}}
+/* ===================== SCHOOL DESIGN FOUNDATION (PHASE 2A) =====================
+   School shell only. These tokens/components are the authoritative foundation for
+   progressive school UI migration; product-specific screens keep their own styles. */
+#app.school-shell{--ui-brand:#0a7d33;--ui-brand-strong:#075c25;--ui-brand-soft:#e9f6ee;--ui-gold:#d99b00;--ui-canvas:#f6f8f7;--ui-surface:#fff;--ui-text:#1f2a24;--ui-muted:#66756c;--ui-line:#e3ebe6;--ui-danger:#c0392b;--ui-warning:#a76600;--ui-info:#1e5fa8;--ui-radius-sm:8px;--ui-radius:12px;--ui-radius-lg:16px;--ui-shadow:0 1px 2px rgba(20,48,32,.04),0 8px 24px rgba(20,48,32,.06);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+#app.school-shell .topbar{height:64px;padding:0 24px;background:var(--ui-brand-strong);box-shadow:0 1px 0 rgba(0,0,0,.12)}
+#app.school-shell .topbar .brand{font-size:15px;letter-spacing:.01em}#app.school-shell .topbar .brand .logo{width:36px;height:36px;border-radius:10px;background:rgba(255,255,255,.14)}
+#app.school-shell .sidebar{width:248px;top:64px;height:calc(100vh - 64px);padding:16px 12px;background:#fff;border-right:1px solid var(--ui-line)}
+#app.school-shell .main{max-width:1440px;padding:28px 32px;background:var(--ui-canvas)}
+#app.school-shell .nav-group{margin:0 0 18px}#app.school-shell .nav-group-title{margin:0 10px 7px;color:var(--ui-muted);font-size:10px;font-weight:800;letter-spacing:.09em;text-transform:uppercase}
+#app.school-shell .nav-item{min-height:40px;margin-bottom:2px;padding:9px 10px;border-radius:var(--ui-radius-sm);color:#314138;font-size:13.5px;font-weight:650}
+#app.school-shell .nav-item:hover{background:var(--ui-brand-soft);color:var(--ui-brand-strong)}#app.school-shell .nav-item.active{background:var(--ui-brand);color:#fff;box-shadow:none}.school-shell .nav-item .ic{font-size:16px}
+#app.school-shell .page-head{margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid var(--ui-line)}#app.school-shell .page-head h2{font-size:24px;font-weight:760;letter-spacing:-.025em}#app.school-shell .page-head p{font-size:13.5px;color:var(--ui-muted)}
+#app.school-shell .card,#app.school-shell .stat{border:1px solid var(--ui-line);border-radius:var(--ui-radius);background:var(--ui-surface);box-shadow:var(--ui-shadow)}
+#app.school-shell .card{transition:box-shadow .16s ease}#app.school-shell .card:hover{box-shadow:0 10px 28px rgba(20,48,32,.08)}#app.school-shell .card.pad{padding:20px}
+#app.school-shell .stat{padding:18px;position:relative;overflow:hidden}#app.school-shell .stat:before{display:none}#app.school-shell .stat.accent{background:var(--ui-brand-strong);border-color:var(--ui-brand-strong)}
+#app.school-shell .stat .lbl{font-size:11px;letter-spacing:.06em;font-weight:800;color:var(--ui-muted)}#app.school-shell .stat .num{font-size:28px;letter-spacing:-.025em;margin-top:5px}#app.school-shell .stat .meta{font-size:12px;color:var(--ui-muted);margin-top:7px}
+#app.school-shell .cards-row{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:20px}
+#app.school-shell .btn{min-height:40px;padding:9px 15px;border-radius:var(--ui-radius-sm);font-weight:700;letter-spacing:0;box-shadow:none;transition:background .14s ease,border-color .14s ease,transform .14s ease}
+#app.school-shell .btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(20,48,32,.12);filter:none}#app.school-shell .btn.sm{min-height:34px;padding:6px 10px;font-size:12px}#app.school-shell .btn.icon{min-height:32px;padding:5px 8px}
+#app.school-shell input,#app.school-shell select,#app.school-shell textarea{min-height:42px;border-color:#cfdad3;border-radius:var(--ui-radius-sm);padding:9px 11px;background:#fff}#app.school-shell input:focus,#app.school-shell select:focus,#app.school-shell textarea:focus{border-color:var(--ui-brand);box-shadow:0 0 0 3px rgba(10,125,51,.12)}
+#app.school-shell label{font-size:11px;font-weight:800;letter-spacing:.055em;color:#53635a}#app.school-shell .pill{font-size:11px;font-weight:750;letter-spacing:.01em}
+#app.school-shell .t-wrap{border:1px solid var(--ui-line);border-radius:var(--ui-radius);box-shadow:none}#app.school-shell table th{padding:12px;font-size:10.5px;letter-spacing:.06em;color:#56675d;background:#f8faf8}#app.school-shell table td{padding:12px}#app.school-shell tbody tr:hover{background:#f7fbf8}
+#app.school-shell .toolbar{gap:12px;margin-bottom:20px}#app.school-shell .empty{padding:40px 20px;color:var(--ui-muted)}
+.school-shell~.modal-bg .modal{border-radius:var(--ui-radius-lg);box-shadow:0 24px 64px rgba(16,35,24,.22)}.school-shell~.modal-bg .modal-head{padding:20px 22px}.school-shell~.modal-bg .modal-body{padding:22px}.school-shell~.modal-bg .modal-foot{padding:14px 22px;background:#fbfcfb}
+#app.school-shell .dash-section{margin:0 0 24px}#app.school-shell .dash-section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;margin:0 0 12px}#app.school-shell .dash-section-head h3{font-size:15px;letter-spacing:-.01em}#app.school-shell .dash-section-head p{margin:2px 0 0;color:var(--ui-muted);font-size:12.5px}
+#app.school-shell .dash-attention{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}#app.school-shell .dash-attention-item{width:100%;display:flex;align-items:center;gap:10px;padding:13px;border:1px solid var(--ui-line);border-radius:var(--ui-radius-sm);background:#fff;text-align:left;color:var(--ui-text)}#app.school-shell .dash-attention-item:hover{border-color:#b7d9c2;background:#fbfefc}#app.school-shell .dash-attention-count{min-width:30px;height:30px;display:grid;place-items:center;border-radius:8px;background:#fff4dd;color:#936000;font-weight:800}#app.school-shell .dash-attention-item.danger .dash-attention-count{background:#fdecea;color:var(--ui-danger)}
+#app.school-shell .dash-grid{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(280px,1fr);gap:16px}#app.school-shell .dash-list{display:grid;gap:0}#app.school-shell .dash-list-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid var(--ui-line)}#app.school-shell .dash-list-row:last-child{border-bottom:0}#app.school-shell .dash-list-row small{display:block;margin-top:2px;color:var(--ui-muted);font-size:11.5px}#app.school-shell .dash-progress{height:7px;border-radius:99px;background:#edf2ee;overflow:hidden}#app.school-shell .dash-progress>span{display:block;height:100%;border-radius:inherit;background:var(--ui-brand)}#app.school-shell .dash-activity-icon{width:32px;height:32px;display:grid;place-items:center;flex:0 0 auto;border-radius:8px;background:var(--ui-brand-soft)}
+@media(max-width:760px){#app.school-shell .topbar{height:58px;padding:0 14px}#app.school-shell .sidebar{top:58px;height:calc(100vh - 58px);width:272px;left:-280px}#app.school-shell .main{padding:20px 16px}#app.school-shell .page-head{margin-bottom:18px;padding-bottom:12px}#app.school-shell .page-head h2{font-size:21px}#app.school-shell .cards-row{grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}#app.school-shell .card.pad{padding:16px}#app.school-shell .stat{padding:15px}#app.school-shell .stat .num{font-size:23px}}
+@media(max-width:760px){#app.school-shell .dash-grid{grid-template-columns:1fr}#app.school-shell .dash-attention{grid-template-columns:1fr}#app.school-shell .dash-section{margin-bottom:20px}}
 /* ===== extra mobile polish (Android + iPhone) ===== */
 html{-webkit-text-size-adjust:100%}
 img,video,svg{max-width:100%}
@@ -2194,18 +2191,18 @@ function renderInspect(){if(!DB.houses.length){$('#houseArea').innerHTML=`<div c
   </tbody></table></div>`;
 }
 function renderEvents(){if(!DB.houses.length){$('#houseArea').innerHTML=`<div class="card"><div class="empty">Create houses first.</div></div>`;return;}
-  $('#houseArea').innerHTML=`<div class="toolbar"><button class="btn sec" onclick="addActivity()">＋ Add activity</button><span class="muted" style="font-size:12.5px">End-of-term activities (Debate, Quiz, Football…)</span></div>
-  <div class="t-wrap"><table><thead><tr><th>House</th>${DB.houseActivities.map(a=>`<th class="center">${esc(a.name)} <button class="btn icon" style="padding:1px 4px" onclick="delActivity('${a.id}')">✕</button></th>`).join('')}<th class="center">Total</th></tr></thead><tbody>
+  $('#houseArea').innerHTML=`<div class="toolbar"><button class="btn sec" onclick="addHouseActivity()">＋ Add activity</button><span class="muted" style="font-size:12.5px">End-of-term activities (Debate, Quiz, Football…)</span></div>
+  <div class="t-wrap"><table><thead><tr><th>House</th>${DB.houseActivities.map(a=>`<th class="center">${esc(a.name)} <button class="btn icon" style="padding:1px 4px" onclick="delHouseActivity('${a.id}')">✕</button></th>`).join('')}<th class="center">Total</th></tr></thead><tbody>
   ${DB.houses.map(h=>{let tot=0;const cells=DB.houseActivities.map(a=>{const k=hsKey('evt',a.id,h.id);const v=DB.houseScores[k];tot+=Number(v)||0;return `<td class="center"><input class="score-in" type="number" value="${v??''}" onchange="setHouseScore('evt','${a.id}','${h.id}',this.value)"></td>`;}).join('');
     return `<tr><td><b style="color:${esc(h.color)}">●</b> ${esc(h.name)}</td>${cells}<td class="center"><b>${tot}</b></td></tr>`;}).join('')}
   </tbody></table></div>`;
 }
 function setHouseScore(kind,id,hid,val){const k=hsKey(kind,id,hid);if(val==='')delete DB.houseScores[k];else DB.houseScores[k]=Number(val);save();
   (houseTab==='inspect'?renderInspect:renderEvents)();}
-function addActivity(){modal('Add activity',`<div class="fld"><label>Activity name *</label><input id="act_name" placeholder="e.g. March Past"></div>`,
-  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveActivity()">Add</button>`);}
-function saveActivity(){const n=$('#act_name').value.trim();if(!n){toast('Name required',true);return;}DB.houseActivities.push({id:uid('a'),name:n});save();closeModal();vHouses();}
-function delActivity(id){DB.houseActivities=DB.houseActivities.filter(a=>a.id!==id);save();vHouses();}
+function addHouseActivity(){modal('Add activity',`<div class="fld"><label>Activity name *</label><input id="act_name" placeholder="e.g. March Past"></div>`,
+  `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveHouseActivity()">Add</button>`);}
+function saveHouseActivity(){const n=$('#act_name').value.trim();if(!n){toast('Name required',true);return;}DB.houseActivities.push({id:uid('a'),name:n});save();closeModal();vHouses();}
+function delHouseActivity(id){DB.houseActivities=DB.houseActivities.filter(a=>a.id!==id);save();vHouses();}
 function renderStandings(){if(!DB.houses.length){$('#houseArea').innerHTML=`<div class="card"><div class="empty">Create houses first.</div></div>`;return;}
   const rank=houseRank();const best=rank[0];const scored=rank.some(r=>r.total>0);
   const top=rank.slice(0,3);const order=[1,0,2];const heights=[110,86,66];const medals=['🥇','🥈','🥉'];const maxP=Math.max(1,top[0]?top[0].total:1);
@@ -2551,10 +2548,12 @@ let CURRENT='';
 function enterApp(){
   closeModal();clearInterval(window._heroT);clearInterval(window._houseT);$('#screen').innerHTML='';$('#screen').style.display='none';$('#app').style.display='block';window.scrollTo(0,0);
   const owner=USER.role==='owner';
+  $('#app').classList.remove('school-shell');
   if(!owner&&DB&&DB.kind==='pharmacy'){return enterPharmacy();}
   if(!owner&&DB&&DB.kind==='autoparts'){return enterAuto();}
   if(!owner&&DB&&DB.kind==='family'){return enterFamily();}
   if(!owner&&DB&&DB.kind==='posagent'){return enterPos();}
+  if(!owner)$('#app').classList.add('school-shell');
   $('#topbar').className='topbar'+(owner?' owner':'');
   $('#brandName').textContent=owner?((MASTER.platform.name)||'EduManager Cloud'):(DB.settings.shortName||DB.settings.schoolName);
   $('#topLogo').textContent=owner?'🛰️':'🎓';
@@ -2608,7 +2607,23 @@ function buildNav(){
     items.push(['incidents','🚩','Incidents']);
     items.push(['messages','✉️','Messages',unreadMsgCount()]);}
   const ow=USER.role==='owner'?' owner':'';
-  $('#sidebar').innerHTML=items.map(([k,i,l,b])=>`<button class="nav-item${ow}${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`).join('');
+  const itemHTML=([k,i,l,b])=>`<button class="nav-item${ow}${k===CURRENT?' active':''}" onclick="go('${k}')"><span class="ic">${i}</span>${l}${b?`<span class="badge">${b}</span>`:''}</button>`;
+  if(USER.role==='admin'){
+    const groups=[
+      ['Overview',['dashboard','search','insights']],
+      ['People',['students','admissions','classes','teachers','staffatt','idcards','scanner']],
+      ['Academic',['attendance','results','broadsheet','reports','promotions','session','calendar','lessons','houses','quran','tahfiz','hifz','hifzreview']],
+      ['Finance',['fees','finance']],
+      ['School life',['announce','gallery','incidents','alumni','messages']],
+      ['Administration',['website','backup']]
+    ];
+    const used={};const grouped=groups.map(([title,keys])=>{const rows=keys.map(k=>items.find(x=>x[0]===k)).filter(Boolean);rows.forEach(x=>used[x[0]]=1);return rows.length?`<div class="nav-group"><div class="nav-group-title">${title}</div>${rows.map(itemHTML).join('')}</div>`:'';}).join('');
+    const other=items.filter(x=>!used[x[0]]);$('#sidebar').innerHTML=grouped+(other.length?`<div class="nav-group"><div class="nav-group-title">More</div>${other.map(itemHTML).join('')}</div>`:'');
+  }else if(USER.role==='teacher'){
+    const groups=[['Overview',['tdash','myclasses']],['Teaching',['attendance','results','reports','tahfiz','hifz','lessons','scanner']],['Communication',['incidents','messages']]];
+    const used={};const grouped=groups.map(([title,keys])=>{const rows=keys.map(k=>items.find(x=>x[0]===k)).filter(Boolean);rows.forEach(x=>used[x[0]]=1);return rows.length?`<div class="nav-group"><div class="nav-group-title">${title}</div>${rows.map(itemHTML).join('')}</div>`:'';}).join('');
+    const other=items.filter(x=>!used[x[0]]);$('#sidebar').innerHTML=grouped+(other.length?`<div class="nav-group"><div class="nav-group-title">More</div>${other.map(itemHTML).join('')}</div>`:'');
+  }else $('#sidebar').innerHTML=items.map(itemHTML).join('');
 }
 function toggleNav(open){const sb=document.querySelector('.sidebar'),sc=$('#navScrim');const show=open===undefined?!sb.classList.contains('show'):open;
   sb.classList.toggle('show',show);if(sc)sc.classList.toggle('show',show);}
@@ -3003,36 +3018,60 @@ function exportAll(){const blob=new Blob([JSON.stringify(STORE,null,2)],{type:'a
 /* ===================== SCHOOL: DASHBOARD ===================== */
 function vDashboard(){
   const totalStu=DB.students.filter(s=>!s.graduated).length,totalTeach=DB.users.filter(u=>u.role==='teacher').length;
-  const fs=feeSummary(),secc=sectionCounts();
-  const t=today();let present=0,marked=0;DB.classes.forEach(c=>{const a=DB.attendance[t+'|'+c.id];if(a)Object.values(a).forEach(v=>{marked++;if(v==='P')present++;});});
-  const att=marked?Math.round(present/marked*100):0;const collPct=fs.expected?Math.round(fs.collected/fs.expected*100):0;
-  $('#view').innerHTML=`<div class="page-head"><div><h2>Dashboard</h2><p>${esc(DB.settings.schoolName)} — ${esc(DB.settings.term)}, ${esc(DB.settings.session)}</p></div>
-    <div class="flex gap"><button class="btn sec sm" onclick="editAdminProfile()">👤 My profile (Director)</button><button class="btn sec sm" onclick="exportSchool()">⬇ Export data</button><button class="btn sec sm" onclick="exportStudentsCSV()">⬇ Students CSV</button></div></div>
-  <div class="cards-row">
-    <div class="stat accent"><div class="lbl">Total Pupils</div><div class="num">${totalStu}</div><div class="meta">${secc.day} Day · ${secc.boarding} Boarding</div></div>
-    <div class="stat"><div class="lbl">Staff</div><div class="num">${totalTeach}</div><div class="meta">${DB.classes.length} classes</div></div>
-    <div class="stat"><div class="lbl">Attendance Today</div><div class="num">${att}%</div><div class="meta">${present}/${marked} present</div></div>
-    <div class="stat"><div class="lbl">Fees Collected</div><div class="num" style="color:var(--green)">${collPct}%</div><div class="meta">${naira(fs.collected)} of ${naira(fs.expected)}</div></div>
-    ${hasModule('weeks')?`<div class="stat"><div class="lbl">School Week</div><div class="num">${currentWeek()}<span style="font-size:14px;color:var(--muted)"> / ${termWeeks()}</span></div><div class="meta"><div class="bar" style="width:${Math.round(currentWeek()/termWeeks()*100)}%;height:6px"></div></div></div>`:''}</div>
-  <div class="card pad mb"><div class="flex" style="justify-content:space-between;align-items:center;flex-wrap:wrap"><h3>💰 Fees this term — ${esc(DB.settings.term)}</h3><button class="btn sec sm" onclick="go('fees')">Open Fees</button></div>
-    <div class="cards-row mt">
-      <div class="stat"><div class="lbl">Expected income</div><div class="num">${naira(fs.expected)}</div><div class="meta">${fs.withFee} pupil(s) billed</div></div>
-      <div class="stat"><div class="lbl">Collected</div><div class="num" style="color:var(--green)">${naira(fs.collected)}</div><div class="meta">${collPct}% of expected</div></div>
-      <div class="stat"><div class="lbl">Outstanding</div><div class="num" style="color:var(--red)">${naira(fs.outstanding)}</div><div class="meta">left to collect</div></div>
-      <div class="stat"><div class="lbl">Fully paid</div><div class="num" style="color:var(--green)">${fs.paid}</div><div class="meta">pupil(s)</div></div>
-      <div class="stat"><div class="lbl">Part paid</div><div class="num" style="color:#b26a00">${fs.part}</div><div class="meta">pupil(s)</div></div>
-      <div class="stat"><div class="lbl">Not paid</div><div class="num" style="color:var(--red)">${fs.unpaid}</div><div class="meta">pupil(s)</div></div>
-    </div>
-    ${fs.expected?`<div class="bar-wrap mt" style="background:#eef2ef;border-radius:20px;height:12px;overflow:hidden"><div style="height:100%;width:${collPct}%;background:linear-gradient(90deg,#0b8a45,#12b158)"></div></div>`:'<p class="muted mt" style="font-size:12.5px">No fees applied yet — set the school fees and tap “Generate fees for all pupils” on the Fees page.</p>'}</div>
-  ${isIslamic()?`<div class="mb">${islamicBand()}</div>`:''}
-  ${(()=>{const ev=upcomingEvents(4);return ev.length?`<div class="card pad mb"><div class="flex" style="justify-content:space-between"><h3>🗓️ Upcoming events</h3><button class="btn sec sm" onclick="go('calendar')">Manage</button></div>
-    <div class="mt">${ev.map(e=>{const soon=(new Date(e.date)-new Date())/86400000<=7;return `<div class="ev-item${soon?' ev-soon':''}"><div class="ev-date"><div class="d">${dayNum(e.date)}</div><div class="m">${monthAbbr(e.date)}</div></div><div style="flex:1"><b>${esc(e.title)}</b><br><span class="muted" style="font-size:12px">${esc(e.date)}</span></div></div>`;}).join('')}</div></div>`:'';})()}
-  ${(pendingPayCount()||pendingAppCount()||openIncidentCount())?`<div class="card pad mb" style="border-left:4px solid var(--gold)"><b>Action needed:</b>
-    ${[pendingPayCount()?`<a onclick="go('fees')" style="color:var(--green);cursor:pointer">${pendingPayCount()} payment(s) to approve</a>`:'',pendingAppCount()?`<a onclick="go('admissions')" style="color:var(--green);cursor:pointer">${pendingAppCount()} admission(s) to review</a>`:'',openIncidentCount()?`<a onclick="go('incidents')" style="color:var(--green);cursor:pointer">${openIncidentCount()} incident(s) reported</a>`:''].filter(Boolean).join(' · ')}</div>`:''}
-  <div class="card pad"><h3 class="mb">Pupils per class</h3><div class="t-wrap"><table><thead><tr><th>Class</th><th class="center">Pupils</th><th>Teacher(s)</th><th class="center">Subjects</th></tr></thead><tbody>
-    ${DB.classes.map(c=>{const t2=DB.users.filter(u=>u.role==='teacher'&&(u.classes||[]).includes(c.id)).map(u=>esc(u.name)).join(', ')||'<span class="muted">Unassigned</span>';
-      return `<tr><td><b>${esc(c.name)}</b></td><td class="center">${studentsIn(c.id).length}</td><td>${t2}</td><td class="center">${(DB.subjects[c.id]||[]).length}</td></tr>`;}).join('')}
-    </tbody></table></div></div>`;
+  const fs=feeSummary(),secc=sectionCounts(),t=today(),hasHifz=hasModule('tahfiz');
+  let present=0,marked=0,markedClasses=0;DB.classes.forEach(c=>{const a=DB.attendance[t+'|'+c.id];if(a){markedClasses++;Object.values(a).forEach(v=>{marked++;if(v==='P')present++;});}});
+  const att=marked?Math.round(present/marked*100):0,unmarkedClasses=Math.max(0,DB.classes.length-markedClasses),collPct=fs.expected?Math.round(fs.collected/fs.expected*100):0;
+  const pendingPayments=pendingPayCount(),pendingApps=pendingAppCount(),incidents=openIncidentCount(),pendingHifz=hasHifz?HZpendingCount():0;
+  let resultRecorded=0,resultExpected=0;const classResults=DB.classes.map(c=>{const cr=computeClassResults(c.id);const subjects=(DB.subjects[c.id]||[]).length;const completed=cr.rows.filter(r=>subjects>0&&r.count===subjects).length;resultRecorded+=completed;resultExpected+=cr.rows.length;return {c,students:cr.rows.length,completed,subjects};});
+  const incompleteResults=Math.max(0,resultExpected-resultRecorded);
+  const attention=[
+    pendingPayments?{n:pendingPayments,label:'payment'+(pendingPayments===1?'':'s')+' awaiting approval',route:'fees',kind:'danger'}:null,
+    pendingHifz?{n:pendingHifz,label:'Hifz evaluation'+(pendingHifz===1?'':'s')+' awaiting review',route:'hifzreview',kind:''}:null,
+    unmarkedClasses?{n:unmarkedClasses,label:'class'+(unmarkedClasses===1?'':'es')+' not marked today',route:'attendance',kind:''}:null,
+    incompleteResults?{n:incompleteResults,label:'pupil result'+(incompleteResults===1?'':'s')+' incomplete',route:'results',kind:''}:null,
+    pendingApps?{n:pendingApps,label:'admission'+(pendingApps===1?'':'s')+' to review',route:'admissions',kind:''}:null,
+    incidents?{n:incidents,label:'incident'+(incidents===1?'':'s')+' awaiting attention',route:'incidents',kind:'danger'}:null
+  ].filter(Boolean);
+  const hifzEvals=(DB.hifzEvals||[]),approvedHifz=hifzEvals.filter(e=>e.status==='approved'&&e.year===DB.settings.session&&e.term===DB.settings.term).length;
+  const hifzOpen=hasHifz?HZcalList().filter(c=>HZstate(c)==='OPEN').length:0;
+  const events=upcomingEvents(3);
+  const recent=[];(DB.payments||[]).slice().forEach(p=>recent.push({at:Date.parse(p.date||'')||0,icon:'₦',title:(p.status==='approved'?'Payment approved':'Payment recorded'),meta:(DB.students.find(s=>s.id===p.studentId)||{}).name||'Pupil'}));
+  (DB.applicants||[]).slice().forEach(a=>recent.push({at:Date.parse(a.createdAt||a.date||'')||0,icon:'↗',title:'Admission application',meta:a.name||'Applicant'}));
+  (DB.incidents||[]).slice().forEach(i=>recent.push({at:Number(i.at)||Date.parse(i.date||'')||0,icon:'!',title:'Incident reported',meta:i.type||'School incident'}));
+  (DB.announcements||[]).slice().forEach(a=>recent.push({at:Number(a.at)||Date.parse(a.date||'')||0,icon:'●',title:'Announcement published',meta:a.title||''}));
+  recent.sort((a,b)=>b.at-a.at);const activity=recent.slice(0,6);
+  const academicRows=classResults.filter(x=>x.students).sort((a,b)=>b.completed-a.completed||a.c.name.localeCompare(b.c.name)).slice(0,4);
+  $('#view').innerHTML=`<div class="page-head"><div><h2>School dashboard</h2><p>${esc(DB.settings.schoolName)} · ${esc(DB.settings.term)}, ${esc(DB.settings.session)}</p></div>
+    <div class="flex gap"><button class="btn sec sm" onclick="editAdminProfile()">My profile</button><button class="btn sec sm" onclick="exportSchool()">Export data</button><button class="btn sec sm" onclick="exportStudentsCSV()">Students CSV</button></div></div>
+  <section class="dash-section"><div class="cards-row">
+    <div class="stat accent"><div class="lbl">Active pupils</div><div class="num">${totalStu}</div><div class="meta">${secc.day} day · ${secc.boarding} boarding</div></div>
+    <div class="stat"><div class="lbl">Attendance today</div><div class="num">${marked?att+'%':'—'}</div><div class="meta">${marked?present+'/'+marked+' present':'Not marked yet'}</div></div>
+    <div class="stat"><div class="lbl">Outstanding fees</div><div class="num" style="color:var(--ui-danger)">${naira(fs.outstanding)}</div><div class="meta">${fs.part+fs.unpaid} pupil(s) with balance</div></div>
+    <div class="stat"><div class="lbl">Hifz reviews</div><div class="num">${hasHifz?pendingHifz:'—'}</div><div class="meta">${hasHifz?(pendingHifz?'Awaiting administrator':'No pending review'):'Module not enabled'}</div></div>
+  </div></section>
+  <section class="dash-section"><div class="dash-section-head"><div><h3>Needs attention</h3><p>Work that needs an administrator decision or follow-up.</p></div></div>
+    ${attention.length?`<div class="dash-attention">${attention.map(a=>`<button class="dash-attention-item ${a.kind}" onclick="go('${a.route}')"><span class="dash-attention-count">${a.n}</span><span>${esc(a.label)}</span></button>`).join('')}</div>`:`<div class="card pad"><div class="empty" style="padding:24px"><div class="big">✓</div>No pending administrative actions right now.</div></div>`}
+  </section>
+  <div class="dash-grid dash-section"><section class="card pad"><div class="dash-section-head"><div><h3>Today’s school overview</h3><p>Attendance, term progress and upcoming school events.</p></div><button class="btn sec sm" onclick="go('attendance')">Attendance</button></div>
+    <div class="dash-list"><div class="dash-list-row"><div><b>${markedClasses}/${DB.classes.length} classes marked</b><small>${marked?present+' pupils present from '+marked+' marked':'No attendance has been recorded today.'}</small></div><b>${marked?att+'%':'—'}</b></div>
+      ${hasModule('weeks')?`<div class="dash-list-row"><div style="flex:1"><b>Term week ${currentWeek()} of ${termWeeks()}</b><small>Current school-week setting</small><div class="dash-progress" style="margin-top:7px"><span style="width:${Math.round(currentWeek()/termWeeks()*100)}%"></span></div></div></div>`:''}
+      ${events.length?events.map(e=>`<div class="dash-list-row"><div><b>${esc(e.title)}</b><small>${esc(e.date)}</small></div><button class="btn icon" title="Open calendar" onclick="go(\'calendar\')">→</button></div>`).join(''):'<div class="dash-list-row"><div><b>No upcoming events</b><small>Add events from Calendar when needed.</small></div><button class="btn sec sm" onclick="go(\'calendar\')">Calendar</button></div>'}
+    </div></section>
+    <section class="card pad"><div class="dash-section-head"><div><h3>Quick actions</h3><p>Common school operations.</p></div></div><div class="dash-list">
+      <div class="dash-list-row"><div><b>Manage pupils</b><small>Profiles, parent details and enrolment</small></div><button class="btn sec sm" onclick="go('students')">Students</button></div>
+      <div class="dash-list-row"><div><b>Review payments</b><small>${pendingPayments?pendingPayments+' awaiting approval':'Open fees and payment records'}</small></div><button class="btn sec sm" onclick="go('fees')">Fees</button></div>
+      ${hasHifz?`<div class="dash-list-row"><div><b>Review Hifz</b><small>${pendingHifz?pendingHifz+' submission(s) pending':'Open Hifz evaluation hub'}</small></div><button class="btn sec sm" onclick="go('${pendingHifz?'hifzreview':'hifz'}')">Open</button></div>`:''}
+      <div class="dash-list-row"><div><b>Record attendance</b><small>Mark or review class attendance</small></div><button class="btn sec sm" onclick="go('attendance')">Open</button></div>
+    </div></section></div>
+  <div class="dash-grid dash-section"><section class="card pad"><div class="dash-section-head"><div><h3>Academic overview</h3><p>Completion is based on the existing current-term result records.</p></div><button class="btn sec sm" onclick="go('results')">Results</button></div>
+    ${academicRows.length?`<div class="dash-list">${academicRows.map(x=>{const pct=x.students?Math.round(x.completed/x.students*100):0;return `<div class="dash-list-row"><div style="flex:1"><b>${esc(x.c.name)}</b><small>${x.completed}/${x.students} pupils complete across ${x.subjects} subject(s)</small><div class="dash-progress" style="margin-top:7px"><span style="width:${pct}%"></span></div></div><b>${pct}%</b></div>`;}).join('')}</div>`:'<div class="empty"><div class="big">📝</div>No active classes or result records yet.</div>'}
+  </section>
+  <section class="card pad"><div class="dash-section-head"><div><h3>Hifz evaluation overview</h3><p>Read-only summary of the existing evaluation workflow.</p></div>${hasHifz?`<button class="btn sec sm" onclick="go('hifzreview')">Review</button>`:''}</div>
+    ${hasHifz?`<div class="dash-list"><div class="dash-list-row"><div><b>Pending review</b><small>Submitted evaluations requiring a decision</small></div><b>${pendingHifz}</b></div><div class="dash-list-row"><div><b>Open evaluation cycles</b><small>Based on the existing Hifz schedule</small></div><b>${hifzOpen}</b></div><div class="dash-list-row"><div><b>Approved this term</b><small>Existing approved evaluation records</small></div><b>${approvedHifz}</b></div></div>`:'<div class="empty"><div class="big">📖</div>Hifz Evaluation is not enabled for this school.</div>'}
+  </section></div>
+  <section class="card pad dash-section"><div class="dash-section-head"><div><h3>Recent activity</h3><p>Latest recorded payments, admissions, incidents and announcements.</p></div></div>
+    ${activity.length?`<div class="dash-list">${activity.map(a=>`<div class="dash-list-row"><div class="flex gap" style="min-width:0"><span class="dash-activity-icon">${a.icon}</span><div><b>${esc(a.title)}</b><small>${esc(a.meta)}</small></div></div></div>`).join('')}</div>`:'<div class="empty"><div class="big">◌</div>Recent school activity will appear here as records are added.</div>'}
+  </section>`;
 }
 /* ===================== SCHOOL: INSIGHTS (smart) ===================== */
 function vInsights(){
