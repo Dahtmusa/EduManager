@@ -3954,19 +3954,23 @@ function saveHifzProfile(sid){if(USER.role!=='admin')return;const p=ensureHifzPr
   save();closeModal();toast('Hifz profile saved');openStudentProfile(sid);}
 function _hifzProfileSection(s,admin){if(!hasModule('tahfiz'))return '';const p=hifzProfile(s.id)||{coverage:[],direction:'TOP_TO_BOTTOM'};const mp=Number(hifzCfg().mushafPages)||604;const uniq=hifzUniquePages(p.coverage);const pct=hifzCompletionPct(p.coverage);const ready=hifzReady();
   const startPg=p.startSurah?pageOf(p.startSurah,p.startAyah):null;const frontPg=p.lastApprovedPos?pageOf(p.lastApprovedPos.surah,p.lastApprovedPos.ayah):null;
-  const frontHizb=p.lastApprovedPos?hzHizbOfPos(p.lastApprovedPos.surah,p.lastApprovedPos.ayah):0;   /* canonical position → Hizb (no page approximation) */
+  const frontHizb=p.lastApprovedPos?hzHizbOfPos(p.lastApprovedPos.surah,p.lastApprovedPos.ayah):null;   /* null when Qur'an data not loaded */
+  const _frontHizbLbl=frontHizb!=null?(' · Hizb '+frontHizb):'';
   const mile=hzMilestonesSummary(s.id);
-  /* Compact milestone strip — 60 hizb dots color-coded by status. Idempotent — derived from approved eval union. */
+  /* Milestone block — honest state: shows dots when Qur'an dataset loaded, else shows a load prompt. */
   const dot=(m)=>{const bg=m.status==='completed'?'#0b8a45':m.status==='in-progress'?'#caa64e':'#e2e8e4';const bd=m.status==='completed'?'#08482c':m.status==='in-progress'?'#8a6d1a':'#c8d0cb';const startTip=m.startPos?(surahLabel(m.startPos.surah)+':'+m.startPos.ayah):'?';return '<span title="Hizb '+m.hizb+' — '+m.pct+'% · starts at '+startTip+'" style="display:inline-block;width:14px;height:14px;border-radius:3px;background:'+bg+';border:1px solid '+bd+';margin:1px"></span>';};
-  const milestoneBlock=`<div style="background:#f5f8f6;border-radius:12px;padding:10px 12px;margin-bottom:8px">
-    <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>🏆 Hizb milestones (from approved coverage)</span><span><b>${mile.completed}</b> completed · <b>${mile.inProgress}</b> in progress · <b>${mile.notReached}</b> not reached</span></div>
-    <div>${mile.detail.map(dot).join('')}</div>
-    <div class="muted" style="font-size:10.5px;margin-top:4px">🟩 completed · 🟨 in progress · ⬜ not reached</div>
-  </div>`;
+  const milestoneBlock = mile.available
+    ? `<div style="background:#f5f8f6;border-radius:12px;padding:10px 12px;margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>🏆 Hizb milestones (from approved verified coverage)</span><span><b>${mile.completed}</b> completed · <b>${mile.inProgress}</b> in progress · <b>${mile.notReached}</b> not reached</span></div>
+        <div>${mile.detail.map(dot).join('')}</div>
+        <div class="muted" style="font-size:10.5px;margin-top:4px">🟩 completed · 🟨 in progress · ⬜ not reached</div>
+        ${mile.hasProvisionalHistoricalCoverage?'<div style="font-size:10.5px;color:#8a6d1a;margin-top:3px">ℹ Some historical evaluations have page-only coverage; their exact Hizb completion cannot be verified from stored data and is excluded from this count.</div>':''}
+      </div>`
+    : `<div style="background:#fff7e6;border:1px solid #e6d8a8;border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:12px;color:#8a6d1a"><b>🏆 Hizb milestones — data not loaded.</b><br>${esc(mile.reason)} <a href="#" onclick="go('quran');return false;" style="color:#8a6d1a;font-weight:700;text-decoration:underline">Open Qur'an module →</a></div>`;
   return _pfSection('📖 Hifz profile')
     +(ready?'':`<div style="background:#fdeceb;border:1px solid #f3b7b3;border-radius:8px;padding:7px 10px;font-size:12px;margin-bottom:8px">⚠ Qur'an page index not loaded — page figures are blocked until an admin builds it in <b>Hifz settings</b>.</div>`)
     +`<div style="background:#f5f8f6;border-radius:12px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>Qur'an completion (unique verified)</span><span><b>${pct}%</b> · ${uniq}/${mp} pages</span></div><div style="height:12px;background:#e2e8e4;border-radius:20px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0b8a45,#caa64e)"></div></div></div>`
-    +_pfGrid([['Direction',hifzDirLabel(p.direction)],['Start position',p.startSurah?surahLabel(p.startSurah)+' : '+esc(p.startAyah||1)+(startPg!=null?' (p'+startPg+')':''):'—'],['Current frontier',p.lastApprovedPos?surahLabel(p.lastApprovedPos.surah)+' : '+esc(p.lastApprovedPos.ayah)+(frontPg!=null?' (p'+frontPg+' · Hizb '+frontHizb+')':''):'— (updates on approved evaluations)'],['Verified coverage',esc(hifzCoverageLabel(p.coverage))]])
+    +_pfGrid([['Direction',hifzDirLabel(p.direction)],['Start position',p.startSurah?surahLabel(p.startSurah)+' : '+esc(p.startAyah||1)+(startPg!=null?' (p'+startPg+')':''):'—'],['Current frontier',p.lastApprovedPos?surahLabel(p.lastApprovedPos.surah)+' : '+esc(p.lastApprovedPos.ayah)+(frontPg!=null?(' (p'+frontPg+_frontHizbLbl+')'):''):'— (updates on approved evaluations)'],['Verified coverage',esc(hifzCoverageLabel(p.coverage))]])
     +milestoneBlock
     +`<div class="mt"><button class="btn sm sec" onclick="HZstudentReport('${s.id}')">📄 Hifz report sheet</button>${admin?` <button class="btn sm sec" onclick="editHifzProfile('${s.id}')">✏️ Edit Hifz profile</button>`:''}</div>`;}
 const QCDN='https://cdn.jsdelivr.net/npm/quran-json@3.1.2/dist/chapters/';const _qCache={};
@@ -4697,50 +4701,45 @@ function hzRangeOK(fS,fA,tS,tA,opts){   /* canonical range validation. Returns {
   return {ok:true,pageLo:pageLo,pageHi:pageHi,pages:pageHi-pageLo+1,ayahs:to.canonical-from.canonical+1,canonicalFrom:from.canonical,canonicalTo:to.canonical,maxAyahFrom:from.maxAyah,maxAyahTo:to.maxAyah};
 }
 /* ================================================================================
-   AUTHORITATIVE HIZB BOUNDARIES — canonical Qur'anic positions, not proportional pages.
-   Each entry = [surah, ayah] of the FIRST ayah of that Hizb per the standard Uthmani
-   60-part division (identical to Tanzil.net / alquran.cloud hizbQuarter÷4 metadata).
-   hifzHizbBoundariesSelfCheck() validates the table for internal consistency AND
-   cross-checks against the QURAN array when the admin has loaded it via the Qur'an
-   Competition module — any mismatch is surfaced to the admin.
+   AUTHORITATIVE HIZB BOUNDARIES — sole source of truth is the loaded QURAN dataset
+   (api.alquran.cloud/tanzil.net standard Uthmani `hizbQuarter` metadata).
+   The QURAN array must be loaded via the Qur'an Competition module before Hifz Hizb
+   features are available. When it is not loaded, every Hizb-dependent function
+   returns null (or `available:false`) and the UI shows a "Load Qur'an data" prompt
+   instead of an approximate/wrong Hizb number. NO hardcoded fallback table exists
+   in production because we cannot ship a knowingly-uncertain Hizb reference.
    ================================================================================ */
-const HZ_HIZB_STARTS=[
-  [1,1],[2,75],[2,142],[2,203],[2,253],
-  [3,15],[3,93],[3,170],[4,24],[4,74],
-  [4,135],[5,27],[5,83],[6,36],[6,111],
-  [7,1],[7,88],[7,171],[8,41],[9,34],
-  [9,93],[10,26],[10,71],[11,6],[11,84],
-  [12,53],[13,5],[14,52],[16,51],[17,1],
-  [17,99],[18,75],[19,96],[21,51],[22,66],
-  [23,75],[25,21],[26,111],[27,56],[28,88],
-  [29,46],[32,1],[33,31],[33,60],[36,28],
-  [37,145],[39,32],[40,41],[41,47],[43,24],
-  [45,1],[46,34],[50,1],[51,31],[54,9],
-  [56,75],[57,29],[59,11],[62,1],[66,1]
-];
 function _hzPosFromAbs(abs){if(!(abs>=1&&abs<=6236))return null;let sum=0;for(let s=1;s<=114;s++){const n=Number(SURAHS[s-1][1])||0;if(abs<=sum+n)return {surah:s,ayah:abs-sum};sum+=n;}return null;}
 function hzHizbCount(){return 60;}
-function hzHizbStartPos(h){h=+h;return (h>=1&&h<=60)?{surah:HZ_HIZB_STARTS[h-1][0],ayah:HZ_HIZB_STARTS[h-1][1]}:null;}
+let _HZ_HIZB_CACHE=null;
+let _HZ_HIZB_CACHE_LEN=0;
+function hzHizbAvailable(){return !!hzHizbTable();}
+function hzHizbUnavailableReason(){return 'Hizb data requires the Qur\'an dataset. An admin can load it once from ☪ Qur\'an → Load Qur\'an.';}
+function hzHizbTable(){   /* Derive the 60 Hizb-start Surah:Ayah tuples from QURAN.hizbQuarter — the sole authority. Cached. */
+  if(typeof QURAN!=='object'||!Array.isArray(QURAN)||QURAN.length<6000||!QURAN[0])return null;
+  if(_HZ_HIZB_CACHE&&_HZ_HIZB_CACHE_LEN===QURAN.length)return _HZ_HIZB_CACHE;
+  const out=new Array(60);
+  for(let h=1;h<=60;h++){
+    const first=QURAN.find(a=>Math.ceil((a.hizbQuarter||a.h||0)/4)===h);
+    if(!first||!first.s||!first.a){_HZ_HIZB_CACHE=null;return null;}
+    out[h-1]=[Number(first.s),Number(first.a)];
+  }
+  _HZ_HIZB_CACHE=out;_HZ_HIZB_CACHE_LEN=QURAN.length;return out;
+}
+function hzHizbStartPos(h){h=+h;const t=hzHizbTable();return (t&&h>=1&&h<=60)?{surah:t[h-1][0],ayah:t[h-1][1]}:null;}
 function hzHizbStartAbs(h){const p=hzHizbStartPos(h);return p?_hzAbsAyahIdx(p.surah,p.ayah):null;}
-function hzHizbRange(h){const from=hzHizbStartAbs(h);if(from==null)return null;const to=h<60?(hzHizbStartAbs(h+1)-1):6236;return {from:from,to:to,startPos:hzHizbStartPos(h),endPos:_hzPosFromAbs(to),startPage:hifzReady()?pageOf(hzHizbStartPos(h).surah,hzHizbStartPos(h).ayah):null,endPage:hifzReady()?pageOf(_hzPosFromAbs(to).surah,_hzPosFromAbs(to).ayah):null};}
-/* THE canonical current-Hizb calculator — from Surah:Ayah, not from page. */
-function hzHizbOfPos(surah,ayah){const chk=hzPointOK(surah,ayah);if(!chk.ok)return 0;const abs=chk.canonical;for(let h=60;h>=1;h--){const s=hzHizbStartAbs(h);if(s!=null&&abs>=s)return h;}return 0;}
-/* Legacy page → Hizb helper: now routes through the canonical position lookup (never proportional). */
-function hzHizbOfPage(page){const idx=hifzPageIndex();if(!idx||!(page>=1&&page<=idx.length))return 0;const e=idx[page-1];return hzHizbOfPos(e[0],e[1]);}
-/* Self-check: internal consistency + optional cross-check against the loaded QURAN array. */
+function hzHizbRange(h){const from=hzHizbStartAbs(h);if(from==null)return null;const to=h<60?(hzHizbStartAbs(h+1)-1):6236;const startPos=hzHizbStartPos(h);const endPos=_hzPosFromAbs(to);return {from:from,to:to,startPos:startPos,endPos:endPos,startPage:(hifzReady()&&startPos)?pageOf(startPos.surah,startPos.ayah):null,endPage:(hifzReady()&&endPos)?pageOf(endPos.surah,endPos.ayah):null};}
+/* THE canonical current-Hizb calculator — from Surah:Ayah, from QURAN authority.
+   Returns null when QURAN not loaded — callers must handle the unavailable state honestly. */
+function hzHizbOfPos(surah,ayah){const chk=hzPointOK(surah,ayah);if(!chk.ok)return null;const t=hzHizbTable();if(!t)return null;const abs=chk.canonical;for(let h=60;h>=1;h--){const s=_hzAbsAyahIdx(t[h-1][0],t[h-1][1]);if(abs>=s)return h;}return null;}
+function hzHizbOfPage(page){const idx=hifzPageIndex();if(!idx||!(page>=1&&page<=idx.length))return null;const e=idx[page-1];return hzHizbOfPos(e[0],e[1]);}
+/* Self-check: internal consistency + reports availability. */
 function hifzHizbBoundariesSelfCheck(){const issues=[];
-  if(HZ_HIZB_STARTS.length!==60)issues.push('Hizb table must have exactly 60 entries; has '+HZ_HIZB_STARTS.length+'.');
+  if(!hzHizbAvailable()){issues.push('Qur\'an dataset not loaded — Hizb data is unavailable. Admin: load once from Qur\'an module.');return issues;}
   let prev=0;for(let h=1;h<=60;h++){const p=hzHizbStartPos(h);if(!p){issues.push('Hizb '+h+': missing entry.');continue;}
     const pt=hzPointOK(p.surah,p.ayah);if(!pt.ok){issues.push('Hizb '+h+': invalid position ('+p.surah+':'+p.ayah+') — '+pt.error);continue;}
     if(pt.canonical<=prev)issues.push('Hizb '+h+' start ('+p.surah+':'+p.ayah+') is not strictly after Hizb '+(h-1)+'.');
     prev=pt.canonical;}
-  /* When the admin has loaded the Qur'an via the Qur'an module, cross-check against api.alquran.cloud's hizbQuarter metadata. */
-  try{if(typeof QURAN==='object'&&Array.isArray(QURAN)&&QURAN.length>6000&&QURAN[0]&&QURAN[0].g){
-    for(let h=1;h<=60;h++){const expected=QURAN.find(a=>Math.ceil((a.hizbQuarter||a.h||0)/4)===h);   /* first ayah in that Hizb */
-      const start=hzHizbStartPos(h);if(!expected||!start)continue;
-      if(expected.s!==start.surah||expected.a!==start.ayah)issues.push('Hizb '+h+' table says '+start.surah+':'+start.ayah+' but the loaded Qur\'an data says '+expected.s+':'+expected.a+'.');
-    }
-  }}catch(e){}
   return issues;}
 /* ---- Milestones: derived from the UNION of each APPROVED eval's canonical Surah:Ayah endpoints.
    For historical records lacking Surah:Ayah source, fall back to page-boundary lookup via the 604-page
@@ -4752,33 +4751,37 @@ function hzMergeAyahCoverage(intervals,add){intervals=(intervals||[]).map(x=>[x[
   const list=intervals.concat([[a,b]]).sort((x,y)=>x[0]-y[0]);const out=[];
   list.forEach(([f,t])=>{if(!out.length||f>out[out.length-1][1]+1)out.push([f,t]);else out[out.length-1][1]=Math.max(out[out.length-1][1],t);});
   return out;}
-function _hzEvalAyahRange(e){   /* for one approved eval → its canonical verified-ayah interval, or null */
+function _hzEvalAyahRange(e){   /* For one approved eval → its canonical verified-ayah interval, or null.
+     ONLY uses stored Surah:Ayah endpoints. Historical records lacking Surah:Ayah source are excluded
+     from milestone calculation — a Hizb is never marked completed on evidence weaker than exact ayah endpoints. */
   const raw=e&&e.raw;if(!raw)return null;
   let fS,fA,tS,tA;
   if(raw.newResult==='PASSED'&&raw.assessedFromSurah){fS=raw.assessedFromSurah;fA=raw.assessedFromAyah;tS=raw.assessedToSurah;tA=raw.assessedToAyah;}
   else if(raw.newResult==='PARTIAL'&&raw.verFromSurah){fS=raw.verFromSurah;fA=raw.verFromAyah;tS=raw.verToSurah;tA=raw.verToAyah;}
-  else if(raw.newResult==='NOT_PASSED')return null;
-  if(fS){const f1=_hzAbsAyahIdx(fS,fA),f2=_hzAbsAyahIdx(tS,tA);return [Math.min(f1,f2),Math.max(f1,f2)];}
-  /* fallback for historical records lacking Surah/Ayah source: infer ayah range from stored page range via the 604-page index */
-  if(e.coverageAdded&&Array.isArray(e.coverageAdded)){const idx=hifzPageIndex();if(idx){
-    const pFrom=e.coverageAdded[0],pTo=e.coverageAdded[1];
-    if(pFrom>=1&&pTo>=1&&pFrom<=idx.length&&pTo<=idx.length){
-      const [sf,af]=idx[pFrom-1];const abF=_hzAbsAyahIdx(sf,af);
-      let abT;if(pTo<idx.length){const [sn,an]=idx[pTo];abT=_hzAbsAyahIdx(sn,an)-1;}else abT=6236;
-      return [Math.min(abF,abT),Math.max(abF,abT)];}}}
-  return null;
+  else return null;   /* NOT_PASSED, or missing Surah/Ayah source (historical) → excluded to preserve truthfulness */
+  const f1=_hzAbsAyahIdx(fS,fA),f2=_hzAbsAyahIdx(tS,tA);return [Math.min(f1,f2),Math.max(f1,f2)];
+}
+function _hzHasHistoricalPageOnlyCoverage(sid){   /* Any approved eval that ONLY has page coverage (no Surah:Ayah) — used to surface the honest "provisional coverage" note in the UI. */
+  return (DB.hifzEvals||[]).some(e=>e.studentId===sid&&e.status==='approved'&&e.raw&&!(e.raw.assessedFromSurah||e.raw.verFromSurah)&&e.coverageAdded);
 }
 function hzApprovedAyahCoverage(sid){const evals=(DB.hifzEvals||[]).filter(e=>e.studentId===sid&&e.status==='approved');
   let out=[];evals.forEach(e=>{const iv=_hzEvalAyahRange(e);if(iv)out=hzMergeAyahCoverage(out,iv);});return out;}
-function hzMilestones(sid){   /* NEW signature: takes sid. Idempotent. */
-  const ayahCov=hzApprovedAyahCoverage(sid);const out=[];
-  for(let h=1;h<=60;h++){const r=hzHizbRange(h);if(!r){out.push({hizb:h,status:'not-reached',pct:0,covered:0,capacity:0});continue;}
+function hzMilestones(sid){   /* Read-only, derived from approved+PASSED/PARTIAL evals with Surah:Ayah source only. Idempotent. */
+  if(!hzHizbAvailable())return {available:false,reason:hzHizbUnavailableReason(),completed:0,inProgress:0,notReached:60,total:60,detail:[]};
+  const ayahCov=hzApprovedAyahCoverage(sid);const detail=[];
+  for(let h=1;h<=60;h++){const r=hzHizbRange(h);if(!r){detail.push({hizb:h,status:'not-reached',pct:0,covered:0,capacity:0});continue;}
     let covered=0;ayahCov.forEach(([lo,hi])=>{if(hi<r.from||lo>r.to)return;covered+=Math.min(hi,r.to)-Math.max(lo,r.from)+1;});
     const cap=r.to-r.from+1;const pct=cap>0?Math.round(covered/cap*100):0;
     let status;if(covered>=cap)status='completed';else if(covered>0)status='in-progress';else status='not-reached';
-    out.push({hizb:h,status:status,pct:pct,covered:covered,capacity:cap,startPos:r.startPos,endPos:r.endPos});}
-  return out;}
-function hzMilestonesSummary(sid){const m=hzMilestones(sid);return {completed:m.filter(x=>x.status==='completed').length,inProgress:m.filter(x=>x.status==='in-progress').length,notReached:m.filter(x=>x.status==='not-reached').length,total:m.length,detail:m};}
+    detail.push({hizb:h,status:status,pct:pct,covered:covered,capacity:cap,startPos:r.startPos,endPos:r.endPos});}
+  return {available:true,
+    completed:detail.filter(x=>x.status==='completed').length,
+    inProgress:detail.filter(x=>x.status==='in-progress').length,
+    notReached:detail.filter(x=>x.status==='not-reached').length,
+    total:60,detail:detail,
+    hasProvisionalHistoricalCoverage:_hzHasHistoricalPageOnlyCoverage(sid)};
+}
+function hzMilestonesSummary(sid){return hzMilestones(sid);}   /* Unified: milestones return {available, completed, inProgress, notReached, total, detail, hasProvisionalHistoricalCoverage} */
 /* ---- component scores: raw observations → points (teacher never types a score) ---- */
 function HZaccFrom(fromP,toP,errs,maxPts){const H=HZcfg();const e=H.errWeights||{major:1,forgotten:1.2,prompt:0.4,minor:0.2};const sens=(H.sensitivity!=null?Number(H.sensitivity):1);
   const assessed=Math.max(0.5,(Number(toP)-Number(fromP)+1));
@@ -5074,7 +5077,12 @@ function HZform(calId,sid){const c=HZcalGet(calId);const s=DB.students.find(x=>x
     +'<div class="mt"><button class="btn sec sm" onclick="HZsaveNext(this)">Save &amp; next student →</button></div>';}
   h+='</div></div>';
   $('#view').innerHTML=h;HZlive();window.scrollTo(0,0);}
-function HZread(){const g=id=>{const el=$('#'+id);return el?el.value:'';};const gn=id=>{const v=g(id);return v===''?'':Number(v);};
+function HZread(){const g=id=>{const el=$('#'+id);return el?el.value:'';};
+  /* gn preserves invalid strings so hzPointOK can reject them precisely.
+     Browser <input type="number"> lets "1e2" sit in .value; Number("1e2")=100 which would silently be
+     accepted as ayah 100. By only Number-ing pure-digit strings, "1e2"/"85.5"/"abc" flow through to
+     hzPointOK which rejects them with the correct error. Legitimate "085" is still normalized to 85. */
+  const gn=id=>{const v=String(g(id)).trim();if(v==='')return '';return /^\d+$/.test(v)?parseInt(v,10):v;};
   const res=(document.querySelector('input[name=hz_res]:checked')||{}).value||'';const cs=gn('hz_cs'),ca=gn('hz_ca');
   const _pg=(s,a)=>{if(!(s>=1&&a>=1))return '';const p=pageOf(s,a);return p==null?'':p;};   /* derive Madinah page from Surah/Ayah via the existing validated index; empty when either half missing */
   const afs=gn('hz_afs'),afa=gn('hz_afa'),ats=gn('hz_ats'),ata=gn('hz_ata');
@@ -5114,14 +5122,16 @@ function HZlive(){const c=HZcalGet(HZcur.calId);if(!c)return;const raw=HZread();
     else{const chk=hzPointOK(raw.curSurah,raw.curAyah);
       if(!chk.ok){cp.innerHTML='<span style="color:var(--red)">'+esc(chk.error)+'</span>';}
       else if(chk.page==null){cp.innerHTML='<span style="color:var(--red)">Page unavailable (index not loaded)</span>';}
-      else{const hz=hzHizbOfPos(raw.curSurah,raw.curAyah);cp.innerHTML='Current position: <b>'+surahLabel(raw.curSurah)+' — Ayah '+raw.curAyah+' — Page '+chk.page+'</b> · Hizb <b>'+hz+'</b>';}   /* canonical Surah:Ayah → Hizb via authoritative boundaries table */
+      else{const hz=hzHizbOfPos(raw.curSurah,raw.curAyah);const hzLbl=hz!=null?(' · Hizb <b>'+hz+'</b>'):' <span class="muted" style="font-size:11px">(Hizb requires Qur\'an data — admin: load from Qur\'an module)</span>';cp.innerHTML='Current position: <b>'+surahLabel(raw.curSurah)+' — Ayah '+raw.curAyah+' — Page '+chk.page+'</b>'+hzLbl;}   /* canonical Surah:Ayah → Hizb from QURAN.hizbQuarter authority; honest when unavailable */
     }
   }
   const target=HZmonthlyTarget();
   /* One helper: for each range's display element, either render "pages · ayahs" or an inline error. */
+  const filled=(v)=>v!==null&&v!==undefined&&v!=='';   /* treats 0 and "abc" as "user typed something" — not blank */
   const showRange=(elId,fS,fA,tS,tA,label,opts)=>{const el=$('#'+elId);if(!el)return null;
-    if(!(fS||fA||tS||tA)){el.textContent='';return null;}
-    if(!(fS&&fA&&tS&&tA)){el.innerHTML='<span style="color:var(--red)">'+label+': choose Surah &amp; Ayah for both ends.</span>';return null;}
+    if(!filled(fS)&&!filled(fA)&&!filled(tS)&&!filled(tA)){el.textContent='';return null;}
+    if(!filled(fS)||!filled(fA)||!filled(tS)||!filled(tA)){el.innerHTML='<span style="color:var(--red)">'+label+': choose Surah &amp; Ayah for both ends.</span>';return null;}
+    /* Delegate to the single validation layer — it produces per-field, per-value errors ("has only N ayahs", "whole number", etc.). */
     const r=hzRangeOK(fS,fA,tS,tA,opts||{});
     if(!r.ok){el.innerHTML='<span style="color:var(--red)">'+label+': '+esc(r.error)+'</span>';return null;}
     el.innerHTML=label+': <b>'+hzPosLabel(fS,fA)+' → '+hzPosLabel(tS,tA)+'</b> · Pages '+r.pageLo+(r.pageLo===r.pageHi?'':'–'+r.pageHi)+' · <b>'+r.pages+'</b> page(s) · <b>'+r.ayahs+'</b> ayah(s)';
