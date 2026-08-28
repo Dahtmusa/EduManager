@@ -3848,8 +3848,12 @@ async function buildHifzPageIndex(){if(USER.role!=='admin'){toast('Administrator
   if(idx.some(x=>!x)){const missing=idx.filter(x=>!x).length;toast('Could not load '+missing+' page(s). Nothing saved — check your connection and retry.',true);return;}
   const prev=DB.settings.hifz.pageStart;DB.settings.hifz.pageStart=idx;const issues=hifzSelfCheck();
   if(issues.length){DB.settings.hifz.pageStart=prev;toast('Downloaded data failed validation and was NOT saved: '+issues[0],true);return;}
+  const prevSrc=DB.settings.hifz.pageStartSource,prevAt=DB.settings.hifz.pageStartAt;
   DB.settings.hifz.pageStartSource='Quran.com API v4';DB.settings.hifz.pageStartAt=Date.now();
-  save();toast('✓ 604-page index built & validated');closeModal();hifzSettings();}
+  /* Database-first: await cloudCommit rather than fire-and-forget save() — the same rule Hifz Submit/Approve follow. */
+  const res=await cloudCommit();
+  if(!res.ok){DB.settings.hifz.pageStart=prev;DB.settings.hifz.pageStartSource=prevSrc;DB.settings.hifz.pageStartAt=prevAt;toast('Index built but NOT saved to database — '+res.error,true);return;}
+  toast('✓ 604-page index built, validated & saved school-wide');closeModal();hifzSettings();}
 /* ---- UNIQUE VERIFIED COVERAGE (merged non-overlapping page intervals 1..604) ---- */
 function hifzMergeCoverage(cov,iv){cov=(cov||[]).map(x=>[x[0],x[1]]);if(!iv||iv[0]==null||iv[1]==null)return cov;const a=Math.min(iv[0],iv[1]),b=Math.max(iv[0],iv[1]);const list=cov.concat([[a,b]]).sort((x,y)=>x[0]-y[0]);const out=[];list.forEach(([f,t])=>{if(!out.length||f>out[out.length-1][1]+1)out.push([f,t]);else out[out.length-1][1]=Math.max(out[out.length-1][1],t);});return out;}
 function hifzUniquePages(cov){return (cov||[]).reduce((a,iv)=>a+(iv[1]-iv[0]+1),0);}
@@ -3871,10 +3875,14 @@ async function HZloadQuran(btn){
     if(!quranLoaded()){await fetchQuran();}   /* reuse the existing Qur'an-module loader — sole source of truth */
     if(!quranLoaded()){_hzBtnFail(btn,'— LOAD FAILED (retry)');toast('Qur\'an load failed — check internet and retry',true);return;}
     _HZ_HIZB_CACHE=null;_HZ_HIZB_CACHE_LEN=0;   /* invalidate hizb cache so next hzHizbTable() rebuilds from fresh QURAN */
+    /* Derive the compact 60-entry Hizb boundary table and persist to school_data via cloudCommit —
+       makes Hizb data school-wide so teachers on other browsers don't need to load the full Qur'an. */
+    const pRes=await hzPersistHizbBoundariesFromQuran();
+    if(!pRes.ok){_hzBtnFail(btn,'— PERSIST FAILED (retry)');toast('Loaded locally but could not save school-wide Hifz reference — '+pRes.error,true);return;}
     _hzBtnClear(btn);
     /* Refresh the settings modal so the status card immediately reflects the new state. */
     try{closeModal();hifzSettings();}catch(e){}
-    toast('✅ Qur\'an dataset loaded ('+QURAN.length+' ayahs)');
+    toast('✅ Hifz Qur\'an reference saved school-wide — 60 Hizb boundaries validated');
   }finally{_hzQuranLoadBusy=false;}
 }
 async function HZbuildIndex(btn){
@@ -3889,7 +3897,10 @@ async function HZbuildIndex(btn){
 }
 function hifzSettings(){if(USER.role!=='admin'){toast('Administrator only',true);return;}const H=hifzCfg();const w=H.weights||{},f=H.componentFloors||{},e=H.errWeights||{},tw=H.termWeights||[25,30,45],tt=H.trackThresholds||{};const issues=hifzSelfCheck();
   try{loadQuranCache();}catch(e){}   /* rehydrate QURAN from localStorage before deciding what the status card shows */
-  const qLoaded=quranLoaded();const hzOK=hzHizbAvailable();
+  const qLoaded=quranLoaded();
+  const persisted=Array.isArray(H.hizbBoundaries)&&H.hizbBoundaries.length===60;   /* school-wide, synced via cloudCommit */
+  const hzOK=hzHizbAvailable();
+  const persistedAt=H.hizbBoundariesAt?new Date(H.hizbBoundariesAt).toLocaleDateString():'';
   const _official=isHifzOfficial();
   modal('⚙️ Hifz settings (100-point system)',`
     <div style="background:${_official?'#e9f7ee':'#fbf6ea'};border:1px solid ${_official?'#b6e3c7':'#e6d8a8'};border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px">
@@ -3901,10 +3912,10 @@ function hifzSettings(){if(USER.role!=='admin'){toast('Administrator only',true)
       <div style="font-weight:700;margin-bottom:4px">📖 Qur'an data required for Hifz</div>
       <div class="muted" style="font-size:11.5px;margin-bottom:6px">Hifz Evaluation requires the Qur'an dataset for exact Surah/Ayah validation, page calculations and Hizb detection. Manage all Qur'an data for Hifz from this card — no need to leave Hifz Settings.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:12px;margin-bottom:6px">
-        <div><b>Qur'an dataset:</b> ${qLoaded?('<span style="color:var(--green)">✅ Loaded — '+QURAN.length+' ayahs</span>'):'<span style="color:var(--red)">⚠ Not loaded</span>'}</div>
-        <div><b>604-page index:</b> ${issues.length?'<span style="color:var(--red)">⚠ '+(hifzPageIndex()?'Needs rebuild':'Not built')+'</span>':'<span style="color:var(--green)">✅ VALIDATED &amp; READY</span>'}${H.pageStartSource?('<div class="muted" style="font-size:10.5px">source: '+esc(H.pageStartSource)+'</div>'):''}</div>
-        <div><b>Hizb detection:</b> ${hzOK?'<span style="color:var(--green)">✅ Available — 60 boundaries from Qur\'an dataset</span>':'<span style="color:var(--red)">⚠ Unavailable — load the Qur\'an dataset first</span>'}</div>
-        <div><b>Exact Ayah/page maths:</b> ${(qLoaded&&!issues.length)?'<span style="color:var(--green)">✅ Active</span>':'<span style="color:var(--red)">⚠ Blocked until dataset &amp; index are ready</span>'}</div>
+        <div><b>Qur'an dataset (this device):</b> ${qLoaded?('<span style="color:var(--green)">✅ Loaded — '+QURAN.length+' ayahs</span>'):'<span class="muted">Not loaded on this device</span>'}<div class="muted" style="font-size:10.5px">Only admins need this locally; teachers use the persisted metadata below.</div></div>
+        <div><b>604-page index (school-wide):</b> ${issues.length?'<span style="color:var(--red)">⚠ '+(hifzPageIndex()?'Needs rebuild':'Not built')+'</span>':'<span style="color:var(--green)">✅ VALIDATED &amp; READY</span>'}${H.pageStartSource?('<div class="muted" style="font-size:10.5px">source: '+esc(H.pageStartSource)+'</div>'):''}</div>
+        <div><b>Hifz Hizb reference (school-wide):</b> ${persisted?('<span style="color:var(--green)">✅ Configured — 60 boundaries persisted'+(persistedAt?(' on '+persistedAt):'')+'</span><div class="muted" style="font-size:10.5px">source: '+esc(H.hizbBoundariesSource||'derived from Qur\'an dataset')+' · every device inherits this</div>'):'<span style="color:var(--red)">⚠ Not configured — admin must Load Qur\'an data</span>'}</div>
+        <div><b>Exact Ayah/page maths:</b> ${(persisted&&!issues.length)?'<span style="color:var(--green)">✅ Active for every user</span>':(qLoaded&&!issues.length?'<span style="color:#8a6d1a">⚠ Active on this device only — save school-wide by clicking Load Qur\'an</span>':'<span style="color:var(--red)">⚠ Blocked until dataset &amp; index are ready</span>')}</div>
       </div>
       ${issues.length?('<div style="margin-top:2px;color:#7a1c14;font-size:11.5px">'+esc(issues.slice(0,3).join('; '))+(issues.length>3?' …':'')+'</div>'):''}
       <div class="mt flex gap" style="flex-wrap:wrap">
@@ -3970,15 +3981,30 @@ async function toggleHifzOfficial(){
   try{buildNav();}catch(e){}   /* Memorization tab appears/disappears immediately */
   toast(next?'✔ Hifz Evaluation is now the official memorization system':'✔ Reverted — Memorization module is visible again');
 }
-function saveHifzSettings(){const H=DB.settings.hifz;const n=id=>Number($('#'+id).value);
-  H.monthlyTarget=n('hf_mtg')||30;   /* School-wide monthly Hifz page target. Instructional-day fields are retired from UI; their stored values (pagesPerDay/pagesPerMonth/weekend/holidays) remain untouched for backward compatibility. */
-  H.weights={prog:n('hf_wprog')||0,acc:n('hf_wacc')||0,mur:n('hf_wmur')||0,flu:n('hf_wflu')||0,taj:n('hf_wtaj')||0};
-  const wsum=H.weights.prog+H.weights.acc+H.weights.mur+H.weights.flu+H.weights.taj;
-  H.termWeights=[n('hf_t1')||0,n('hf_t2')||0,n('hf_t3')||0];H.evalsPerTerm=n('hf_ept')||3;
-  H.sensitivity=n('hf_sens')||1;H.errWeights={major:n('hf_emaj')||0,forgotten:n('hf_efor')||0,prompt:n('hf_epro')||0,minor:n('hf_emin')||0};
-  H.componentFloors={prog:(n('hf_fprog')||0)/100,acc:(n('hf_facc')||0)/100,mur:(n('hf_fmur')||0)/100,flu:(n('hf_fflu')||0)/100,taj:(n('hf_ftaj')||0)/100};
-  H.trackThresholds={ahead:n('hf_tah')||0,behind:n('hf_tbe')||0,sigBehind:n('hf_tsb')||0};
-  save();closeModal();toast(wsum!==100?('Saved — note: weights total '+wsum+', not 100'):'Hifz settings saved');}
+let _hzSaveSettingsBusy=false;
+async function saveHifzSettings(){
+  if(_hzSaveSettingsBusy)return;_hzSaveSettingsBusy=true;
+  const btn=[...document.querySelectorAll('#modal button.btn')].find(b=>!b.classList.contains('sec')&&(b.textContent||'').trim()==='Save settings');
+  const originalLabel=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  try{
+    const H=DB.settings.hifz;const n=id=>Number($('#'+id).value);
+    /* Snapshot ALL fields for rollback on failure. Database-first: same rule as Hifz Submit/Approve. */
+    const prev={monthlyTarget:H.monthlyTarget,weights:H.weights,termWeights:H.termWeights,evalsPerTerm:H.evalsPerTerm,sensitivity:H.sensitivity,errWeights:H.errWeights,componentFloors:H.componentFloors,trackThresholds:H.trackThresholds};
+    H.monthlyTarget=n('hf_mtg')||30;
+    H.weights={prog:n('hf_wprog')||0,acc:n('hf_wacc')||0,mur:n('hf_wmur')||0,flu:n('hf_wflu')||0,taj:n('hf_wtaj')||0};
+    const wsum=H.weights.prog+H.weights.acc+H.weights.mur+H.weights.flu+H.weights.taj;
+    H.termWeights=[n('hf_t1')||0,n('hf_t2')||0,n('hf_t3')||0];H.evalsPerTerm=n('hf_ept')||3;
+    H.sensitivity=n('hf_sens')||1;H.errWeights={major:n('hf_emaj')||0,forgotten:n('hf_efor')||0,prompt:n('hf_epro')||0,minor:n('hf_emin')||0};
+    H.componentFloors={prog:(n('hf_fprog')||0)/100,acc:(n('hf_facc')||0)/100,mur:(n('hf_fmur')||0)/100,flu:(n('hf_fflu')||0)/100,taj:(n('hf_ftaj')||0)/100};
+    H.trackThresholds={ahead:n('hf_tah')||0,behind:n('hf_tbe')||0,sigBehind:n('hf_tsb')||0};
+    const res=await cloudCommit();
+    if(!res.ok){H.monthlyTarget=prev.monthlyTarget;H.weights=prev.weights;H.termWeights=prev.termWeights;H.evalsPerTerm=prev.evalsPerTerm;H.sensitivity=prev.sensitivity;H.errWeights=prev.errWeights;H.componentFloors=prev.componentFloors;H.trackThresholds=prev.trackThresholds;
+      if(btn){btn.disabled=false;btn.textContent=originalLabel+' — DATABASE UPDATE FAILED';btn.style.color='var(--red)';}
+      toast('Not saved — database error: '+res.error+' (your edits are kept in the form; retry)',true);return;}
+    if(btn){btn.disabled=false;btn.textContent=originalLabel;btn.style.color='';}
+    closeModal();toast(wsum!==100?('Saved — note: weights total '+wsum+', not 100'):'Hifz settings saved school-wide');
+  }finally{_hzSaveSettingsBusy=false;}
+}
 function editHifzProfile(sid){if(USER.role!=='admin'){toast('Only the administrator can change the Hifz profile',true);return;}const p=ensureHifzProfile(sid);const s=DB.students.find(x=>x.id===sid)||{};
   modal('Hifz profile — '+esc(s.name),`<p class="muted mb">Direction and start position are official settings; changes are recorded with your name and time.</p>
     <div class="fld"><label>Memorisation direction</label><select id="hp_dir"><option value="TOP_TO_BOTTOM" ${p.direction==='TOP_TO_BOTTOM'?'selected':''}>Top → Bottom (begin at Al-Fatihah, go forward)</option><option value="BOTTOM_TO_TOP" ${p.direction==='BOTTOM_TO_TOP'?'selected':''}>Bottom → Top (begin at An-Nas, go backward)</option></select></div>
@@ -3986,12 +4012,30 @@ function editHifzProfile(sid){if(USER.role!=='admin'){toast('Only the administra
     <div class="muted" style="font-size:12px">Verified coverage: <b>${hifzUniquePages(p.coverage)} / ${Number(hifzCfg().mushafPages)||604} pages</b> (${hifzCompletionPct(p.coverage)}%). Coverage changes only when evaluations are approved — it is not edited here.</div>
     ${(p.history&&p.history.length)?`<div class="mt" style="font-size:11.5px;color:var(--muted)"><b>History:</b> ${p.history.slice(-4).map(h=>esc((h.action||'')+' — '+(h.by||'')+(h.to?(' → '+h.to):''))).join('; ')}</div>`:''}`,
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveHifzProfile('${sid}')">Save</button>`);}
-function saveHifzProfile(sid){if(USER.role!=='admin')return;const p=ensureHifzProfile(sid);const dir=$('#hp_dir').value,ss=Number($('#hp_ss').value)||1,sa=Number($('#hp_sa').value)||1;
-  const chk=hzPointOK(ss,sa);if(!chk.ok){toast('Starting position: '+chk.error,true);return;}   /* one source of truth: same hzPointOK validator used everywhere else */
-  const now=Date.now();p.history=p.history||[];
-  if(p.direction!==dir){p.history.push({at:now,by:USER.name,action:'direction change',field:'direction',from:p.direction,to:dir});p.direction=dir;}
-  if(p.startSurah!==ss||p.startAyah!==sa){p.history.push({at:now,by:USER.name,action:'start change',field:'start',from:p.startSurah+':'+p.startAyah,to:ss+':'+sa});p.startSurah=ss;p.startAyah=sa;p.startPage=pageOf(ss,sa);}
-  save();closeModal();toast('Hifz profile saved');openStudentProfile(sid);}
+const _hzSaveProfileBusy=new Set();
+async function saveHifzProfile(sid){
+  if(USER.role!=='admin')return;
+  if(_hzSaveProfileBusy.has(sid))return;_hzSaveProfileBusy.add(sid);
+  const btn=[...document.querySelectorAll('#modal button.btn')].find(b=>!b.classList.contains('sec')&&(b.textContent||'').trim()==='Save');
+  const originalLabel=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  try{
+    const p=ensureHifzProfile(sid);
+    const dir=$('#hp_dir').value,ss=Number($('#hp_ss').value)||1,sa=Number($('#hp_sa').value)||1;
+    const chk=hzPointOK(ss,sa);
+    if(!chk.ok){if(btn){btn.disabled=false;btn.textContent=originalLabel;}toast('Starting position: '+chk.error,true);return;}
+    /* Snapshot for rollback on cloudCommit failure */
+    const prev={direction:p.direction,startSurah:p.startSurah,startAyah:p.startAyah,startPage:p.startPage,history:(p.history||[]).slice()};
+    const now=Date.now();p.history=p.history||[];
+    if(p.direction!==dir){p.history.push({at:now,by:USER.name,action:'direction change',field:'direction',from:p.direction,to:dir});p.direction=dir;}
+    if(p.startSurah!==ss||p.startAyah!==sa){p.history.push({at:now,by:USER.name,action:'start change',field:'start',from:p.startSurah+':'+p.startAyah,to:ss+':'+sa});p.startSurah=ss;p.startAyah=sa;p.startPage=pageOf(ss,sa);}
+    const res=await cloudCommit();
+    if(!res.ok){p.direction=prev.direction;p.startSurah=prev.startSurah;p.startAyah=prev.startAyah;p.startPage=prev.startPage;p.history=prev.history;
+      if(btn){btn.disabled=false;btn.textContent=originalLabel+' — DATABASE UPDATE FAILED';btn.style.color='var(--red)';}
+      toast('Hifz profile NOT saved — database error: '+res.error,true);return;}
+    if(btn){btn.disabled=false;btn.textContent=originalLabel;btn.style.color='';}
+    closeModal();toast('✔ Hifz profile saved school-wide');openStudentProfile(sid);
+  }finally{_hzSaveProfileBusy.delete(sid);}
+}
 function _hifzProfileSection(s,admin){if(!hasModule('tahfiz'))return '';const p=hifzProfile(s.id)||{coverage:[],direction:'TOP_TO_BOTTOM'};const mp=Number(hifzCfg().mushafPages)||604;const uniq=hifzUniquePages(p.coverage);const pct=hifzCompletionPct(p.coverage);const ready=hifzReady();
   const startPg=p.startSurah?pageOf(p.startSurah,p.startAyah):null;const frontPg=p.lastApprovedPos?pageOf(p.lastApprovedPos.surah,p.lastApprovedPos.ayah):null;
   const frontHizb=p.lastApprovedPos?hzHizbOfPos(p.lastApprovedPos.surah,p.lastApprovedPos.ayah):null;   /* null when Qur'an data not loaded */
@@ -4754,15 +4798,37 @@ function hzHizbCount(){return 60;}
 let _HZ_HIZB_CACHE=null;
 let _HZ_HIZB_CACHE_LEN=0;
 function hzHizbAvailable(){return !!hzHizbTable();}
-function hzHizbUnavailableReason(){return 'Hizb data requires the Qur\'an dataset. An admin can load it once from ☪ Qur\'an → Load Qur\'an.';}
-function hzHizbTable(){   /* Derive the 60 Hizb-start Surah:Ayah tuples from QURAN — the sole authority. Cached. */
-  try{if(typeof loadQuranCache==='function')loadQuranCache();}catch(e){}   /* rehydrate from localStorage if the admin already loaded once this device */
+function hzHizbUnavailableReason(){return 'Hifz Qur\'an reference data has not been configured. An administrator must load and validate it in ⚙️ Hifz Settings → 📖 Qur\'an data required for Hifz.';}
+/* Validate a candidate 60-entry hizb table for internal consistency. Returns [] iff valid. */
+function _hzValidateHizbTable(tbl){const issues=[];
+  if(!Array.isArray(tbl)||tbl.length!==60){issues.push('need exactly 60 entries; got '+(Array.isArray(tbl)?tbl.length:'not-array'));return issues;}
+  let prev=0;
+  for(let h=1;h<=60;h++){const e=tbl[h-1];
+    if(!Array.isArray(e)||e.length<2){issues.push('entry '+h+' malformed');continue;}
+    const s=+e[0],a=+e[1];
+    if(!(s>=1&&s<=114)){issues.push('entry '+h+': invalid surah '+s);continue;}
+    const max=surahMaxAyah(s);
+    if(!(a>=1&&a<=max)){issues.push('entry '+h+': invalid ayah '+a+' for surah '+s);continue;}
+    const abs=_hzAbsAyahIdx(s,a);
+    if(abs<=prev){issues.push('entry '+h+' ('+s+':'+a+') not strictly after entry '+(h-1));continue;}
+    prev=abs;
+  }
+  if(tbl[0]&&(tbl[0][0]!==1||tbl[0][1]!==1))issues.push('entry 1 must be 1:1 (Al-Fatihah)');
+  return issues;
+}
+function hzHizbTable(){   /* PRIORITY 1 (school-wide): persistent DB.settings.hifz.hizbBoundaries — synced via cloudCommit,
+     works on every teacher's device without them loading Qur'an locally.
+     PRIORITY 2 (transitional): derive from a locally-loaded QURAN — used only on the admin's browser during the load cycle,
+     before cloudCommit has persisted the compact table.
+     PRIORITY 3: null (unavailable) → UI shows "not configured" honest fallback. Cached. */
+  const stored=hifzCfg().hizbBoundaries;
+  if(Array.isArray(stored)&&stored.length===60){
+    if(_HZ_HIZB_CACHE&&_HZ_HIZB_CACHE_LEN==='db60')return _HZ_HIZB_CACHE;
+    if(_hzValidateHizbTable(stored).length===0){_HZ_HIZB_CACHE=stored.map(x=>[Number(x[0]),Number(x[1])]);_HZ_HIZB_CACHE_LEN='db60';return _HZ_HIZB_CACHE;}
+  }
+  try{if(typeof loadQuranCache==='function')loadQuranCache();}catch(e){}
   if(typeof QURAN!=='object'||!Array.isArray(QURAN)||QURAN.length<6000||!QURAN[0])return null;
   if(_HZ_HIZB_CACHE&&_HZ_HIZB_CACHE_LEN===QURAN.length)return _HZ_HIZB_CACHE;
-  /* Two possible ayah shapes:
-     - fresh from api.alquran.cloud: {hizbQuarter: 1..240}  → Hizb = ceil(hizbQuarter/4)
-     - app cache (from existing fetchQuran): {h: 1..60}      → Hizb = h directly
-     The lookup below matches whichever field is present per ayah. */
   const hizbOf=(a)=>{if(a.hizbQuarter!=null)return Math.ceil(Number(a.hizbQuarter)/4);if(a.h!=null)return Number(a.h);return 0;};
   const out=new Array(60);
   for(let h=1;h<=60;h++){
@@ -4770,7 +4836,30 @@ function hzHizbTable(){   /* Derive the 60 Hizb-start Surah:Ayah tuples from QUR
     if(!first||!first.s||!first.a){_HZ_HIZB_CACHE=null;return null;}
     out[h-1]=[Number(first.s),Number(first.a)];
   }
+  if(_hzValidateHizbTable(out).length>0){_HZ_HIZB_CACHE=null;return null;}
   _HZ_HIZB_CACHE=out;_HZ_HIZB_CACHE_LEN=QURAN.length;return out;
+}
+/* Derive the 60 boundaries from a locally-loaded QURAN and persist them to DB.settings.hifz via cloudCommit
+   so every teacher/admin on any device inherits them without loading the full Qur'an locally. Awaited, CAS-safe. */
+async function hzPersistHizbBoundariesFromQuran(){
+  if(!(typeof QURAN==='object'&&Array.isArray(QURAN)&&QURAN.length>=6000&&QURAN[0]))return {ok:false,error:'QURAN not loaded on this device — cannot derive boundaries.'};
+  const hizbOf=(a)=>{if(a.hizbQuarter!=null)return Math.ceil(Number(a.hizbQuarter)/4);if(a.h!=null)return Number(a.h);return 0;};
+  const tbl=new Array(60);
+  for(let h=1;h<=60;h++){const first=QURAN.find(a=>hizbOf(a)===h);if(!first||!first.s||!first.a)return {ok:false,error:'Hizb '+h+': no ayah found in QURAN metadata — dataset incomplete.'};tbl[h-1]=[Number(first.s),Number(first.a)];}
+  const issues=_hzValidateHizbTable(tbl);
+  if(issues.length)return {ok:false,error:'Derived boundaries failed validation: '+issues[0]};
+  DB.settings=DB.settings||{};DB.settings.hifz=DB.settings.hifz||{};
+  const prev={hb:DB.settings.hifz.hizbBoundaries,hbs:DB.settings.hifz.hizbBoundariesSource,hba:DB.settings.hifz.hizbBoundariesAt};
+  DB.settings.hifz.hizbBoundaries=tbl;
+  DB.settings.hifz.hizbBoundariesSource='api.alquran.cloud v1 hizbQuarter';
+  DB.settings.hifz.hizbBoundariesAt=Date.now();
+  const res=await cloudCommit();
+  if(!res.ok){
+    DB.settings.hifz.hizbBoundaries=prev.hb;DB.settings.hifz.hizbBoundariesSource=prev.hbs;DB.settings.hifz.hizbBoundariesAt=prev.hba;
+    return {ok:false,error:'Not saved to database — '+res.error};
+  }
+  _HZ_HIZB_CACHE=null;_HZ_HIZB_CACHE_LEN=0;
+  return {ok:true,source:DB.settings.hifz.hizbBoundariesSource,at:DB.settings.hifz.hizbBoundariesAt};
 }
 function hzHizbStartPos(h){h=+h;const t=hzHizbTable();return (t&&h>=1&&h<=60)?{surah:t[h-1][0],ayah:t[h-1][1]}:null;}
 function hzHizbStartAbs(h){const p=hzHizbStartPos(h);return p?_hzAbsAyahIdx(p.surah,p.ayah):null;}
