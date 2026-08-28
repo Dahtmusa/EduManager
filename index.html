@@ -3859,7 +3859,37 @@ function hifzCoverageLabel(cov){if(!cov||!cov.length)return 'None verified yet';
 function hifzProfile(sid){return (DB.hifzProfiles&&DB.hifzProfiles[sid])||null;}
 function ensureHifzProfile(sid){DB.hifzProfiles=DB.hifzProfiles||{};if(!DB.hifzProfiles[sid]){DB.hifzProfiles[sid]={studentId:sid,direction:'TOP_TO_BOTTOM',startSurah:1,startAyah:1,startPage:1,coverage:[],lastApprovedPos:null,history:[{at:Date.now(),by:'system',action:'created',field:'profile',from:'',to:'default'}]};}return DB.hifzProfiles[sid];}
 function hifzDirLabel(d){return d==='BOTTOM_TO_TOP'?'Bottom → Top (end toward start)':'Top → Bottom (start toward end)';}
+/* ---- Hifz Settings: Qur'an data controls (Load / Rebuild) — reuse existing fetchQuran & buildHifzPageIndex.
+   Same-paint busy state, duplicate-click prevention, honest failure UI. No new Qur'an engine. ---- */
+let _hzQuranLoadBusy=false;let _hzIndexBuildBusy=false;
+async function HZloadQuran(btn){
+  if(USER.role!=='admin'){toast('Administrator only',true);return;}
+  if(_hzQuranLoadBusy){toast('Already loading — please wait',true);return;}
+  _hzQuranLoadBusy=true;_hzBtnBusy(btn,'Loading Qur\'an…');
+  try{
+    try{loadQuranCache();}catch(e){}   /* try localStorage first — may be a no-op if already loaded */
+    if(!quranLoaded()){await fetchQuran();}   /* reuse the existing Qur'an-module loader — sole source of truth */
+    if(!quranLoaded()){_hzBtnFail(btn,'— LOAD FAILED (retry)');toast('Qur\'an load failed — check internet and retry',true);return;}
+    _HZ_HIZB_CACHE=null;_HZ_HIZB_CACHE_LEN=0;   /* invalidate hizb cache so next hzHizbTable() rebuilds from fresh QURAN */
+    _hzBtnClear(btn);
+    /* Refresh the settings modal so the status card immediately reflects the new state. */
+    try{closeModal();hifzSettings();}catch(e){}
+    toast('✅ Qur\'an dataset loaded ('+QURAN.length+' ayahs)');
+  }finally{_hzQuranLoadBusy=false;}
+}
+async function HZbuildIndex(btn){
+  if(USER.role!=='admin'){toast('Administrator only',true);return;}
+  if(_hzIndexBuildBusy){toast('Already building — please wait',true);return;}
+  _hzIndexBuildBusy=true;_hzBtnBusy(btn,'Building index…');
+  try{
+    await buildHifzPageIndex();   /* reuse existing builder; it does its own progress bar, validation, and settings save via existing save() */
+    if(!hifzReady()){_hzBtnFail(btn,'— INDEX BUILD FAILED (retry)');return;}
+    _hzBtnClear(btn);
+  }finally{_hzIndexBuildBusy=false;}
+}
 function hifzSettings(){if(USER.role!=='admin'){toast('Administrator only',true);return;}const H=hifzCfg();const w=H.weights||{},f=H.componentFloors||{},e=H.errWeights||{},tw=H.termWeights||[25,30,45],tt=H.trackThresholds||{};const issues=hifzSelfCheck();
+  try{loadQuranCache();}catch(e){}   /* rehydrate QURAN from localStorage before deciding what the status card shows */
+  const qLoaded=quranLoaded();const hzOK=hzHizbAvailable();
   const _official=isHifzOfficial();
   modal('⚙️ Hifz settings (100-point system)',`
     <div style="background:${_official?'#e9f7ee':'#fbf6ea'};border:1px solid ${_official?'#b6e3c7':'#e6d8a8'};border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px">
@@ -3867,11 +3897,21 @@ function hifzSettings(){if(USER.role!=='admin'){toast('Administrator only',true)
       <span class="muted" style="font-size:12px">${_official?'Legacy Memorization is hidden from navigation and its page is a read-only archive. Historical data is preserved.':'Legacy Memorization is still visible and editable. Enable this to retire it from navigation. All historical data stays preserved either way.'}</span>
       <div class="mt"><button id="hf_off_btn" class="btn sm sec" type="button" onclick="toggleHifzOfficial()">${_official?'✅ Official (currently ON) — click to disable':'☐ Not official (currently OFF) — click to enable'}</button></div>
     </div>
-    <div style="background:${issues.length?'#fdeceb':'#e9f7ee'};border:1px solid ${issues.length?'#f3b7b3':'#b6e3c7'};border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px">
-      📖 Qur'an page reference — <b>604-page Madinah Mushaf</b> (ayah-accurate, verified index).<br>
-      Status: ${issues.length?'<b style="color:var(--red)">NOT READY — page calculations are blocked</b>':'<b style="color:var(--green)">VALIDATED &amp; READY</b>'}${H.pageStartSource?(' · source: '+esc(H.pageStartSource)):''}
-      ${issues.length?('<div style="margin-top:4px;color:#7a1c14">'+esc(issues.slice(0,3).join('; '))+(issues.length>3?' …':'')+'</div>'):''}
-      <div class="mt"><button class="btn sm ${issues.length?'gold':'sec'}" type="button" onclick="buildHifzPageIndex()">${hifzPageIndex()?'Rebuild':'Build'} 604-page index (verified source)</button></div>
+    <div style="background:${(issues.length||!qLoaded||!hzOK)?'#fdeceb':'#e9f7ee'};border:1px solid ${(issues.length||!qLoaded||!hzOK)?'#f3b7b3':'#b6e3c7'};border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px">
+      <div style="font-weight:700;margin-bottom:4px">📖 Qur'an data required for Hifz</div>
+      <div class="muted" style="font-size:11.5px;margin-bottom:6px">Hifz Evaluation requires the Qur'an dataset for exact Surah/Ayah validation, page calculations and Hizb detection. Manage all Qur'an data for Hifz from this card — no need to leave Hifz Settings.</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:12px;margin-bottom:6px">
+        <div><b>Qur'an dataset:</b> ${qLoaded?('<span style="color:var(--green)">✅ Loaded — '+QURAN.length+' ayahs</span>'):'<span style="color:var(--red)">⚠ Not loaded</span>'}</div>
+        <div><b>604-page index:</b> ${issues.length?'<span style="color:var(--red)">⚠ '+(hifzPageIndex()?'Needs rebuild':'Not built')+'</span>':'<span style="color:var(--green)">✅ VALIDATED &amp; READY</span>'}${H.pageStartSource?('<div class="muted" style="font-size:10.5px">source: '+esc(H.pageStartSource)+'</div>'):''}</div>
+        <div><b>Hizb detection:</b> ${hzOK?'<span style="color:var(--green)">✅ Available — 60 boundaries from Qur\'an dataset</span>':'<span style="color:var(--red)">⚠ Unavailable — load the Qur\'an dataset first</span>'}</div>
+        <div><b>Exact Ayah/page maths:</b> ${(qLoaded&&!issues.length)?'<span style="color:var(--green)">✅ Active</span>':'<span style="color:var(--red)">⚠ Blocked until dataset &amp; index are ready</span>'}</div>
+      </div>
+      ${issues.length?('<div style="margin-top:2px;color:#7a1c14;font-size:11.5px">'+esc(issues.slice(0,3).join('; '))+(issues.length>3?' …':'')+'</div>'):''}
+      <div class="mt flex gap" style="flex-wrap:wrap">
+        <button class="btn sm ${qLoaded?'sec':'gold'}" type="button" onclick="HZloadQuran(this)">${qLoaded?'↻ Reload Qur\'an data':'⬇ Load Qur\'an data'}</button>
+        <button class="btn sm ${issues.length?'gold':'sec'}" type="button" onclick="HZbuildIndex(this)">${hifzPageIndex()?'🔄 Rebuild 604-page index':'⬇ Build 604-page index'}</button>
+      </div>
+      <div class="muted" style="font-size:11px;margin-top:4px">One dataset · one page-index · one source of truth. If the dataset isn\'t loaded, the system honestly reports "unavailable" rather than fabricating Hizb information.</div>
     </div>
     <h4 class="mb">School Hifz target</h4>
     <div class="fld"><label>Monthly Hifz page target (school-wide, applied to every evaluation)</label><input id="hf_mtg" type="number" min="1" step="1" value="${esc(HZmonthlyTarget())}"></div>
@@ -4715,12 +4755,18 @@ let _HZ_HIZB_CACHE=null;
 let _HZ_HIZB_CACHE_LEN=0;
 function hzHizbAvailable(){return !!hzHizbTable();}
 function hzHizbUnavailableReason(){return 'Hizb data requires the Qur\'an dataset. An admin can load it once from ☪ Qur\'an → Load Qur\'an.';}
-function hzHizbTable(){   /* Derive the 60 Hizb-start Surah:Ayah tuples from QURAN.hizbQuarter — the sole authority. Cached. */
+function hzHizbTable(){   /* Derive the 60 Hizb-start Surah:Ayah tuples from QURAN — the sole authority. Cached. */
+  try{if(typeof loadQuranCache==='function')loadQuranCache();}catch(e){}   /* rehydrate from localStorage if the admin already loaded once this device */
   if(typeof QURAN!=='object'||!Array.isArray(QURAN)||QURAN.length<6000||!QURAN[0])return null;
   if(_HZ_HIZB_CACHE&&_HZ_HIZB_CACHE_LEN===QURAN.length)return _HZ_HIZB_CACHE;
+  /* Two possible ayah shapes:
+     - fresh from api.alquran.cloud: {hizbQuarter: 1..240}  → Hizb = ceil(hizbQuarter/4)
+     - app cache (from existing fetchQuran): {h: 1..60}      → Hizb = h directly
+     The lookup below matches whichever field is present per ayah. */
+  const hizbOf=(a)=>{if(a.hizbQuarter!=null)return Math.ceil(Number(a.hizbQuarter)/4);if(a.h!=null)return Number(a.h);return 0;};
   const out=new Array(60);
   for(let h=1;h<=60;h++){
-    const first=QURAN.find(a=>Math.ceil((a.hizbQuarter||a.h||0)/4)===h);
+    const first=QURAN.find(a=>hizbOf(a)===h);
     if(!first||!first.s||!first.a){_HZ_HIZB_CACHE=null;return null;}
     out[h-1]=[Number(first.s),Number(first.a)];
   }
