@@ -3628,7 +3628,7 @@ function hifzReportHTML(sid,sess,term){
   const finfo=(l,v)=>`<div><div style="font-size:8px;text-transform:uppercase;letter-spacing:.04em;color:#9a8a55">${l}</div><div style="font-weight:700;color:#23302a;font-size:11.5px">${v}</div></div>`;
   /* ---- profile block: always rendered so the report has context even mid-term ---- */
   const profileTable=`<table style="${tbl}"><tbody>
-    <tr><td style="${cellL};width:32%">Direction</td><td style="${cell};width:18%">${esc(hifzDirLabel(prof.direction))}</td>
+    <tr><td style="${cellL};width:32%">Memorization Pattern</td><td style="${cell};width:18%">${esc(hifzDirLabel(prof.direction))}</td>
         <td style="${cellL};width:32%">Starting position</td><td style="${cell};width:18%">${prof.startSurah?esc(surahLabel(prof.startSurah))+', Ayah '+esc(prof.startAyah||1)+(startPg!=null?(' — p'+startPg):''):'—'}</td></tr>
     <tr><td style="${cellL}">Current frontier</td><td style="${cell};background:#fdfaf0">${prof.lastApprovedPos?esc(surahLabel(prof.lastApprovedPos.surah))+', Ayah '+esc(prof.lastApprovedPos.ayah)+(frontPg!=null?(' — p'+frontPg):''):'— (updates on approval)'}</td>
         <td style="${cellL}">Verified coverage</td><td style="${cell};background:#fdfaf0">${esc(hifzCoverageLabel(prof.coverage||[]))}</td></tr>
@@ -3862,7 +3862,54 @@ function hifzCoverageLabel(cov){if(!cov||!cov.length)return 'None verified yet';
 /* ---- student Hifz profile (direction / start / coverage / audit) ---- */
 function hifzProfile(sid){return (DB.hifzProfiles&&DB.hifzProfiles[sid])||null;}
 function ensureHifzProfile(sid){DB.hifzProfiles=DB.hifzProfiles||{};if(!DB.hifzProfiles[sid]){DB.hifzProfiles[sid]={studentId:sid,direction:'TOP_TO_BOTTOM',startSurah:1,startAyah:1,startPage:1,coverage:[],lastApprovedPos:null,history:[{at:Date.now(),by:'system',action:'created',field:'profile',from:'',to:'default'}]};}return DB.hifzProfiles[sid];}
-function hifzDirLabel(d){return d==='BOTTOM_TO_TOP'?'Bottom → Top (end toward start)':'Top → Bottom (start toward end)';}
+/* Memorization Pattern — Surah-based sequence only. Direction NEVER applies to Ayah/page ordering.
+   Ayahs run 1..N normally within every Surah regardless of pattern.
+   Field name `direction` is kept for backward compatibility with historical profiles. */
+function hifzDirLabel(d){return d==='BOTTOM_TO_TOP'?'Reverse: An-Nas → Al-Baqarah':'Forward: Al-Baqarah → An-Nas';}
+/* Next Surah in the student's pattern. Al-Fatihah (1) is excluded from hifz progression per traditional curriculum.
+   Returns null when the pattern has been completed. */
+function hzExpectedNextSurah(currentSurah,direction){
+  const s=+currentSurah;if(!(s>=1&&s<=114))return null;
+  if(direction==='BOTTOM_TO_TOP'){if(s<=2)return null;return s-1;}
+  if(s>=114)return null;return s+1;
+}
+/* First Surah in the pattern (used when prof.lastApprovedPos is null, i.e. the student is just starting). */
+function hzPatternFirstSurah(direction){return direction==='BOTTOM_TO_TOP'?114:2;}
+/* Validate the student's evaluation Surah against their pattern.
+   Rules:
+     - No prior approval (just starting): accept the profile's startSurah, OR the pattern's first surah, OR any surah admin has explicitly set as start.
+     - Same surah as previous approved: accept (partial completion of a Surah, ayahs progress 1..N normally).
+     - Next surah in pattern: accept (moved to next Surah).
+     - Any other Surah: reject as pattern-skip.
+   Note: this validates only the student's CURRENT position surah — assessed/verified/muraja'ah ranges are pattern-agnostic
+   because they may include already-approved coverage (muraja'ah) or partial slices within the current surah. */
+function hzPatternValidateCurrentSurah(prof,currentSurah){
+  const s=+currentSurah;if(!(s>=1&&s<=114))return {ok:false,error:'Invalid current Surah.'};
+  const dir=(prof&&prof.direction)||'TOP_TO_BOTTOM';
+  if(prof&&prof.lastApprovedPos&&prof.lastApprovedPos.surah){
+    const prevS=+prof.lastApprovedPos.surah;
+    if(s===prevS)return {ok:true};   /* still working within the same Surah */
+    const next=hzExpectedNextSurah(prevS,dir);
+    if(next!=null&&s===next)return {ok:true};   /* moved to the next Surah in pattern */
+    return {ok:false,error:'Current Surah ('+surahLabel(s)+') does not follow the student\'s memorization pattern. Expected the same Surah as previous approved ('+surahLabel(prevS)+')'+(next!=null?(' or the next in sequence ('+surahLabel(next)+')'):' — end of pattern reached')+'.'};
+  }
+  /* Just starting: accept profile's startSurah or the pattern's canonical first Surah */
+  const startS=(prof&&+prof.startSurah)||hzPatternFirstSurah(dir);
+  if(s===startS)return {ok:true};
+  const patternFirst=hzPatternFirstSurah(dir);
+  if(s===patternFirst)return {ok:true};
+  return {ok:false,error:'Current Surah ('+surahLabel(s)+') does not match the student\'s starting Surah ('+surahLabel(startS)+') for the '+hifzDirLabel(dir)+' pattern.'};
+}
+/* Pattern lock — the pattern becomes permanent when EITHER of the following holds:
+     - Admin has explicitly saved the profile once (profile.directionLockedAt is populated), OR
+     - Any evaluation on record for this student (backward-compat with pre-lock historical profiles).
+   Normal Admin and Teacher users cannot change it once locked. An Owner/Super-Admin reset would
+   need to clear directionLockedAt on the profile — no such control is exposed to normal admins. */
+function hzPatternLocked(sid){
+  const p=(DB.hifzProfiles||{})[sid];
+  if(p && p.directionLockedAt) return true;   /* explicitly saved once — permanent for normal users */
+  return (DB.hifzEvals||[]).some(e=>e.studentId===sid);   /* fallback: pre-existing student with evaluation history */
+}
 /* ---- Hifz Settings: Qur'an data controls (Load / Rebuild) — reuse existing fetchQuran & buildHifzPageIndex.
    Same-paint busy state, duplicate-click prevention, honest failure UI. No new Qur'an engine. ---- */
 let _hzQuranLoadBusy=false;let _hzIndexBuildBusy=false;
@@ -3898,9 +3945,12 @@ async function HZbuildIndex(btn){
 function hifzSettings(){if(USER.role!=='admin'){toast('Administrator only',true);return;}const H=hifzCfg();const w=H.weights||{},f=H.componentFloors||{},e=H.errWeights||{},tw=H.termWeights||[25,30,45],tt=H.trackThresholds||{};const issues=hifzSelfCheck();
   try{loadQuranCache();}catch(e){}   /* rehydrate QURAN from localStorage before deciding what the status card shows */
   const qLoaded=quranLoaded();
-  const persisted=Array.isArray(H.hizbBoundaries)&&H.hizbBoundaries.length===60;   /* school-wide, synced via cloudCommit */
+  const persisted=Array.isArray(H.hizbBoundaries)&&H.hizbBoundaries.length===60;
   const hzOK=hzHizbAvailable();
   const persistedAt=H.hizbBoundariesAt?new Date(H.hizbBoundariesAt).toLocaleDateString():'';
+  const pageAt=H.pageStartAt?new Date(H.pageStartAt).toLocaleDateString():'';
+  const refIssues=hifzReferenceIssues();   /* internal + cross-consistency: never mix datasets from different versions */
+  const crossOK=persisted&&!issues.length&&refIssues.length===0;
   const _official=isHifzOfficial();
   modal('⚙️ Hifz settings (100-point system)',`
     <div style="background:${_official?'#e9f7ee':'#fbf6ea'};border:1px solid ${_official?'#b6e3c7':'#e6d8a8'};border-radius:8px;padding:10px 12px;font-size:12.5px;margin-bottom:12px">
@@ -3913,9 +3963,9 @@ function hifzSettings(){if(USER.role!=='admin'){toast('Administrator only',true)
       <div class="muted" style="font-size:11.5px;margin-bottom:6px">Hifz Evaluation requires the Qur'an dataset for exact Surah/Ayah validation, page calculations and Hizb detection. Manage all Qur'an data for Hifz from this card — no need to leave Hifz Settings.</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px 12px;font-size:12px;margin-bottom:6px">
         <div><b>Qur'an dataset (this device):</b> ${qLoaded?('<span style="color:var(--green)">✅ Loaded — '+QURAN.length+' ayahs</span>'):'<span class="muted">Not loaded on this device</span>'}<div class="muted" style="font-size:10.5px">Only admins need this locally; teachers use the persisted metadata below.</div></div>
-        <div><b>604-page index (school-wide):</b> ${issues.length?'<span style="color:var(--red)">⚠ '+(hifzPageIndex()?'Needs rebuild':'Not built')+'</span>':'<span style="color:var(--green)">✅ VALIDATED &amp; READY</span>'}${H.pageStartSource?('<div class="muted" style="font-size:10.5px">source: '+esc(H.pageStartSource)+'</div>'):''}</div>
-        <div><b>Hifz Hizb reference (school-wide):</b> ${persisted?('<span style="color:var(--green)">✅ Configured — 60 boundaries persisted'+(persistedAt?(' on '+persistedAt):'')+'</span><div class="muted" style="font-size:10.5px">source: '+esc(H.hizbBoundariesSource||'derived from Qur\'an dataset')+' · every device inherits this</div>'):'<span style="color:var(--red)">⚠ Not configured — admin must Load Qur\'an data</span>'}</div>
-        <div><b>Exact Ayah/page maths:</b> ${(persisted&&!issues.length)?'<span style="color:var(--green)">✅ Active for every user</span>':(qLoaded&&!issues.length?'<span style="color:#8a6d1a">⚠ Active on this device only — save school-wide by clicking Load Qur\'an</span>':'<span style="color:var(--red)">⚠ Blocked until dataset &amp; index are ready</span>')}</div>
+        <div><b>604-page index (school-wide):</b> ${issues.length?'<span style="color:var(--red)">⚠ '+(hifzPageIndex()?'Needs rebuild':'Not built')+'</span>':'<span style="color:var(--green)">✅ VALIDATED &amp; READY</span>'}${H.pageStartSource?('<div class="muted" style="font-size:10.5px">source: '+esc(H.pageStartSource)+(pageAt?(' · built '+pageAt):'')+'</div>'):''}</div>
+        <div><b>Hifz Hizb reference (school-wide):</b> ${persisted?(crossOK?('<span style="color:var(--green)">✅ Configured — 60 boundaries persisted'+(persistedAt?(' on '+persistedAt):'')+'</span><div class="muted" style="font-size:10.5px">source: '+esc(H.hizbBoundariesSource||'derived from Qur\'an dataset')+' · consistent with the 604-page index · every device inherits this</div>'):('<span style="color:var(--red)">⚠ Persisted but INCONSISTENT with 604-page index — rebuild required</span><div class="muted" style="font-size:10.5px;color:var(--red)">'+esc((refIssues.find(x=>x.indexOf('does not map')>-1)||refIssues[0]||'Reference version mismatch').slice(0,180))+'</div>')):'<span style="color:var(--red)">⚠ Not configured — admin must Load Qur\'an data</span>'}</div>
+        <div><b>Exact Ayah/page maths:</b> ${crossOK?'<span style="color:var(--green)">✅ Active for every user (reference cross-validated)</span>':(qLoaded&&!issues.length?'<span style="color:#8a6d1a">⚠ Active on this device only — save school-wide by clicking Load Qur\'an</span>':'<span style="color:var(--red)">⚠ Blocked until dataset &amp; index are ready and cross-validated</span>')}</div>
       </div>
       ${issues.length?('<div style="margin-top:2px;color:#7a1c14;font-size:11.5px">'+esc(issues.slice(0,3).join('; '))+(issues.length>3?' …':'')+'</div>'):''}
       <div class="mt flex gap" style="flex-wrap:wrap">
@@ -4007,7 +4057,13 @@ async function saveHifzSettings(){
 }
 function editHifzProfile(sid){if(USER.role!=='admin'){toast('Only the administrator can change the Hifz profile',true);return;}const p=ensureHifzProfile(sid);const s=DB.students.find(x=>x.id===sid)||{};
   modal('Hifz profile — '+esc(s.name),`<p class="muted mb">Direction and start position are official settings; changes are recorded with your name and time.</p>
-    <div class="fld"><label>Memorisation direction</label><select id="hp_dir"><option value="TOP_TO_BOTTOM" ${p.direction==='TOP_TO_BOTTOM'?'selected':''}>Top → Bottom (begin at Al-Fatihah, go forward)</option><option value="BOTTOM_TO_TOP" ${p.direction==='BOTTOM_TO_TOP'?'selected':''}>Bottom → Top (begin at An-Nas, go backward)</option></select></div>
+    <div class="fld"><label>Memorization Pattern (Surah sequence only — Ayahs run 1..N normally within every Surah)</label>
+      <select id="hp_dir" ${hzPatternLocked(sid)?'disabled':''}>
+        <option value="TOP_TO_BOTTOM" ${p.direction==='TOP_TO_BOTTOM'?'selected':''}>Forward: Al-Baqarah → Aal-Imran → An-Nisa → … → An-Nas</option>
+        <option value="BOTTOM_TO_TOP" ${p.direction==='BOTTOM_TO_TOP'?'selected':''}>Reverse: An-Nas → Al-Falaq → Al-Ikhlas → … → Al-Baqarah</option>
+      </select>
+      ${hzPatternLocked(sid)?'<div style="font-size:11.5px;margin-top:3px;color:#8a1c14;font-weight:700">🔒 Memorization Pattern Locked</div><div class="muted" style="font-size:11px;margin-top:2px">The student\'s memorization sequence is permanent. Progress and coverage are keyed to this pattern.</div>':'<div class="muted" style="font-size:11.5px;margin-top:3px">Choose carefully — this pattern becomes <b>permanent</b> as soon as you Save. It cannot be changed afterwards by normal admins or teachers.</div>'}
+    </div>
     <div class="grid2"><div class="fld"><label>Start Surah</label><select id="hp_ss">${surahOpts(p.startSurah)}</select></div><div class="fld"><label>Start Ayah</label><input id="hp_sa" type="number" min="1" value="${esc(p.startAyah||1)}"></div></div>
     <div class="muted" style="font-size:12px">Verified coverage: <b>${hifzUniquePages(p.coverage)} / ${Number(hifzCfg().mushafPages)||604} pages</b> (${hifzCompletionPct(p.coverage)}%). Coverage changes only when evaluations are approved — it is not edited here.</div>
     ${(p.history&&p.history.length)?`<div class="mt" style="font-size:11.5px;color:var(--muted)"><b>History:</b> ${p.history.slice(-4).map(h=>esc((h.action||'')+' — '+(h.by||'')+(h.to?(' → '+h.to):''))).join('; ')}</div>`:''}`,
@@ -4021,15 +4077,20 @@ async function saveHifzProfile(sid){
   try{
     const p=ensureHifzProfile(sid);
     const dir=$('#hp_dir').value,ss=Number($('#hp_ss').value)||1,sa=Number($('#hp_sa').value)||1;
+    /* Pattern lock: once the profile has ever been saved by an admin (directionLockedAt set) OR the
+       student already has evaluation records, the pattern cannot be changed by normal Admin/Teacher. */
+    if(dir!==p.direction && hzPatternLocked(sid)){if(btn){btn.disabled=false;btn.textContent=originalLabel;}toast('🔒 Memorization Pattern Locked — cannot be changed by normal admin or teacher.',true);return;}
     const chk=hzPointOK(ss,sa);
     if(!chk.ok){if(btn){btn.disabled=false;btn.textContent=originalLabel;}toast('Starting position: '+chk.error,true);return;}
-    /* Snapshot for rollback on cloudCommit failure */
-    const prev={direction:p.direction,startSurah:p.startSurah,startAyah:p.startAyah,startPage:p.startPage,history:(p.history||[]).slice()};
+    /* Snapshot for rollback on cloudCommit failure (includes the lock timestamp) */
+    const prev={direction:p.direction,startSurah:p.startSurah,startAyah:p.startAyah,startPage:p.startPage,history:(p.history||[]).slice(),directionLockedAt:p.directionLockedAt};
     const now=Date.now();p.history=p.history||[];
     if(p.direction!==dir){p.history.push({at:now,by:USER.name,action:'direction change',field:'direction',from:p.direction,to:dir});p.direction=dir;}
     if(p.startSurah!==ss||p.startAyah!==sa){p.history.push({at:now,by:USER.name,action:'start change',field:'start',from:p.startSurah+':'+p.startAyah,to:ss+':'+sa});p.startSurah=ss;p.startAyah=sa;p.startPage=pageOf(ss,sa);}
+    /* IMMEDIATE LOCK: the very first admin save locks the pattern permanently for normal users. */
+    if(!p.directionLockedAt){p.directionLockedAt=now;p.history.push({at:now,by:USER.name,action:'pattern locked',field:'direction',from:'',to:dir});}
     const res=await cloudCommit();
-    if(!res.ok){p.direction=prev.direction;p.startSurah=prev.startSurah;p.startAyah=prev.startAyah;p.startPage=prev.startPage;p.history=prev.history;
+    if(!res.ok){p.direction=prev.direction;p.startSurah=prev.startSurah;p.startAyah=prev.startAyah;p.startPage=prev.startPage;p.history=prev.history;p.directionLockedAt=prev.directionLockedAt;
       if(btn){btn.disabled=false;btn.textContent=originalLabel+' — DATABASE UPDATE FAILED';btn.style.color='var(--red)';}
       toast('Hifz profile NOT saved — database error: '+res.error,true);return;}
     if(btn){btn.disabled=false;btn.textContent=originalLabel;btn.style.color='';}
@@ -4054,7 +4115,7 @@ function _hifzProfileSection(s,admin){if(!hasModule('tahfiz'))return '';const p=
   return _pfSection('📖 Hifz profile')
     +(ready?'':`<div style="background:#fdeceb;border:1px solid #f3b7b3;border-radius:8px;padding:7px 10px;font-size:12px;margin-bottom:8px">⚠ Qur'an page index not loaded — page figures are blocked until an admin builds it in <b>Hifz settings</b>.</div>`)
     +`<div style="background:#f5f8f6;border-radius:12px;padding:12px 14px;margin-bottom:8px"><div style="display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-bottom:4px"><span>Qur'an completion (unique verified)</span><span><b>${pct}%</b> · ${uniq}/${mp} pages</span></div><div style="height:12px;background:#e2e8e4;border-radius:20px;overflow:hidden"><div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#0b8a45,#caa64e)"></div></div></div>`
-    +_pfGrid([['Direction',hifzDirLabel(p.direction)],['Start position',p.startSurah?surahLabel(p.startSurah)+' : '+esc(p.startAyah||1)+(startPg!=null?' (p'+startPg+')':''):'—'],['Current frontier',p.lastApprovedPos?surahLabel(p.lastApprovedPos.surah)+' : '+esc(p.lastApprovedPos.ayah)+(frontPg!=null?(' (p'+frontPg+_frontHizbLbl+')'):''):'— (updates on approved evaluations)'],['Verified coverage',esc(hifzCoverageLabel(p.coverage))]])
+    +_pfGrid([['Memorization Pattern',hifzDirLabel(p.direction)],['Start position',p.startSurah?surahLabel(p.startSurah)+' : '+esc(p.startAyah||1)+(startPg!=null?' (p'+startPg+')':''):'—'],['Current frontier',p.lastApprovedPos?surahLabel(p.lastApprovedPos.surah)+' : '+esc(p.lastApprovedPos.ayah)+(frontPg!=null?(' (p'+frontPg+_frontHizbLbl+')'):''):'— (updates on approved evaluations)'],['Verified coverage',esc(hifzCoverageLabel(p.coverage))]])
     +milestoneBlock
     +`<div class="mt"><button class="btn sm sec" onclick="HZstudentReport('${s.id}')">📄 Hifz report sheet</button>${admin?` <button class="btn sm sec" onclick="editHifzProfile('${s.id}')">✏️ Edit Hifz profile</button>`:''}</div>`;}
 const QCDN='https://cdn.jsdelivr.net/npm/quran-json@3.1.2/dist/chapters/';const _qCache={};
@@ -4799,7 +4860,7 @@ let _HZ_HIZB_CACHE=null;
 let _HZ_HIZB_CACHE_LEN=0;
 function hzHizbAvailable(){return !!hzHizbTable();}
 function hzHizbUnavailableReason(){return 'Hifz Qur\'an reference data has not been configured. An administrator must load and validate it in ⚙️ Hifz Settings → 📖 Qur\'an data required for Hifz.';}
-/* Validate a candidate 60-entry hizb table for internal consistency. Returns [] iff valid. */
+/* Validate a candidate 60-entry hizb table for INTERNAL consistency (60 entries, monotonic, valid Surah:Ayah, starts 1:1). */
 function _hzValidateHizbTable(tbl){const issues=[];
   if(!Array.isArray(tbl)||tbl.length!==60){issues.push('need exactly 60 entries; got '+(Array.isArray(tbl)?tbl.length:'not-array'));return issues;}
   let prev=0;
@@ -4816,16 +4877,56 @@ function _hzValidateHizbTable(tbl){const issues=[];
   if(tbl[0]&&(tbl[0][0]!==1||tbl[0][1]!==1))issues.push('entry 1 must be 1:1 (Al-Fatihah)');
   return issues;
 }
+/* Cross-consistency: every Hizb boundary must map to a valid page via the persisted 604-page index.
+   If either dataset is missing or they disagree on any boundary, treat the persisted reference as
+   requiring rebuild — the system NEVER mixes boundaries from one dataset version with pages from another. */
+function _hzCrossCheckHizbAndPages(tbl){const issues=[];
+  const idx=hifzPageIndex();if(!idx){issues.push('604-page index not present — cannot cross-check.');return issues;}
+  if(!Array.isArray(tbl)||tbl.length!==60){issues.push('Hizb table missing or wrong length — cannot cross-check.');return issues;}
+  /* Guard 1: page index structural sanity — first entry must be Al-Fatihah 1:1 (per the standard Uthmani mushaf). */
+  if(!Array.isArray(idx[0])||Number(idx[0][0])!==1||Number(idx[0][1])!==1)issues.push('604-page index does not start at 1:1 — page dataset is not the standard Uthmani Madinah mushaf.');
+  /* Guard 2: consecutive Hizb boundary pages must be strictly non-decreasing (Hizb boundaries never go backwards in the mushaf). */
+  let lastPage=0;
+  for(let h=1;h<=60;h++){const e=tbl[h-1];if(!e)continue;
+    const p=pageOf(e[0],e[1]);
+    if(p==null||p<1||p>604){issues.push('Hizb '+h+' start ('+e[0]+':'+e[1]+') does not map to a valid page in the persisted 604-page index — reference data mismatched.');continue;}
+    if(p<lastPage)issues.push('Hizb '+h+' start ('+e[0]+':'+e[1]+') maps to page '+p+' which is BEFORE the previous Hizb\'s page ('+lastPage+') — datasets are from different Qur\'an versions.');
+    lastPage=p;
+  }
+  /* Guard 3: Hizb 1 (1:1) must land on page 1 of the mushaf. Any other value proves the two datasets disagree. */
+  if(tbl[0]){const p1=pageOf(tbl[0][0],tbl[0][1]);if(p1!=null&&p1!==1)issues.push('Hizb 1 (1:1) maps to page '+p1+' in the persisted 604-page index — expected page 1. Page dataset does not match the Qur\'an version used for Hizb boundaries.');}
+  return issues;
+}
+/* Full reference validation: internal + cross-consistency. Called from hzHizbTable and from the UI. */
+function hifzReferenceIssues(){const H=hifzCfg();const out=[];
+  const idxIssues=hifzSelfCheck();if(idxIssues.length)idxIssues.forEach(x=>out.push('604-page index: '+x));
+  const tbl=H.hizbBoundaries;
+  if(!Array.isArray(tbl)||tbl.length!==60){out.push('Hifz Hizb reference not configured — admin must Load Qur\'an data.');return out;}
+  const tblIssues=_hzValidateHizbTable(tbl);if(tblIssues.length){tblIssues.forEach(x=>out.push('Hizb table: '+x));return out;}
+  if(!idxIssues.length){const xc=_hzCrossCheckHizbAndPages(tbl);xc.forEach(x=>out.push(x));}
+  return out;
+}
 function hzHizbTable(){   /* PRIORITY 1 (school-wide): persistent DB.settings.hifz.hizbBoundaries — synced via cloudCommit,
      works on every teacher's device without them loading Qur'an locally.
      PRIORITY 2 (transitional): derive from a locally-loaded QURAN — used only on the admin's browser during the load cycle,
      before cloudCommit has persisted the compact table.
      PRIORITY 3: null (unavailable) → UI shows "not configured" honest fallback. Cached. */
   const stored=hifzCfg().hizbBoundaries;
-  if(Array.isArray(stored)&&stored.length===60){
+  if(Array.isArray(stored)&&stored.length){
+    /* Persisted reference is present. Enforce STRICT validation + cross-consistency.
+       If any check fails, return null — never silently fall through to QURAN-derivation,
+       because that would mix boundaries from one dataset version with page data from another.
+       UI shows "reference data requires rebuild" via hifzReferenceIssues(). */
     if(_HZ_HIZB_CACHE&&_HZ_HIZB_CACHE_LEN==='db60')return _HZ_HIZB_CACHE;
-    if(_hzValidateHizbTable(stored).length===0){_HZ_HIZB_CACHE=stored.map(x=>[Number(x[0]),Number(x[1])]);_HZ_HIZB_CACHE_LEN='db60';return _HZ_HIZB_CACHE;}
+    if(stored.length!==60){_HZ_HIZB_CACHE=null;return null;}
+    if(_hzValidateHizbTable(stored).length>0){_HZ_HIZB_CACHE=null;return null;}
+    if(hifzSelfCheck().length>0){_HZ_HIZB_CACHE=null;return null;}   /* page index unhealthy → refuse mixed calc */
+    if(_hzCrossCheckHizbAndPages(stored).length>0){_HZ_HIZB_CACHE=null;return null;}
+    _HZ_HIZB_CACHE=stored.map(x=>[Number(x[0]),Number(x[1])]);_HZ_HIZB_CACHE_LEN='db60';return _HZ_HIZB_CACHE;
   }
+  /* Only when NO persisted reference exists at all do we fall through to a QURAN-local derivation.
+     This is the transitional path used by an admin's browser during the initial load, before cloudCommit
+     writes the compact table. Teachers on other devices only ever hit the persisted branch above. */
   try{if(typeof loadQuranCache==='function')loadQuranCache();}catch(e){}
   if(typeof QURAN!=='object'||!Array.isArray(QURAN)||QURAN.length<6000||!QURAN[0])return null;
   if(_HZ_HIZB_CACHE&&_HZ_HIZB_CACHE_LEN===QURAN.length)return _HZ_HIZB_CACHE;
@@ -4848,6 +4949,9 @@ async function hzPersistHizbBoundariesFromQuran(){
   for(let h=1;h<=60;h++){const first=QURAN.find(a=>hizbOf(a)===h);if(!first||!first.s||!first.a)return {ok:false,error:'Hizb '+h+': no ayah found in QURAN metadata — dataset incomplete.'};tbl[h-1]=[Number(first.s),Number(first.a)];}
   const issues=_hzValidateHizbTable(tbl);
   if(issues.length)return {ok:false,error:'Derived boundaries failed validation: '+issues[0]};
+  /* Pre-persist cross-check: if a 604-page index is already present, the two datasets must agree —
+     otherwise the persisted Hizb reference would be from a different Qur'an version than the pages. */
+  if(hifzPageIndex()){const xc=_hzCrossCheckHizbAndPages(tbl);if(xc.length)return {ok:false,error:'Boundary derivation disagrees with the current 604-page index — rebuild the page index first, then reload the Qur\'an. '+xc[0]};}
   DB.settings=DB.settings||{};DB.settings.hifz=DB.settings.hifz||{};
   const prev={hb:DB.settings.hifz.hizbBoundaries,hbs:DB.settings.hifz.hizbBoundariesSource,hba:DB.settings.hifz.hizbBoundariesAt};
   DB.settings.hifz.hizbBoundaries=tbl;
@@ -5166,7 +5270,7 @@ function HZform(calId,sid){const c=HZcalGet(calId);const s=DB.students.find(x=>x
     +'<div class="fld mt"><label>Actual evaluation date '+(c.backfill?'(historical — enter the real date it happened)':'')+'</label><input id="hz_date" type="date" value="'+esc(defDate)+'"'+dis+' onchange="HZlive()"></div></div>';
   // Current position
   h+='<div class="card pad mb"><h4 class="mb">Current Hifz position</h4>'
-    +'<div class="muted" style="font-size:12px">Previous approved: <b>'+esc(prevTxt)+'</b> · Direction: '+esc(hifzDirLabel(prof.direction))+'</div>'
+    +'<div class="muted" style="font-size:12px">Previous approved: <b>'+esc(prevTxt)+'</b> · Memorization Pattern: '+esc(hifzDirLabel(prof.direction))+'</div>'
     +'<div class="grid2 mt"><div class="fld"><label>Current Surah</label><select id="hz_cs"'+dis+' onchange="HZlive()">'+surahOpts(r.curSurah||(prev?prev.surah:''))+'</select></div>'
     +'<div class="fld"><label>Current Ayah</label><input id="hz_ca" type="number" step="1" min="1" value="'+(r.curAyah!=null?esc(r.curAyah):(prev?esc(prev.ayah):''))+'"'+dis+' oninput="HZlive()"><div id="hz_ca_hint" class="muted" style="font-size:11px;margin-top:2px"></div></div></div>'
     +'<div id="hz_curpage" class="muted" style="font-size:12.5px;margin-top:4px"></div></div>';
@@ -5374,10 +5478,12 @@ function HZvalidate(raw,c,prof){const err=[];
   ['major','minor','prompts','forgotten'].forEach(k=>{if(mu[k]<0||!Number.isInteger(mu[k]))err.push('Muraja\'ah counts must be whole numbers ≥ 0.');});
   if(!(raw.fluency>=1&&raw.fluency<=5))err.push('Select a Fluency rating (1–5).');
   if(!(raw.tajweed>=1&&raw.tajweed<=5))err.push('Select a Tajweed rating (1–5).');
-  // regression check vs direction
-  const prev=HZprevPos(prof);const curPg=(raw.curSurah&&raw.curAyah)?pageOf(raw.curSurah,raw.curAyah):null;
-  if(prev&&prev.page!=null&&curPg!=null){const back=(prof.direction==='BOTTOM_TO_TOP')?(curPg>prev.page):(curPg<prev.page);
-    if(back&&!(raw.comment&&raw.comment.trim().length>3))err.push('Current position appears to move backward for this direction — add a comment explaining, or have the admin adjust the profile.');}
+  /* Memorization Pattern check — SURAH-BASED ONLY. Ayahs and pages are NEVER used to enforce direction.
+     A valid current-position Surah is:
+       - the same Surah as the previous approved position (still working within it), OR
+       - the next Surah in the student's pattern (Al-Baqarah↔An-Nas sequence), OR
+       - the profile's startSurah (when the student is just starting). */
+  if(raw.curSurah){const pchk=hzPatternValidateCurrentSurah(prof,raw.curSurah);if(!pchk.ok)err.push('Memorization pattern: '+pchk.error);}
   return err;}
 function HZupsert(status){const c=HZcalGet(HZcur.calId);const s=DB.students.find(x=>x.id===HZcur.sid);if(!c||!s)return null;
   const prof=ensureHifzProfile(s.id);const raw=HZread();
@@ -5611,7 +5717,7 @@ function HZparentCard(s){if(!hasModule('tahfiz'))return '';const prof=hifzProfil
     +'<div style="background:#f5f8f6;border-radius:12px;padding:10px 12px"><div style="font-size:11px;color:var(--muted)">Programme status</div><div style="font-weight:800;font-size:16px">'+eva.status+'</div></div></div>';
   h+='<div style="font-size:12.5px;margin-top:8px">'
     +'<div style="display:flex;justify-content:space-between"><span class="muted">Current position</span><b>'+(prof&&prof.lastApprovedPos?(surahLabel(prof.lastApprovedPos.surah)+' : '+prof.lastApprovedPos.ayah+(frontPg!=null?(' · p'+frontPg):'')):'—')+'</b></div>'
-    +'<div style="display:flex;justify-content:space-between"><span class="muted">Direction</span><b>'+esc(hifzDirLabel((prof&&prof.direction)||'TOP_TO_BOTTOM'))+'</b></div>'
+    +'<div style="display:flex;justify-content:space-between"><span class="muted">Memorization Pattern</span><b>'+esc(hifzDirLabel((prof&&prof.direction)||'TOP_TO_BOTTOM'))+'</b></div>'
     +'<div style="display:flex;justify-content:space-between"><span class="muted">Monthly target / Pages verified</span><b>'+HZmonthlyTarget()+' per eval · '+eva.verified+' total</b></div>'
     +'<div style="display:flex;justify-content:space-between"><span class="muted">Trend</span><b>'+esc(tr.label)+'</b></div></div>';
   if(evals.length){h+='<h4 class="mb mt">Evaluations</h4>'+evals.map(e=>'<div style="display:flex;justify-content:space-between;font-size:12.5px;border-top:1px solid #eef2ee;padding:4px 0"><span>'+esc(e.term)+' · Eval '+esc(e.evalNo)+' <span class="muted">('+esc(e.date||'')+')</span></span><b>'+(e.scores.total||0)+' — '+esc(e.scores.band||'')+'</b></div>').join('');}
