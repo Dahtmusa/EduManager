@@ -4642,9 +4642,8 @@ function HZwindow(cal){if(!cal)return {start:null,end:null};
    The historic HZinstructionalDays/HZwindow helpers remain in the file as inert legacy — they are no
    longer called from the Hifz calculation path, and the calendar UI no longer exposes instructionalDays. */
 function HZmonthlyTarget(){const t=Number((HZcfg().monthlyTarget!=null)?HZcfg().monthlyTarget:30);return t>0?t:30;}
-function HZexpectedFor(rec){   /* zero-write display migration: historical records with expectedPages=0 present the current monthly target instead */
-  const stored=rec&&rec.scores&&Number(rec.scores.expectedPages);
-  return (stored&&stored>0)?stored:HZmonthlyTarget();
+function HZexpectedFor(rec){   /* School's official rule: every evaluation displays the school-wide monthly target (default 30), regardless of what the record's scores.expectedPages was frozen at. The raw stored value is preserved on the DB record for audit — this function only affects the display path, never the stored record. */
+  return HZmonthlyTarget();
 }
 function HZexpectedPages(cal){return HZmonthlyTarget();}   /* cal argument kept for backward compatibility with existing HZcompute callers */
 /* Inclusive count of ayahs between two Qur'an positions. Direction-agnostic (Math.abs on absolute idx). */
