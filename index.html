@@ -15,6 +15,7 @@
 <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+<script src="assets/js/attendance/attendance-service.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -1066,6 +1067,15 @@ function ensureSchool(d){d.settings=d.settings||{};const g=d.settings.grade;if(!
   if(d.settings.currentWeek==null)d.settings.currentWeek=1;
   if(!d.settings.charges)d.settings.charges={late:200,absent:500};
   if(!d.staffAtt||typeof d.staffAtt!=='object')d.staffAtt={};
+  if(!d.attendanceSettings||typeof d.attendanceSettings!=='object')d.attendanceSettings={};
+  if(d.attendanceSettings.morningDeadline==null)d.attendanceSettings.morningDeadline='10:00';
+  if(d.attendanceSettings.graceMinutes==null)d.attendanceSettings.graceMinutes=0;
+  if(d.attendanceSettings.parentSmsEnabled==null)d.attendanceSettings.parentSmsEnabled=false;
+  if(d.attendanceSettings.staffLatePenalty==null)d.attendanceSettings.staffLatePenalty=Number((d.settings.charges||{}).late)||200;
+  if(d.attendanceSettings.staffAbsentPenalty==null)d.attendanceSettings.staffAbsentPenalty=Number((d.settings.charges||{}).absent)||500;
+  if(!Array.isArray(d.attendanceSettings.scannerUserIds))d.attendanceSettings.scannerUserIds=[];
+  if(!d.attendanceMeta||typeof d.attendanceMeta!=='object')d.attendanceMeta={};
+
   if(!Array.isArray(d.lessonPlans))d.lessonPlans=[];
   if(!Array.isArray(d.houses))d.houses=[];
   if(!Array.isArray(d.houseActivities))d.houseActivities=[{id:'a_debate',name:'Debate Competition'},{id:'a_quiz',name:'Quiz Competition'},{id:'a_football',name:'Football'}];
@@ -1770,6 +1780,12 @@ function completeTerm(){
   toast(cur+' completed — records downloaded');
   vSession();buildNav();$('#termBadge').textContent=DB.settings.term+' • '+DB.settings.session;
 }
+function finalizeStudentCompletion(studentId){
+  const s=DB.students.find(x=>x.id===studentId);if(!s)return;
+  s.graduated=true;s.graduatedSession=DB.settings.session;s.graduatedOn=today();
+  const d=new Date();d.setMonth(d.getMonth()+1);s.idExpiresOn=d.toISOString().slice(0,10);
+  s.lifecycleStatus='alumni';save();toast('Programme completed — student moved to Alumni');
+}
 function confirmNewSession(){
   const next=nextSessionStr(DB.settings.session);
   let promo=0,grad=0,rep=0;
@@ -1838,7 +1854,7 @@ function delEvent(id){DB.events=(DB.events||[]).filter(x=>x.id!==id);save();vCal
 /* ===================== STAFF ATTENDANCE & CHARGES ===================== */
 let staffDate=today();
 function vStaffAtt(){
-  const ch=DB.settings.charges||{late:200,absent:500};const staff=DB.users.filter(u=>u.role!=='owner');
+  const A=attendanceSettings();const ch={late:A.staffLatePenalty,absent:A.staffAbsentPenalty};const staff=DB.users.filter(u=>u.role!=='owner');
   const rec=DB.staffAtt[staffDate]||{};
   // totals of enforced charges this term/month
   let totalCharges=0;Object.values(DB.staffAtt).forEach(day=>Object.values(day).forEach(r=>{if(r.decision==='enforced')totalCharges+=Number(r.charge)||0;}));
@@ -1857,8 +1873,8 @@ function vStaffAtt(){
   </tbody></table></div>
   <p class="muted mt" style="font-size:12px">Late/absent auto-adds a charge; choose <b>Enforce</b> to apply it or <b>Waive</b> to cancel (e.g. valid reason). Charges roll up above.</p>`;
 }
-function setCharges(){DB.settings.charges={late:Number($('#ch_late').value)||0,absent:Number($('#ch_abs').value)||0};save();}
-function setStaffAtt(uid,st){const ch=DB.settings.charges||{late:200,absent:500};DB.staffAtt[staffDate]=DB.staffAtt[staffDate]||{};
+function setCharges(){DB.settings.charges={late:Number($('#ch_late').value)||0,absent:Number($('#ch_abs').value)||0};DB.attendanceSettings=DB.attendanceSettings||{};DB.attendanceSettings.staffLatePenalty=DB.settings.charges.late;DB.attendanceSettings.staffAbsentPenalty=DB.settings.charges.absent;save();}
+function setStaffAtt(uid,st){const A=attendanceSettings();const ch={late:A.staffLatePenalty,absent:A.staffAbsentPenalty};DB.staffAtt[staffDate]=DB.staffAtt[staffDate]||{};
   const cur=DB.staffAtt[staffDate][uid]||{};
   if(cur.status===st){delete DB.staffAtt[staffDate][uid];}
   else{const charge=st==='L'?ch.late:st==='A'?ch.absent:0;DB.staffAtt[staffDate][uid]={status:st,charge,reason:cur.reason||'',decision:charge?'pending':''};}
@@ -3132,7 +3148,7 @@ function buildNav(){
     return;
   }
   if(USER.role==='owner') items=[['odash','📊','Dashboard'],['schools','🏫','Schools'],['stores','💊','Pharmacies'],['autostores','🔧','Auto Parts'],['families','👪','Families'],['posagents','🏧','POS Agents'],['pins','🔑','Result PINs'],['revenue','💵','Revenue'],['osettings','⚙️','Settings']];
-  else if(USER.role==='admin'){items=[['dashboard','📊','Dashboard'],['search','🔎','Search'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👥','Staff'],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['calendar','🗓️','Calendar'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
+  else if(USER.role==='admin'){items=[['dashboard','📊','Dashboard'],['search','🔎','Search'],['insights','✨','Insights'],['students','👧','Students'],['admissions','📥','Admissions',pendingAppCount()],['classes','🏫','Classes'],['teachers','👥','Staff'],['attendance','📅','Attendance'],...(canScanAttendance()?[['scanner','📷','Scan ID']]:[]),['results','📝','Results'],['reports','🏅','Report Cards'],['promotions','🎓','Promotions'],['session','📆','Session'],['calendar','🗓️','Calendar'],['fees','💰','Fees',pendingPayCount()],['idcards','🪪','ID Cards']];
     if(hasModule('staffAttendance'))items.splice(7,0,['staffatt','👔','Staff Att.']);
     if(hasModule('houses'))items.push(['houses','🏠','Houses']);
     if(hasModule('quran'))items.push(['quran','☪','Qur’an']);
@@ -3147,7 +3163,7 @@ function buildNav(){
     items.push(['alumni','🎓','Alumni']);
     items.push(['messages','✉️','Messages',unreadMsgCount()]);
     items.push(['website','🌐','Website']);if(hasBackup())items.push(['backup','🛟','Backup']);}
-  else {items=[['tdash','🏠','My Space'],['notifs','🔔','Notifications',notifsUnreadCount()||''],['attendance','📅','Attendance'],['scanner','📷','Scan ID'],['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
+  else {items=[['tdash','🏠','My Space'],['notifs','🔔','Notifications',notifsUnreadCount()||''],['attendance','📅','Attendance'],...(canScanAttendance()?[['scanner','📷','Scan ID']]:[]),['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
     if(hasModule('tahfiz')){items=items.filter(it=>it[0]!=='results');let i=4;if(!isHifzOfficial()){items.splice(i++,0,['tahfiz','📖','Memorization']);}items.splice(i,0,['hifz','📖','Hifz Eval']);}   /* Phase-A: same rule for teacher nav */
     if(hasModule('lessonPlans'))items.push(['lessons','📚','Lesson Plans']);
     items.push(['incidents','🚩','Incidents']);
@@ -3803,6 +3819,9 @@ function editApplicant(id){const a=id?DB.applicants.find(x=>x.id===id):{};
     <div class="fld"><label>Gender</label><select id="a_gender"><option ${a.gender==='Male'?'selected':''}>Male</option><option ${a.gender==='Female'?'selected':''}>Female</option></select></div>
     <div class="fld"><label>Date of birth</label><input id="a_dob" type="date" value="${esc(a.dob||'')}"></div>
     <div class="fld"><label>Date applied</label><input id="a_date" type="date" value="${esc(a.dateApplied||today())}"></div>
+<div class="fld"><label>Assessment mode</label><select id="a_assess"><option value="onsite" ${a.assessmentMode==="onsite"?"selected":""}>On-site assessment</option><option value="virtual" ${a.assessmentMode==="virtual"?"selected":""}>Virtual assessment</option></select></div>
+<div class="fld"><label>Assessment status</label><select id="a_astatus"><option value="pending" ${!a.assessmentStatus||a.assessmentStatus==="pending"?"selected":""}>Pending</option><option value="passed" ${a.assessmentStatus==="passed"?"selected":""}>Passed</option><option value="failed" ${a.assessmentStatus==="failed"?"selected":""}>Failed</option></select></div>
+<div class="fld full"><label>Existing Hifz / memorization level</label><input id="a_hifz" value="${esc(a.hifzBaseline||"")}" placeholder="Surah, Ayah, Juz or page already memorized"></div>
     <div class="fld"><label>Guardian name</label><input id="a_gname" value="${esc(a.guardianName||'')}"></div>
     <div class="fld"><label>Guardian phone</label><input id="a_gphone" value="${esc(a.guardianPhone||'')}"></div>
     <div class="fld full"><label>Address</label><input id="a_addr" value="${esc(a.address||'')}"></div>
@@ -3810,7 +3829,7 @@ function editApplicant(id){const a=id?DB.applicants.find(x=>x.id===id):{};
     `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveApplicant('${id||''}')">Save</button>`);}
 function saveApplicant(id){const name=$('#a_name').value.trim();if(!name){toast('Name required',true);return;}
   const obj={name,photo:_photo,classId:$('#a_class').value,section:($('#a_section')&&$('#a_section').value)||'Day',gender:$('#a_gender').value,dob:$('#a_dob').value,dateApplied:$('#a_date').value,
-    guardianName:$('#a_gname').value.trim(),guardianPhone:$('#a_gphone').value.trim(),address:$('#a_addr').value.trim(),notes:$('#a_notes').value.trim()};
+    guardianName:$('#a_gname').value.trim(),guardianPhone:$('#a_gphone').value.trim(),address:$('#a_addr').value.trim(),notes:$('#a_notes').value.trim(),assessmentMode:$('#a_assess').value,assessmentStatus:$('#a_astatus').value,hifzBaseline:$('#a_hifz').value.trim(),feeAmount:Number(DB.settings.admissionFee||5000),feeType:"one-time-non-refundable"};
   if(id)Object.assign(DB.applicants.find(x=>x.id===id),obj);else{obj.id=uid('a');obj.status='applied';DB.applicants.push(obj);}
   save();closeModal();vAdmissions();toast('Application saved');}
 function reviewApplicant(id){const a=DB.applicants.find(x=>x.id===id);const fee=Number(a.feeAmount)||0;
@@ -3819,7 +3838,7 @@ function reviewApplicant(id){const a=DB.applicants.find(x=>x.id===id);const fee=
     <tr><th>Address</th><td>${esc(a.address||'—')}</td></tr><tr><th>DOB</th><td>${esc(a.dob||'—')}</td></tr>${a.prevSchool?`<tr><th>Previous school</th><td>${esc(a.prevSchool)}</td></tr>`:''}
     <tr><th>Applied</th><td>${esc(a.dateApplied||'—')}${a.session?' · '+esc(a.session):''}</td></tr><tr><th>Notes</th><td>${esc(a.notes||'—')}</td></tr><tr><th>Status</th><td><b>${esc(a.status)}</b></td></tr></table></div>
     ${fee?`<div class="flex" style="justify-content:space-between;align-items:center;gap:8px;background:#fbf6e7;border:1px dashed #caa64e;border-radius:8px;padding:9px 12px;margin-bottom:10px">
-      <span style="font-size:13px">Application fee ${naira(fee)} — ${a.feePaid?'<b style="color:#0b8a45">Paid ✓</b>':'<b style="color:#b26a00">not confirmed</b>'}</span>
+      <span style="font-size:13px">One-time non-refundable application fee ${naira(fee)} — ${a.feePaid?'<b style="color:#0b8a45">Paid ✓</b>':'<b style="color:#b26a00">not confirmed</b>'}</span>
       <button class="btn sm ${a.feePaid?'sec':'gold'}" onclick="toggleFeePaid('${id}')">${a.feePaid?'Mark unpaid':'Confirm payment'}</button></div>`:''}
     ${a.status!=='enrolled'?`<div class="fld"><label>Screening date &amp; venue for this applicant (optional — overrides the general one)</label><input id="rv_scr" value="${esc(a.screeningDate||'')}" placeholder="${esc(DB.settings.admissionScreening||'e.g. Sat 12 Sep, 9am')}"></div>`:''}
     ${a.status==='enrolled'?'<p class="pill green">Already enrolled as a pupil.</p>':''}`,
@@ -3828,8 +3847,11 @@ function reviewApplicant(id){const a=DB.applicants.find(x=>x.id===id);const fee=
       <button class="btn" onclick="enrollApplicant('${id}')">✓ Admit & Enroll</button>`);}
 function toggleFeePaid(id){const a=DB.applicants.find(x=>x.id===id);a.feePaid=!a.feePaid;if(a.feePaid)a.feePaidOn=today();save();closeModal();vAdmissions();toast(a.feePaid?'Payment confirmed':'Marked unpaid');}
 function setAppStatus(id,st){const a=DB.applicants.find(x=>x.id===id);a.status=st;const scr=$('#rv_scr');if(scr)a.screeningDate=scr.value.trim();save();closeModal();vAdmissions();toast('Marked '+st);}
-function enrollApplicant(id){const a=DB.applicants.find(x=>x.id===id);const pfx=(DB.settings.admissionPrefix||'ADM').trim()||'ADM';const yr=((DB.settings.admissionSession||DB.settings.session||'').slice(0,4))||new Date().getFullYear();const adm=pfx+'/'+yr+'/'+String(DB.students.length+1).padStart(3,'0');
-  const stu={id:uid('s'),name:a.name,photo:a.photo||'',admissionNo:adm,classId:a.classId,section:a.section||'Day',gender:a.gender,dob:a.dob,guardianName:a.guardianName,guardianPhone:a.guardianPhone,address:a.address};
+function enrollApplicant(id){const a=DB.applicants.find(x=>x.id===id);if(!a)return;
+  if(!a.feePaid){toast('Confirm the ₦5,000 one-time non-refundable application fee before enrolment',true);return;}
+  if(a.assessmentStatus!=='passed'){toast('Assessment must be marked passed before enrolment',true);return;}
+const pfx=(DB.settings.admissionPrefix||'ADM').trim()||'ADM';const yr=((DB.settings.admissionSession||DB.settings.session||'').slice(0,4))||new Date().getFullYear();const adm=pfx+'/'+yr+'/'+String(DB.students.length+1).padStart(3,'0');
+  const stu={id:uid('s'),name:a.name,photo:a.photo||'',admissionNo:adm,classId:a.classId,section:a.section||'Day',gender:a.gender,dob:a.dob,guardianName:a.guardianName,guardianPhone:a.guardianPhone,address:a.address,hifzBaseline:a.hifzBaseline||"",hifzDirection:a.hifzDirection||"",admissionAssessment:{mode:a.assessmentMode||"onsite",status:a.assessmentStatus||"pending",completedOn:a.assessmentCompletedOn||""}};
   DB.students.push(stu);a.status='enrolled';a.studentId=stu.id;save();closeModal();vAdmissions();toast('Enrolled — '+adm);}
 
 /* ===================== SCHOOL: CLASSES ===================== */
@@ -3875,6 +3897,7 @@ function editTeacher(id){const u=id?DB.users.find(x=>x.id===id):{classes:[]};con
     <div class="fld"><label>Staff ID</label><input id="t_sid" value="${esc(sid)}"></div>
     <div class="fld"><label>Username *</label><input id="t_user" value="${esc(u.username||'')}" placeholder="e.g. mrs.bello"></div>
     <div class="fld"><label>Password *</label><input id="t_pass" value="${esc(u.password||'')}"></div>
+    <div class="fld"><label>Attendance scanner access</label><select id="t_scan"><option value="no" ${u.attendanceScanner!==true?'selected':''}>No scanner access</option><option value="yes" ${u.attendanceScanner===true?'selected':''}>Allow attendance scanning</option></select></div>
     <div class="fld"><label>Homepage placement</label><select id="t_group">
       <option value="leadership" ${gcur==='leadership'?'selected':''}>Leadership (Director, Asst Director, Supervisor…)</option>
       <option value="teaching" ${gcur==='teaching'?'selected':''}>Teaching staff (Meet Our Teachers)</option>
@@ -3889,10 +3912,10 @@ function saveTeacher(id){const name=$('#t_name').value.trim(),username=$('#t_use
   if(!name||!username||!password){toast('Name, username, password required',true);return;}
   if(DB.users.some(u=>u.username.toLowerCase()===username.toLowerCase()&&u.id!==id)){toast('Username taken',true);return;}
   const classes=[...document.querySelectorAll('.t_class:checked')].map(c=>c.value);const position=$('#t_pos').value.trim()||'Teacher';const rank=$('#t_rank').value!==''?Number($('#t_rank').value):null;
-  const group=$('#t_group')?$('#t_group').value:'teaching';const showOnSite=group!=='hidden';
+  const group=$('#t_group')?$('#t_group').value:'teaching';const showOnSite=group!=='hidden';const attendanceScanner=$('#t_scan')&&$('#t_scan').value==='yes';
   const phone=$('#t_phone')?$('#t_phone').value.trim():'';const bio=$('#t_bio')?$('#t_bio').value.trim():'';
-  if(id)Object.assign(DB.users.find(x=>x.id===id),{name,username,password,classes,staffId,photo:_photo,position,rank,group,showOnSite,phone,bio});
-  else DB.users.push({id:uid('u'),name,username,password,role:'teacher',classes,staffId,photo:_photo,position,rank,group,showOnSite,phone,bio});
+  if(id)Object.assign(DB.users.find(x=>x.id===id),{name,username,password,classes,staffId,photo:_photo,position,rank,group,showOnSite,phone,bio,attendanceScanner});
+  else DB.users.push({id:uid('u'),name,username,password,role:'teacher',classes,staffId,photo:_photo,position,rank,group,showOnSite,phone,bio,attendanceScanner});
   save();closeModal();vTeachers();toast('Staff saved');}
 function delTeacher(id){DB.users=DB.users.filter(x=>x.id!==id);save();vTeachers();toast('Teacher removed');}
 /* ===================== INCIDENTS ===================== */
@@ -4107,29 +4130,139 @@ function renderSearch(){const q=searchQ.trim().toLowerCase();const el=$('#search
   </tbody></table></div></div>`:''}
   ${!stu.length&&!staff.length?`<div class="card"><div class="empty"><div class="big">🤷</div>No matches for “${esc(searchQ)}”.</div></div>`:''}`;}
 
+/* ===================== AMQM ATTENDANCE PERMISSIONS ===================== */
+function attendanceSettings(){const s=DB.settings||{};const a=DB.attendanceSettings||{};return {
+  morningDeadline:a.morningDeadline||'10:00',graceMinutes:Number(a.graceMinutes)||0,
+  parentSmsEnabled:a.parentSmsEnabled===true,scannerUserIds:Array.isArray(a.scannerUserIds)?a.scannerUserIds:[],
+  staffLatePenalty:Number(a.staffLatePenalty!=null?a.staffLatePenalty:(s.charges||{}).late)||0,
+  staffAbsentPenalty:Number(a.staffAbsentPenalty!=null?a.staffAbsentPenalty:(s.charges||{}).absent)||0
+};}
+function canScanAttendance(){
+  if(!USER)return false;
+  if(USER.role==='admin')return true;
+  return attendanceSettings().scannerUserIds.includes(USER.id)||USER.attendanceScanner===true;
+}
+function attendanceMetaKey(date,classId,sid){return String(date)+'|'+String(classId)+'|'+String(sid);}
+function setAttendanceMeta(date,classId,sid,patch){const k=attendanceMetaKey(date,classId,sid);DB.attendanceMeta=DB.attendanceMeta||{};DB.attendanceMeta[k]=Object.assign({},DB.attendanceMeta[k]||{},patch);save();}
+function attendanceStatusLabel(v){return ({P:'Present',A:'Absent',L:'Late',E:'Excused',M:'Medical',PERMISSION:'Permission',EARLY:'Early departure'})[v]||'Not recorded';}
+function attendanceModeLabel(v){return ({qr:'QR scan',manual:'Manual',offline_qr:'Offline QR',admin:'Admin adjustment'})[v]||'—';}
+function queueParentAttendanceNotice(s,status,at){
+  if(!s||s.section!=='Day'||!attendanceSettings().parentSmsEnabled)return;
+  DB.attendanceSmsQueue=Array.isArray(DB.attendanceSmsQueue)?DB.attendanceSmsQueue:[];
+  const day=(at||new Date().toISOString()).slice(0,10);
+  const key=day+'|'+s.id+'|'+status;
+  if(DB.attendanceSmsQueue.some(x=>x.key===key))return;
+  DB.attendanceSmsQueue.push({id:uid('sms'),key,studentId:s.id,status,at:at||new Date().toISOString(),phone:s.guardianPhone||'',status:'queued'});
+  save();
+}
+function recordStudentAttendance(s,mode,status,at,officerId,reason){
+  if(!s)return false;
+  const date=(at||new Date().toISOString()).slice(0,10),key=date+'|'+s.classId;
+  DB.attendance[key]=DB.attendance[key]||{};
+  if(DB.attendance[key][s.id])return false;
+  DB.attendance[key][s.id]=status;
+  setAttendanceMeta(date,s.classId,s.id,{mode:mode||'qr',at:at||new Date().toISOString(),officerId:officerId||USER&&USER.id||null,reason:reason||'',boarding:s.section!=='Day'});
+  if(s.section==='Day')queueParentAttendanceNotice(s,status,at);
+  return true;
+}
+
 /* ===================== SCHOOL: ATTENDANCE ===================== */
 let attDate=today(),attClass='';
-function vAttendance(){const cls=teacherClasses();if(!attClass||!cls.find(c=>c.id===attClass))attClass=cls[0]?cls[0].id:'';
-  $('#view').innerHTML=`<div class="page-head"><div><h2>Attendance</h2><p>Daily register</p></div></div>
-  <div class="toolbar"><div><label>Date</label><input type="date" value="${attDate}" onchange="attDate=this.value;renderAtt()"></div>
-    <div><label>Class</label><select onchange="attClass=this.value;renderAtt()">${cls.map(c=>`<option value="${c.id}" ${attClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
-    <div><button class="btn sec sm" onclick="markAll('P')">Mark all present</button></div></div><div id="attTable"></div>`;renderAtt();}
-function renderAtt(){if(!attClass){$('#attTable').innerHTML=`<div class="card"><div class="empty">No class assigned.</div></div>`;return;}
-  const list=studentsIn(attClass),key=attDate+'|'+attClass,rec=DB.attendance[key]||{};
+function vAttendance(){
+  const cls=teacherClasses();if(!attClass||!cls.find(c=>c.id===attClass))attClass=cls[0]?cls[0].id:'';
+  const A=attendanceSettings(), admin=USER.role==='admin';
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Attendance</h2><p>Daily attendance for day and boarding pupils</p></div>
+    ${admin?`<div class="flex gap"><button class="btn sec" onclick="attendanceReport()">📊 Reports</button><button class="btn sec" onclick="attendanceAdminSettings()">⚙ Attendance settings</button></div>`:''}</div>
+    <div class="toolbar"><div><label>Date</label><input type="date" value="${attDate}" onchange="attDate=this.value;renderAtt()"></div>
+      <div><label>Class</label><select onchange="attClass=this.value;renderAtt()">${cls.map(c=>`<option value="${c.id}" ${attClass===c.id?'selected':''}>${esc(c.name)}</option>`).join('')}</select></div>
+      <div><label>Morning deadline</label><span class="pill blue" style="margin-top:7px;display:inline-block">${esc(A.morningDeadline)}</span></div>
+      <div style="margin-left:auto">${admin?`<button class="btn sec sm" onclick="markAll('P')">Mark class present</button>`:''}</div>
+    </div><div id="attTable"></div>`;
+  renderAtt();
+}
+function renderAtt(){
+  if(!attClass){$('#attTable').innerHTML=`<div class="card"><div class="empty">No class assigned.</div></div>`;return;}
+  const list=studentsIn(attClass),key=attDate+'|'+attClass,rec=DB.attendance[key]||{},meta=DB.attendanceMeta||{};
   if(!list.length){$('#attTable').innerHTML=`<div class="card"><div class="empty"><div class="big">📅</div>No pupils in ${esc(className(attClass))}.</div></div>`;return;}
-  const c={P:0,A:0,L:0};list.forEach(s=>{const v=rec[s.id];if(v)c[v]++;});
+  const c={P:0,A:0,L:0,E:0,M:0};list.forEach(s=>{const v=rec[s.id];if(c[v]!=null)c[v]++;});
   $('#attTable').innerHTML=`<div class="cards-row" style="margin-bottom:16px">
     <div class="stat"><div class="lbl">Present</div><div class="num" style="color:var(--green)">${c.P}</div></div>
     <div class="stat"><div class="lbl">Absent</div><div class="num" style="color:var(--red)">${c.A}</div></div>
     <div class="stat"><div class="lbl">Late</div><div class="num" style="color:var(--amber)">${c.L}</div></div>
+    <div class="stat"><div class="lbl">Excused</div><div class="num" style="color:var(--blue)">${c.E}</div></div>
     <div class="stat"><div class="lbl">Total</div><div class="num">${list.length}</div></div></div>
-  <div class="t-wrap"><table><thead><tr><th></th><th>Adm. No</th><th>Name</th><th class="center">Status</th></tr></thead><tbody>
-  ${list.map(s=>{const v=rec[s.id]||'';return `<tr><td>${avatar(s.photo,'👧')}</td><td class="muted">${esc(s.admissionNo||'—')}</td><td><b>${esc(s.name)}</b></td>
-    <td class="center"><div class="flex gap" style="justify-content:center">${['P','A','L'].map(st=>{const lbl={P:'Present',A:'Absent',L:'Late'}[st],col={P:'green',A:'danger',L:'gold'}[st];return `<button class="btn sm ${v===st?col:'sec'}" onclick="setAtt('${s.id}','${st}')">${lbl}</button>`;}).join('')}</div></td></tr>`;}).join('')}
-  </tbody></table></div>`;}
-function setAtt(sid,st){const key=attDate+'|'+attClass;if(!DB.attendance[key])DB.attendance[key]={};if(DB.attendance[key][sid]===st)delete DB.attendance[key][sid];else DB.attendance[key][sid]=st;save();renderAtt();}
-function markAll(st){const key=attDate+'|'+attClass;DB.attendance[key]=DB.attendance[key]||{};studentsIn(attClass).forEach(s=>DB.attendance[key][s.id]=st);save();renderAtt();toast('All marked present');}
-
+  <div class="card pad mb" style="border-left:4px solid var(--gold)">
+    <b>Attendance method</b>
+    <span class="muted" style="font-size:12px">Day pupils are expected to be scanned at the gate. Boarding pupils are marked by their class teacher. Manual marking is available when a pupil forgets an ID.</span>
+  </div>
+  <div class="t-wrap"><table><thead><tr><th></th><th>Adm. No</th><th>Name</th><th>Type</th><th>Recorded</th><th class="center">Status</th><th>Reason</th></tr></thead><tbody>
+  ${list.map(s=>{const v=rec[s.id]||'',m=meta[attendanceMetaKey(attDate,attClass,s.id)]||{};return `<tr>
+    <td>${avatar(s.photo,'👧')}</td><td class="muted">${esc(s.admissionNo||'—')}</td><td><b>${esc(s.name)}</b></td>
+    <td><span class="pill ${s.section==='Day'?'blue':'green'}">${esc(s.section==='Day'?'Day':'Boarding')}</span></td>
+    <td class="muted" style="font-size:11px">${m.at?new Date(m.at).toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'}):'—'}<br>${attendanceModeLabel(m.mode)}</td>
+    <td class="center"><div class="flex gap" style="justify-content:center;flex-wrap:wrap">
+      ${['P','L','A','E'].map(st=>{const lbl={P:'Present',L:'Late',A:'Absent',E:'Excused'}[st],col={P:'green',L:'gold',A:'danger',E:'blue'}[st];return `<button class="btn sm ${v===st?col:'sec'}" onclick="setAtt('${s.id}','${st}')">${lbl}</button>`;}).join('')}
+    </div></td>
+    <td>${v==='A'||v==='E'?`<input value="${esc(m.reason||'')}" placeholder="Reason required" onchange="setAttReason('${s.id}',this.value)" style="font-size:12px">`:'<span class="muted">—</span>'}</td>
+  </tr>`;}).join('')}
+  </tbody></table></div>`;
+}
+function setAtt(sid,st){
+  const s=DB.students.find(x=>x.id===sid);if(!s)return;
+  if((st==='A'||st==='E')&&!((DB.attendanceMeta||{})[attendanceMetaKey(attDate,attClass,sid)]||{}).reason){
+    if(st==='E'){setAttendanceMeta(attDate,attClass,sid,{reason:'Pending reason'});}
+  }
+  const key=attDate+'|'+attClass;DB.attendance[key]=DB.attendance[key]||{};
+  if(DB.attendance[key][sid]===st){delete DB.attendance[key][sid];setAttendanceMeta(attDate,attClass,sid,{mode:'manual',at:new Date().toISOString(),officerId:USER.id,status:null});}
+  else{DB.attendance[key][sid]=st;setAttendanceMeta(attDate,attClass,sid,{mode:'manual',at:new Date().toISOString(),officerId:USER.id,status:st});}
+  save();renderAtt();
+}
+function setAttReason(sid,v){setAttendanceMeta(attDate,attClass,sid,{reason:String(v||'').trim()});renderAtt();}
+function markAll(st){const key=attDate+'|'+attClass;DB.attendance[key]=DB.attendance[key]||{};studentsIn(attClass).forEach(s=>{DB.attendance[key][s.id]=st;setAttendanceMeta(attDate,attClass,s.id,{mode:'manual',at:new Date().toISOString(),officerId:USER.id,status:st});});save();renderAtt();toast('Class marked present');}
+function attendanceReport(){
+  const cls=teacherClasses();
+  modal('Attendance reports',`<div class="grid2">
+    <div class="fld"><label>Class</label><select id="ar_class">${cls.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('')}</select></div>
+    <div class="fld"><label>Period</label><select id="ar_period"><option value="week">This week</option><option value="month">This month</option><option value="term">Current term</option></select></div>
+  </div><div id="ar_result" class="card pad"><span class="muted">Choose a period and click Generate.</span></div>`,
+  `<button class="btn sec" onclick="closeModal()">Close</button><button class="btn" onclick="generateAttendanceReport()">Generate</button>`,true);
+}
+function generateAttendanceReport(){
+  const cid=$('#ar_class').value,period=$('#ar_period').value,now=new Date(),rows=[];
+  const start=new Date(now);
+  if(period==='week'){const day=start.getDay()||7;start.setDate(start.getDate()-day+1);}
+  if(period==='month')start.setDate(1);
+  start.setHours(0,0,0,0);
+  const end=new Date(now);end.setHours(23,59,59,999);
+  for(let d=new Date(start);d<=end;d.setDate(d.getDate()+1)){
+    const key=d.toISOString().slice(0,10)+'|'+cid,rec=DB.attendance[key]||{};
+    Object.keys(rec).forEach(sid=>rows.push({date:key.slice(0,10),sid,status:rec[sid]}));
+  }
+  const list=studentsIn(cid),stats=list.map(s=>{const r=rows.filter(x=>x.sid===s.id),p=r.filter(x=>x.status==='P').length,l=r.filter(x=>x.status==='L').length,a=r.filter(x=>x.status==='A').length,e=r.filter(x=>x.status==='E').length;return {s,p,l,a,e,total:r.length};});
+  $('#ar_result').innerHTML=`<div class="t-wrap"><table><thead><tr><th>Pupil</th><th>Recorded</th><th>Present</th><th>Late</th><th>Absent</th><th>Excused</th></tr></thead><tbody>${stats.map(x=>`<tr><td><b>${esc(x.s.name)}</b><br><span class="muted">${esc(x.s.admissionNo||'')}</span></td><td>${x.total}</td><td>${x.p}</td><td>${x.l}</td><td>${x.a}</td><td>${x.e}</td></tr>`).join('')}</tbody></table></div>`;
+}
+function attendanceAdminSettings(){
+  if(USER.role!=='admin')return;
+  const A=attendanceSettings();
+  modal('Attendance settings',`<div class="grid2">
+    <div class="fld"><label>Morning attendance deadline</label><input id="att_deadline" type="time" value="${esc(A.morningDeadline)}"></div>
+    <div class="fld"><label>Late grace period (minutes)</label><input id="att_grace" type="number" min="0" value="${A.graceMinutes}"></div>
+    <div class="fld"><label>Parent SMS</label><select id="att_sms"><option value="off" ${!A.parentSmsEnabled?'selected':''}>Off until SMS provider is connected</option><option value="on" ${A.parentSmsEnabled?'selected':''}>Enabled</option></select></div>
+    <div class="fld"><label>Staff late penalty (₦)</label><input id="att_latefine" type="number" min="0" value="${A.staffLatePenalty}"></div>
+    <div class="fld"><label>Staff unexcused absence penalty (₦)</label><input id="att_absfine" type="number" min="0" value="${A.staffAbsentPenalty}"></div>
+  </div><p class="muted" style="font-size:12px">Day pupils use gate scanning. Boarding pupils use class attendance. SMS remains disabled until a real provider is configured.</p>`,
+    `<button class="btn sec" onclick="closeModal()">Cancel</button><button class="btn" onclick="saveAttendanceSettings()">Save settings</button>`,true);
+}
+function saveAttendanceSettings(){
+  DB.attendanceSettings=DB.attendanceSettings||{};
+  DB.attendanceSettings.morningDeadline=$('#att_deadline').value||'10:00';
+  DB.attendanceSettings.graceMinutes=Math.max(0,Number($('#att_grace').value)||0);
+  DB.attendanceSettings.parentSmsEnabled=$('#att_sms').value==='on';
+  DB.attendanceSettings.staffLatePenalty=Math.max(0,Number($('#att_latefine').value)||0);
+  DB.attendanceSettings.staffAbsentPenalty=Math.max(0,Number($('#att_absfine').value)||0);
+  DB.settings.charges={late:DB.attendanceSettings.staffLatePenalty,absent:DB.attendanceSettings.staffAbsentPenalty};
+  save();closeModal();vAttendance();toast('Attendance settings saved');
+}
 /* ===================== SCHOOL: RESULTS (CA1/CA2/Exam) ===================== */
 let resClass='', resDirty={};
 function resLockKey(cid){return DB.settings.session+'|'+DB.settings.term+'|'+cid;}
@@ -5317,35 +5450,61 @@ function showStudentId(id){const s=DB.students.find(x=>x.id===id);modal('Pupil I
 function showTeacherId(id){const u=DB.users.find(x=>x.id===id);modal('Staff ID Card (Front & Back)',`<div class="idgrid" style="padding:6px 0">${teacherCardHTML(u)}${teacherCardBack(u)}</div>`,`<button class="btn sec no-print" onclick="closeModal()">Close</button><button class="btn gold no-print" onclick="window.print()">🖨 Print</button>`,true);renderVisuals();}
 
 /* ===================== SCHOOL: SCANNER ===================== */
-function vScanner(){$('#view').innerHTML=`<div class="page-head"><div><h2>Scan ID</h2><p>Scan a pupil/staff barcode to verify, mark present or check fees</p></div></div>
-  <div class="card pad" style="max-width:520px;margin:0 auto"><div id="reader"></div>
+function vScanner(){
+  if(!canScanAttendance()){$('#view').innerHTML=`<div class="card pad"><div class="empty"><div class="big">🔒</div><b>Attendance scanner access is not assigned to your account.</b><p class="muted">Ask an administrator to assign scanner permission.</p></div></div>`;return;}
+  $('#view').innerHTML=`<div class="page-head"><div><h2>Scan ID</h2><p>Record attendance using the Admission Number or Staff ID QR</p></div></div>
+  <div class="card pad" style="max-width:560px;margin:0 auto"><div id="reader"></div>
     <div class="flex gap mt" style="justify-content:center"><button class="btn" id="scanStartBtn" onclick="startScan()">▶ Start camera</button><button class="btn sec" onclick="stopScan()">Stop</button></div>
-    <hr><p class="muted center" style="font-size:12.5px">No camera? Type the ID / admission number:</p>
-    <div class="flex gap" style="max-width:340px;margin:0 auto"><input id="manualCode" placeholder="e.g. ADM/2025/001" onkeydown="if(event.key==='Enter')handleScan(this.value)"><button class="btn sec" onclick="handleScan(document.getElementById('manualCode').value)">Find</button></div>
-    <p class="muted center mt" style="font-size:12px">📷 Camera needs the hosted https link.</p></div><div id="scanResult"></div>`;}
-function startScan(){if(!window.Html5Qrcode){toast('Scanner not loaded',true);return;}if(window._scanner)return;
-  const fmts=window.Html5QrcodeSupportedFormats?[Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.QR_CODE]:undefined;
+    <hr><p class="muted center" style="font-size:12.5px">No camera? Type the Admission Number or Staff ID:</p>
+    <div class="flex gap" style="max-width:360px;margin:0 auto"><input id="manualCode" placeholder="Admission Number / Staff ID" onkeydown="if(event.key==='Enter')handleScan(this.value)"><button class="btn sec" onclick="handleScan(document.getElementById('manualCode').value)">Find</button></div>
+    <p class="muted center mt" style="font-size:12px">📷 Camera requires the school's hosted HTTPS address.</p></div><div id="scanResult"></div>`;}
+function startScan(){if(!canScanAttendance()){toast('Scanner access not assigned',true);return;}if(!window.Html5Qrcode){toast('Scanner not loaded',true);return;}if(window._scanner)return;
+  const fmts=window.Html5QrcodeSupportedFormats?[Html5QrcodeSupportedFormats.QR_CODE,Html5QrcodeSupportedFormats.CODE_128,Html5QrcodeSupportedFormats.CODE_39,Html5QrcodeSupportedFormats.EAN_13]:undefined;
   window._scanner=new Html5Qrcode('reader');
-  window._scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:150},formatsToSupport:fmts},txt=>handleScan(txt),()=>{}).then(()=>{$('#scanStartBtn').textContent='Scanning…';}).catch(e=>{toast('Camera failed. Use manual entry.',true);window._scanner=null;});}
+  window._scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:180},formatsToSupport:fmts},txt=>handleScan(txt),()=>{}).then(()=>{$('#scanStartBtn').textContent='Scanning…';}).catch(()=>{toast('Camera failed. Use manual entry.',true);window._scanner=null;});}
 function stopScan(){if(window._scanner){const sc=window._scanner;window._scanner=null;sc.stop().then(()=>sc.clear()).catch(()=>{});const b=$('#scanStartBtn');if(b)b.textContent='▶ Start camera';}}
-function handleScan(code){code=(code||'').trim();if(!code)return;
+function handleScan(code){
+  if(!canScanAttendance())return;
+  code=(code||'').trim();if(!code)return;
   const s=DB.students.find(x=>(x.admissionNo||'').toLowerCase()===code.toLowerCase()||x.id===code);
-  const u=!s&&DB.users.find(x=>(x.staffId||'').toLowerCase()===code.toLowerCase()||x.id===code);stopScan();
-  if(s)showScanStudent(s);else if(u)showScanTeacher(u);else{const r=$('#scanResult');if(r)r.innerHTML=`<div class="scan-result"><div class="card pad center"><div style="font-size:34px">❌</div><b>No match for “${esc(code)}”.</b></div></div>`;toast('No match',true);}}
-function showScanStudent(s){const due=studentDue(s),paid=approvedPaid(s.id),bal=due-paid;const t=today();const mark=(DB.attendance[t+'|'+s.classId]||{})[s.id];const r=$('#scanResult');
+  const u=!s&&DB.users.find(x=>(x.staffId||'').toLowerCase()===code.toLowerCase()||x.id===code);
+  if(s){stopScan();showScanStudent(s,true);return;}
+  if(u){stopScan();showScanTeacher(u,true);return;}
+  const r=$('#scanResult');if(r)r.innerHTML=`<div class="scan-result"><div class="card pad center"><div style="font-size:34px">❌</div><b>No match for “${esc(code)}”.</b></div></div>`;toast('No matching Admission Number or Staff ID',true);
+}
+function showScanStudent(s,fromScanner){
+  const due=studentDue(s),paid=approvedPaid(s.id),bal=due-paid,todayKey=today()+'|'+s.classId,rec=(DB.attendance[todayKey]||{})[s.id];
+  const A=attendanceSettings(), r=$('#scanResult');
+  const already=rec==='P'||rec==='L'||rec==='A'||rec==='E';
+  if(fromScanner && s.section==='Day' && !already){
+    const at=new Date().toISOString(),st=(window.AMQMAttendance?window.AMQMAttendance.classify(at,A.morningDeadline,A.graceMinutes):'P');
+    const ok=recordStudentAttendance(s,'qr',st,at,USER.id,'');
+    if(ok)toast(s.name.split(' ')[0]+' — '+attendanceStatusLabel(st));
+  }
+  const status=(DB.attendance[todayKey]||{})[s.id]||'';
   r.innerHTML=`<div class="scan-result"><div class="card pad"><div class="flex gap mb">${s.photo?`<img src="${s.photo}" style="width:64px;height:64px;border-radius:10px;object-fit:cover">`:'<div style="width:64px;height:64px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:30px">👧</div>'}
-    <div><span class="pill green">PUPIL VERIFIED</span><div style="font-size:18px;font-weight:800;margin-top:4px">${esc(s.name)}</div><div class="muted">${esc(className(s.classId))} · Adm ${esc(s.admissionNo||'—')}</div></div></div>
-    <div class="cards-row" style="margin-bottom:14px"><div class="stat"><div class="lbl">Fee due</div><div class="num" style="font-size:20px">${naira(due)}</div></div>
-      <div class="stat"><div class="lbl">Paid</div><div class="num" style="font-size:20px;color:var(--green)">${naira(paid)}</div></div>
-      <div class="stat"><div class="lbl">Balance</div><div class="num" style="font-size:20px;color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</div></div></div>
-    <div class="flex gap" style="flex-wrap:wrap"><button class="btn ${mark==='P'?'sec':''}" onclick="scanMarkPresent('${s.id}')">${mark==='P'?'✓ Present today':'📅 Mark present today'}</button>
-      <button class="btn sec" onclick="showStudentId('${s.id}')">ID card</button>${USER.role==='admin'?`<button class="btn sec" onclick="recordPayment('${s.id}')">Record payment</button>`:''}</div></div></div>`;
-  r.scrollIntoView({behavior:'smooth',block:'nearest'});}
-function showScanTeacher(u){const r=$('#scanResult');r.innerHTML=`<div class="scan-result"><div class="card pad"><div class="flex gap mb">${u.photo?`<img src="${u.photo}" style="width:64px;height:64px;border-radius:10px;object-fit:cover">`:'<div style="width:64px;height:64px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:30px">👩‍🏫</div>'}
-    <div><span class="pill blue">STAFF VERIFIED</span><div style="font-size:18px;font-weight:800;margin-top:4px">${esc(u.name)}</div><div class="muted">${esc(u.position||'Teacher')} · ${esc(u.staffId||'—')}</div><div class="muted">Classes: ${esc((u.classes||[]).map(className).join(', ')||'—')}</div></div></div>
-    <button class="btn sec" onclick="showTeacherId('${u.id}')">ID card</button></div></div>`;r.scrollIntoView({behavior:'smooth',block:'nearest'});}
-function scanMarkPresent(sid){const s=DB.students.find(x=>x.id===sid);const t=today();const k=t+'|'+s.classId;DB.attendance[k]=DB.attendance[k]||{};DB.attendance[k][sid]='P';save();toast(s.name.split(' ')[0]+' marked present');showScanStudent(s);}
-
+    <div><span class="pill green">PUPIL VERIFIED</span><div style="font-size:18px;font-weight:800;margin-top:4px">${esc(s.name)}</div><div class="muted">${esc(className(s.classId))} · ${esc(s.section==='Day'?'Day':'Boarding')} · Adm ${esc(s.admissionNo||'—')}</div></div></div>
+    <div class="card pad" style="background:#f7faf8;margin-bottom:12px"><b>Today's attendance</b><div style="font-size:20px;margin-top:4px">${status?`<span class="pill ${status==='P'?'green':status==='L'?'gold':status==='A'?'danger':'blue'}">${attendanceStatusLabel(status)}</span>`:'Not recorded'}</div>
+      <div class="muted" style="font-size:11.5px;margin-top:4px">${s.section==='Day'?'Day pupil: gate scan required.':'Boarding pupil: class teacher records attendance.'}</div></div>
+    <div class="cards-row" style="margin-bottom:14px"><div class="stat"><div class="lbl">Fee due</div><div class="num" style="font-size:20px">${naira(due)}</div></div><div class="stat"><div class="lbl">Paid</div><div class="num" style="font-size:20px;color:var(--green)">${naira(paid)}</div></div><div class="stat"><div class="lbl">Balance</div><div class="num" style="font-size:20px;color:${bal>0?'var(--red)':'var(--green)'}">${naira(bal)}</div></div></div>
+    <div class="flex gap" style="flex-wrap:wrap"><button class="btn sec" onclick="showStudentId('${s.id}')">ID card</button>${USER.role==='admin'?`<button class="btn sec" onclick="recordPayment('${s.id}')">Record payment</button>`:''}</div></div></div>`;
+  r.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function showScanTeacher(u,fromScanner){
+  const A=attendanceSettings(),d=today(),key=d+'|'+u.id;DB.staffAtt=DB.staffAtt||{};
+  const rec=DB.staffAtt[d]||{};let status=rec[u.id]&&rec[u.id].status;
+  if(fromScanner&&!status){
+    const at=new Date().toISOString(),st=(window.AMQMAttendance?window.AMQMAttendance.classify(at,'10:00',A.graceMinutes):'P');
+    DB.staffAtt[d][u.id]={status:st,charge:st==='L'?A.staffLatePenalty:0,reason:'',decision:st==='L'?'pending':''};
+    save();status=st;toast(u.name.split(' ')[0]+' — '+attendanceStatusLabel(st));
+  }
+  const r=$('#scanResult');r.innerHTML=`<div class="scan-result"><div class="card pad"><div class="flex gap mb">${u.photo?`<img src="${u.photo}" style="width:64px;height:64px;border-radius:10px;object-fit:cover">`:'<div style="width:64px;height:64px;border-radius:10px;background:var(--green-light);display:flex;align-items:center;justify-content:center;font-size:30px">👤</div>'}
+    <div><span class="pill blue">STAFF VERIFIED</span><div style="font-size:18px;font-weight:800;margin-top:4px">${esc(u.name)}</div><div class="muted">${esc(u.position||'Staff')} · ${esc(u.staffId||'—')}</div></div></div>
+    <div class="card pad" style="background:#f7faf8"><b>Today's staff attendance</b><div style="font-size:20px;margin-top:4px">${status?`<span class="pill ${status==='P'?'green':status==='L'?'gold':'danger'}">${attendanceStatusLabel(status)}</span>`:'Not recorded'}</div>
+    ${rec[u.id]&&rec[u.id].charge?`<div class="muted mt">Policy charge: <b>${naira(rec[u.id].charge)}</b> · ${esc(rec[u.id].decision||'pending')}</div>`:''}</div>
+    <button class="btn sec mt" onclick="showTeacherId('${u.id}')">ID card</button></div></div>`;r.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function scanMarkPresent(sid){const s=DB.students.find(x=>x.id===sid);if(!s)return;const now=new Date().toISOString();recordStudentAttendance(s,'manual','P',now,USER.id,'Manual fallback');save();toast(s.name.split(' ')[0]+' marked present');showScanStudent(s);}
 /* ===================== SCHOOL: MY CLASSES (teacher) ===================== */
 function vMyClasses(){const cls=teacherClasses();
   $('#view').innerHTML=`<div class="page-head"><div><h2>My Classes</h2><p>Classes assigned to you</p></div></div>
