@@ -56,3 +56,37 @@
 ## Release order
 
 Keep this PR draft until migration and app changes pass disposable-database tests, independent review and owner-approved production preflight. PR-D and PR-E must be reconciled against post-B.2 `main` before merge. Never apply the draft migration to production as part of implementation work.
+
+
+## Source-code inventory (verified against post-B.1 `index.html`)
+
+The application is a single 1 MB HTML file. A source scan found 119 lines containing `MASTER`, `__master__` or cloud-pull references. This is a broad refactor, not a safe one-line RLS change.
+
+### Confirmed non-owner access paths to remove
+
+- The regular non-owner `manualSync()` path explicitly calls `cloudPull('__master__')`.
+- The common application boot path loads `__master__` with retries before it resolves the tenant code, then derives custom-domain school lookup and minimum app version from that payload.
+- The non-owner online-reconnect handler flushes `__master__`.
+- The non-owner result checker reads `MASTER.pins`, increments `pin.uses` in browser memory and calls `saveMaster()`. This is an insecure client-authoritative consumption path and must be replaced by the public validation/proof lifecycle above.
+- The same global `MASTER` object feeds platform-owner screens and many tenant-facing flows. These uses must be separated into owner-only registry/platform state, school-scoped PIN/batch state and explicitly public metadata; simply hiding the owner navigation is not access control.
+
+### Owner-only code surface
+
+The owner dashboard and management modules read/write `MASTER.schools`, `MASTER.pins`, `MASTER.batches`, and `MASTER.platform`. The references span school CRUD, pharmacy, auto-parts, family and POS-agent management, billing-history fields (`sub`), PIN generation/reporting, platform settings and version floor. Preserve all supported tenant types and every legacy `sub` payload during registry migration; do not silently drop non-school business records.
+
+### Restore findings
+
+- The post-B.1 browser snapshot helpers return no rolling snapshots; `listBackups()` returns an empty array. Therefore the old `doRestore(code,idx)` UI path cannot provide a usable restore source in this release.
+- The uploaded JSON restore handler currently replaces in-memory `STORE`/`BASE` and performs an unchecked direct `upsert`; it reports success without checking the Supabase error or verifying the resulting revision. This is the active restore defect to fix.
+- The restore replacement must be implemented against the existing CAS helper and a recoverable pre-restore export/snapshot. Strip `users[].password` before committing imported data. Preserve the existing download-backup export. Do not treat an empty local snapshot list as a cloud backup.
+
+### Implementation order
+
+1. Add and test the dedicated registry/PIN/batch schema and transactional migration on a disposable database, including the already-applied PR-E RPC dependency.
+2. Refactor owner boot and owner CRUD to use the new registry API, preserving all legacy fields and supported tenant types.
+3. Change non-owner boot, manual sync and reconnect so they never request `__master__`; resolve custom domains via `resolve_school`, and obtain only billboard-safe version metadata from `platform_meta`.
+4. Replace public result-checker client-side PIN reads/usage mutation with the reviewed validation and single-use proof lifecycle.
+5. Repair uploaded JSON restore with password stripping, CAS, pre-restore recovery and verified success/error handling.
+6. Run static checks and disposable-database integration tests before any preview or production operation.
+
+No application code or production database schema was changed by this inventory update.
