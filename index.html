@@ -3142,6 +3142,139 @@ function _shadeHex(hex,percent){const h=hex.replace('#','');if(h.length!==6)retu
   r=Math.round((t-r)*p+r);g=Math.round((t-g)*p+g);b=Math.round((t-b)*p+b);
   return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);}
 
+/* ===================== BRANDING SETTINGS (PR-D slice 3) =====================
+   Owner-side or school-admin-side page. Lets an authorised user set the
+   school's primary/accent colours, font preset, dark-mode preference, logo,
+   crest, and head-teacher signature. Uploads go to Supabase Storage:
+     - logos + crests  → public bucket  'school-assets'          (path SCHOOL_CODE/logo.*)
+     - signatures      → private bucket 'school-assets-private'  (path SCHOOL_CODE/signature.*; read via signed URL)
+   Settings persist to DB.settings.branding and save via cloudCommit.
+   Images are NEVER base64-embedded in the school JSON. */
+const BRAND_MAX_BYTES=2*1024*1024;
+const BRAND_IMG_TYPES=['image/png','image/jpeg','image/jpg','image/webp','image/svg+xml'];
+let _brandDraft=null;
+function _brandCurrent(){const b=(DB&&DB.settings&&DB.settings.branding)||{};
+  return {primary:b.primary||'#087a43',accent:b.accent||'#d49b36',font:b.font||'inter',
+    darkMode:b.darkMode||'auto',logoUrl:b.logoUrl||'',crestUrl:b.crestUrl||'',signaturePath:b.signaturePath||''};}
+function _canEditBranding(){return USER && (USER.role==='admin'||USER.role==='owner');}
+function _brandPathFor(code,kind,ext){return String(code).toUpperCase()+'/'+kind+'.'+(ext||'png').replace(/[^a-z0-9]/gi,'').toLowerCase();}
+function _fileExt(name,mime){const m=/\.([a-z0-9]+)$/i.exec(name||'');if(m)return m[1].toLowerCase();
+  if(mime==='image/png')return 'png';if(mime==='image/jpeg'||mime==='image/jpg')return 'jpg';
+  if(mime==='image/webp')return 'webp';if(mime==='image/svg+xml')return 'svg';return 'png';}
+function vBranding(){
+  if(!_canEditBranding()){$('#view').innerHTML=`<div class="page-head"><div><h2>Branding</h2><p>Not available for this account.</p></div></div>`;return;}
+  _brandDraft=_brandCurrent();
+  $('#view').innerHTML=`<div class="page-head"><div><h2>🎨 Branding</h2><p>Set the colours, font, logo, crest and signature that appear across your school's dashboard, report cards and documents. Only the school administrator and owner can change these.</p></div></div>
+  <div class="card pad mb">
+    <div class="brand-preview" id="brandPreview">
+      <div><div id="brandLogoPreview" style="width:88px;height:88px;border-radius:14px;background:var(--brand-primary);display:grid;place-items:center;color:#fff;font-size:34px">🎓</div>
+        <p class="muted mt" style="font-size:11px">Logo preview</p></div>
+      <div><div style="padding:16px;border-radius:12px;background:var(--brand-primary);color:#fff;font-family:var(--brand-font)"><b>${esc((DB.settings.schoolName||'Your School'))}</b></div>
+        <p class="muted mt" style="font-size:12px">This is what the top bar will look like. The report cards use the same colours and font.</p></div>
+    </div>
+  </div>
+  <div class="grid2 mb">
+    <div class="card pad">
+      <h3 class="mb">Colours &amp; typography</h3>
+      <div class="fld"><label for="br_primary">Primary colour</label>
+        <input id="br_primary" type="color" value="${_brandDraft.primary}" oninput="brandOnChange()"></div>
+      <div class="fld"><label for="br_accent">Accent colour</label>
+        <input id="br_accent" type="color" value="${_brandDraft.accent}" oninput="brandOnChange()"></div>
+      <div class="fld"><label for="br_font">Font preset</label>
+        <select id="br_font" onchange="brandOnChange()">
+          <option value="inter"${_brandDraft.font==='inter'?' selected':''}>Inter — modern sans</option>
+          <option value="serif"${_brandDraft.font==='serif'?' selected':''}>Serif (Lora) — traditional</option>
+          <option value="quranic"${_brandDraft.font==='quranic'?' selected':''}>Qur'anic (Scheherazade)</option>
+          <option value="rounded"${_brandDraft.font==='rounded'?' selected':''}>Rounded (Nunito)</option>
+        </select></div>
+      <div class="fld"><label for="br_dark">Dark mode</label>
+        <select id="br_dark" onchange="brandOnChange()">
+          <option value="auto"${_brandDraft.darkMode==='auto'?' selected':''}>Auto (follow device)</option>
+          <option value="off"${_brandDraft.darkMode==='off'?' selected':''}>Always light</option>
+          <option value="on"${_brandDraft.darkMode==='on'?' selected':''}>Always dark</option>
+        </select></div>
+    </div>
+    <div class="card pad">
+      <h3 class="mb">Images</h3>
+      <div class="fld"><label for="br_logo">School logo (public)</label>
+        <input id="br_logo" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+        <p class="muted" style="font-size:12px">PNG, JPG, WEBP or SVG. Max 2&nbsp;MB. Shown on the dashboard, report cards and parent-facing pages.</p>
+        <div id="br_logo_current" style="font-size:12px">${_brandDraft.logoUrl?`<a href="${_brandDraft.logoUrl}" target="_blank" rel="noopener">Current logo</a>`:'<span class="muted">None uploaded.</span>'}</div></div>
+      <div class="fld"><label for="br_crest">School crest (public)</label>
+        <input id="br_crest" type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml">
+        <p class="muted" style="font-size:12px">Same rules as the logo. Used on the Classic and Islamic report-card templates.</p>
+        <div id="br_crest_current" style="font-size:12px">${_brandDraft.crestUrl?`<a href="${_brandDraft.crestUrl}" target="_blank" rel="noopener">Current crest</a>`:'<span class="muted">None uploaded.</span>'}</div></div>
+      <div class="fld"><label for="br_sig">Head-teacher signature (restricted)</label>
+        <input id="br_sig" type="file" accept="image/png,image/jpeg,image/webp">
+        <p class="muted" style="font-size:12px">Stored in a restricted bucket; only staff of this school can view. Appears on printed report cards. Max 2&nbsp;MB.</p>
+        <div id="br_sig_current" style="font-size:12px">${_brandDraft.signaturePath?'<span class="muted">A signature is on file. Upload a new one to replace it.</span>':'<span class="muted">None uploaded.</span>'}</div></div>
+    </div>
+  </div>
+  <div class="card pad mb">
+    <div class="flex gap" style="flex-wrap:wrap">
+      <button class="btn purple" id="brandSaveBtn" onclick="brandSave()">💾 Save branding</button>
+      <button class="btn sec" onclick="brandReset()">Reset to saved</button>
+      <span class="muted" id="brandStatus" style="align-self:center;font-size:12px"></span>
+    </div>
+  </div>
+  <p class="muted" style="font-size:12px">Changes apply across the whole school app the moment you save. Teachers signed in on other devices will see the new look after they refresh.</p>`;
+  brandOnChange();
+}
+function brandOnChange(){
+  if(!_brandDraft)return;
+  _brandDraft.primary=$('#br_primary').value;
+  _brandDraft.accent =$('#br_accent').value;
+  _brandDraft.font   =$('#br_font').value;
+  _brandDraft.darkMode=$('#br_dark').value;
+  applySchoolBranding(Object.assign({},_brandCurrent(),_brandDraft));
+}
+function brandReset(){vBranding();toast('Reverted to the saved branding');}
+async function brandSave(){
+  if(!_canEditBranding()){toast('Not authorised',true);return;}
+  if(!SCHOOL_CODE){toast('No school context',true);return;}
+  if(!supa){toast('Cloud not connected',true);return;}
+  const btn=$('#brandSaveBtn');const status=$('#brandStatus');
+  if(btn){btn.disabled=true;btn.textContent='Saving…';}
+  if(status)status.textContent='Uploading images (if any) and saving settings…';
+  try{
+    const code=String(SCHOOL_CODE).toUpperCase();
+    const logoFile =$('#br_logo') &&$('#br_logo').files[0];
+    const crestFile=$('#br_crest')&&$('#br_crest').files[0];
+    const sigFile  =$('#br_sig')  &&$('#br_sig').files[0];
+    for(const f of [logoFile,crestFile,sigFile]){
+      if(!f)continue;
+      if(f.size>BRAND_MAX_BYTES)throw new Error(f.name+' is larger than 2 MB. Please choose a smaller file.');
+      if(!BRAND_IMG_TYPES.includes(f.type))throw new Error(f.name+' is not a supported image type (PNG, JPG, WEBP or SVG).');
+    }
+    const next=Object.assign({},_brandCurrent(),_brandDraft);
+    if(logoFile){const ext=_fileExt(logoFile.name,logoFile.type);const path=_brandPathFor(code,'logo',ext);
+      const{error}=await supa.storage.from('school-assets').upload(path,logoFile,{upsert:true,contentType:logoFile.type,cacheControl:'3600'});
+      if(error)throw new Error('Logo upload failed: '+error.message);
+      const{data}=supa.storage.from('school-assets').getPublicUrl(path);
+      next.logoUrl=(data&&data.publicUrl?data.publicUrl:'')+'?v='+Date.now();}
+    if(crestFile){const ext=_fileExt(crestFile.name,crestFile.type);const path=_brandPathFor(code,'crest',ext);
+      const{error}=await supa.storage.from('school-assets').upload(path,crestFile,{upsert:true,contentType:crestFile.type,cacheControl:'3600'});
+      if(error)throw new Error('Crest upload failed: '+error.message);
+      const{data}=supa.storage.from('school-assets').getPublicUrl(path);
+      next.crestUrl=(data&&data.publicUrl?data.publicUrl:'')+'?v='+Date.now();}
+    if(sigFile){const ext=_fileExt(sigFile.name,sigFile.type);const path=_brandPathFor(code,'signature',ext);
+      const{error}=await supa.storage.from('school-assets-private').upload(path,sigFile,{upsert:true,contentType:sigFile.type,cacheControl:'0'});
+      if(error)throw new Error('Signature upload failed: '+error.message);
+      next.signaturePath=path;}
+    DB.settings=DB.settings||{};DB.settings.branding=next;
+    const res=await cloudCommit(SCHOOL_CODE);
+    if(!res||!res.ok)throw new Error((res&&res.error)||'Save failed. Try again.');
+    applySchoolBranding(next);
+    toast('✓ Branding saved');if(status)status.textContent='Saved.';
+  }catch(e){toast(e.message||String(e),true);if(status)status.textContent='Save failed: '+(e.message||e);}
+  finally{const b=$('#brandSaveBtn');if(b){b.disabled=false;b.textContent='💾 Save branding';}}
+}
+/* Resolve a signed URL for a private signature when the UI needs to render it. */
+async function brandSignedSignatureUrl(path,ttlSeconds){
+  if(!path||!supa)return '';
+  try{const{data,error}=await supa.storage.from('school-assets-private').createSignedUrl(path,ttlSeconds||300);
+    if(error)return '';return(data&&data.signedUrl)||'';}catch(e){return '';}}
+
 function enterApp(){
   closeModal();clearInterval(window._heroT);clearInterval(window._houseT);$('#screen').innerHTML='';$('#screen').style.display='none';$('#app').style.display='block';window.scrollTo(0,0);
   const owner=USER.role==='owner';
@@ -3198,7 +3331,7 @@ function buildNav(){
     items.push(['incidents','🚩','Incidents',openIncidentCount()||'']);
     items.push(['alumni','🎓','Alumni']);
     items.push(['messages','✉️','Messages',unreadMsgCount()]);
-    items.push(['website','🌐','Website']);if(hasBackup())items.push(['backup','🛟','Backup']);}
+    items.push(['website','🌐','Website']);items.push(['branding','🎨','Branding']);if(hasBackup())items.push(['backup','🛟','Backup']);}
   else {items=[['tdash','🏠','My Space'],['notifs','🔔','Notifications',notifsUnreadCount()||''],['attendance','📅','Attendance'],...(canScanAttendance()?[['scanner','📷','Scan ID']]:[]),['results','📝','Results'],['reports','🏅','Report Cards'],['myclasses','🏫','My Classes']];
     if(hasModule('tahfiz')){items=items.filter(it=>it[0]!=='results');let i=4;if(!isHifzOfficial()){items.splice(i++,0,['tahfiz','📖','Memorization']);}items.splice(i,0,['hifz','📖','Hifz Eval']);}   /* Phase-A: same rule for teacher nav */
     if(hasModule('lessonPlans'))items.push(['lessons','📚','Lesson Plans']);
@@ -3234,7 +3367,7 @@ function go(p){if(window._scanner)stopScan();CURRENT=p;buildNav();toggleNav(fals
     customers:vStoreCustomers,quotes:vStoreQuotes,
     dashboard:vDashboard,insights:vInsights,students:vStudents,admissions:vAdmissions,classes:vClasses,teachers:vTeachers,
     attendance:vAttendance,scanner:vScanner,results:vResults,reports:vReports,fees:vFees,idcards:vIdCards,myclasses:vMyClasses,
-    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:()=>{return isHifzOfficial()?vTahfizArchive():vTahfiz();},hifz:vHifzHub,hifzreview:vHifzReview,messages:vMessages,alumni:vAlumni,incidents:vIncidents,tdash:vTdash,search:vSearch,notifs:vNotifs};
+    promotions:vPromotions,session:vSession,calendar:vCalendar,staffatt:vStaffAtt,lessons:vLessons,houses:vHouses,quran:vQuran,finance:vFinance,gallery:vGallery,website:vWebsite,broadsheet:vBroadsheet,announce:vAnnounce,tahfiz:()=>{return isHifzOfficial()?vTahfizArchive():vTahfiz();},hifz:vHifzHub,hifzreview:vHifzReview,messages:vMessages,alumni:vAlumni,incidents:vIncidents,tdash:vTdash,search:vSearch,notifs:vNotifs,branding:vBranding};
   (map[p]||vDashboard)();}
 
 /* ===================== OWNER: DASHBOARD ===================== */

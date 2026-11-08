@@ -26,12 +26,21 @@ Deliver one modern, consistent and mobile-first application experience for every
 - **Three report-card templates**: `.report.tpl-classic`, `.report.tpl-modern`, `.report.tpl-islamic`. Each uses the per-school brand tokens for colour, so one template serves every school. Classic uses Lora serif + double borders; Modern uses a green header band + gradient; Islamic uses Scheherazade + a basmala header + gold inner border. All three preserve the existing `.report` element so the old print layout stays selectable as the untouched default (no breaking change to BNFODIO's already-issued reports).
 - `supabase/migrations/0004_school_assets.sql` — **Supabase Storage bucket migration** for `school-assets`. Idempotent. Any authenticated user can read (logos are not secret); only members with role `owner` or `admin` can write to their own school's folder (path convention `school-assets/{SCHOOL_CODE}/...`); platform owner can write any folder. Policies use `storage.foldername(name)[1]` to extract the school code from the path. Rollback block included.
 
+### Slice 3 (this commit, claude)
+- **Branding settings page** (`vBranding`) available to school admins and the owner via the sidebar entry `🎨 Branding`. Non-admins see a not-available message rather than the form.
+- Form fields: primary colour picker, accent colour picker, font preset dropdown (Inter/Serif/Qur'anic/Rounded), dark-mode preference (Auto/Off/On), logo upload, crest upload, head-teacher signature upload.
+- **Live preview**: colour/font/dark-mode changes re-apply tokens via `applySchoolBranding` on every input event, before saving. The `.brand-preview` CSS block from slice 2 renders the result above the form.
+- **File validation**: max 2 MB per file; allowed MIME types PNG / JPG / WEBP / SVG (SVG only for logo + crest). Errors surface via `toast(err,true)` and are mirrored into a `#brandStatus` label.
+- **Storage uploads**: logos + crests → `school-assets` (public) using `upsert:true`; signatures → `school-assets-private` (private) with `cacheControl:'0'`. Public URLs are captured via `getPublicUrl` and cache-busted with a `?v=<timestamp>` query so a re-upload is visible immediately. Signature path is stored as a bucket path, NOT a URL — code fetches a short-lived signed URL via `brandSignedSignatureUrl(path, ttl)` when a report card needs to render the signature.
+- **Persistence**: on save, `DB.settings.branding` is updated and committed via the existing `cloudCommit(SCHOOL_CODE)` flow (preserves all unrelated settings). On reload, `enterApp` reads it back and `applySchoolBranding` reapplies before anything renders.
+- **Access guard**: `_canEditBranding()` restricts the page to `USER.role === 'admin'` or `'owner'`. Combined with Storage RLS from `0004_school_assets.sql`, uploads from a teacher (or a school-A admin targeting a school-B folder) are denied server-side regardless of the client gate.
+- **Migration revised in place**: `supabase/migrations/0004_school_assets.sql` now provisions two buckets — `school-assets` (public, for logos + crests) and `school-assets-private` (private, for signatures). Previous slice-2 version had a public-read policy on a private bucket, which did not match the `createSignedUrl`-free flow logos actually use. Both buckets' write policies still enforce path-matches-school and role ∈ {owner, admin}. Idempotent; rollback block updated to drop both buckets.
+
 ### Not yet delivered (deferred to further slices)
-- **Dashboard content redesign** — only sizing/responsiveness is in; the KPI card shape and activity-section hierarchy are unchanged. Still needs explicit visual work.
-- **Results-entry UX polish** — keystroke-write already landed in Phase 0; sticky table headers and arrow-key cell navigation are still to do (CSS exists for mobile but JS wiring is outstanding).
-- **Branding settings page UI** — the token system and storage bucket are ready, but the owner-side / admin-side form that lets a user upload a logo and pick a colour is not yet in this branch. CSS scaffolding for a `.brand-preview` block is included so that page has a styled home when it lands.
-- **Real screenshots** — see "Screenshots and evidence" below. This slice has not produced any.
-- **Role-based QA execution** — see "QA execution status" below. This slice has not executed the matrix against a running preview.
+- **Dashboard content redesign** — still only sizing; KPI card shape and activity hierarchy unchanged.
+- **Results-entry UX polish** — sticky table headers and arrow-key cell navigation still to do (JS).
+- **Real screenshots** — not produced in this slice.
+- **Role-based QA execution** — not executed in this slice.
 
 ## Required screen-size matrix
 Test at each viewport width; use actual device emulation and at least one physical Android phone and one iPhone before release.
