@@ -19,7 +19,7 @@ Routing is decided before application boot:
 - Custom-domain root resolves through `resolve_school(domain)`; it must not read `MASTER.schools` in the browser.
 
 ## Database migration
-Apply `supabase/migrations/0003_create_school.sql` only after PR-B.2 is live. The function:
+Apply `supabase/migrations/0003_create_school.sql` only after PR-B.2 is live. The public RPC is a SECURITY INVOKER wrapper; its SECURITY DEFINER implementation lives in the unexposed `private` schema with a pinned search path and an explicit authenticated-user check. The function:
 - Requires an authenticated, email-verified user.
 - Normalises and validates school code and name.
 - Creates the `school_data` row and `memberships` admin row in one transaction.

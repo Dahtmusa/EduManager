@@ -5,12 +5,16 @@
 begin;
 select pg_advisory_xact_lock(hashtextextended('edumanager:create-school:v1', 0));
 
-create or replace function public.create_school(p_school_code text, p_school_name text)
+create schema if not exists private;
+revoke all on schema private from public, anon;
+grant usage on schema private to authenticated;
+
+create or replace function private.create_school_impl(p_school_code text, p_school_name text)
 returns jsonb
 language plpgsql
 security definer
-set search_path = public, auth
-as $$
+set search_path = pg_catalog
+as $
 declare
   v_user uuid := auth.uid();
   v_confirmed_at timestamptz;
@@ -21,10 +25,11 @@ declare
   v_entry jsonb;
   v_classes jsonb;
   v_subjects jsonb;
-  v_plan text := lower(coalesce((select raw_user_meta_data->>'plan' from auth.users where id = v_user), 'school'));
+  v_plan text;
 begin
   if v_user is null then raise exception 'Authentication required'; end if;
-  select email_confirmed_at into v_confirmed_at from auth.users where id = v_user;
+  select email_confirmed_at, lower(coalesce(raw_user_meta_data->>'plan','school'))
+    into v_confirmed_at, v_plan from auth.users where id = v_user;
   if v_confirmed_at is null then raise exception 'Verify your email before creating a school'; end if;
   if v_code !~ '^[A-Z0-9][A-Z0-9_-]{2,19}$' or v_code = '__MASTER__' or v_code = 'DEMO' then
     raise exception 'Invalid school code';
@@ -90,6 +95,18 @@ begin
 end;
 $$;
 
+revoke all on function private.create_school_impl(text,text) from public, anon;
+grant execute on function private.create_school_impl(text,text) to authenticated;
+
+-- Public RPC wrapper is SECURITY INVOKER; the privileged implementation remains in the unexposed private schema.
+create or replace function public.create_school(p_school_code text, p_school_name text)
+returns jsonb
+language sql
+security invoker
+set search_path = pg_catalog
+as $
+  select private.create_school_impl(p_school_code, p_school_name);
+$;
 revoke all on function public.create_school(text,text) from public, anon;
 grant execute on function public.create_school(text,text) to authenticated;
 
@@ -100,4 +117,7 @@ commit;
 -- select pg_advisory_xact_lock(hashtextextended('edumanager:create-school:v1', 0));
 -- revoke execute on function public.create_school(text,text) from authenticated;
 -- drop function if exists public.create_school(text,text);
+-- revoke execute on function private.create_school_impl(text,text) from authenticated;
+-- drop function if exists private.create_school_impl(text,text);
+-- revoke usage on schema private from authenticated;
 -- commit;
