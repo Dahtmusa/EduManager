@@ -1016,18 +1016,86 @@ function restoreBackupModal(code){const list=listBackups(code);
    <hr><label>Or restore from a downloaded backup file (.json)</label>
    <input type="file" accept=".json,application/json" onchange="importBackupFile('${esc(code)}',this)" class="mt">`,
    `<button class="btn sec" onclick="closeModal()">Cancel</button>`,true);}
-function importBackupFile(code,inp){const f=inp.files[0];if(!f)return;const r=new FileReader();
-  r.onload=e=>{try{const j=JSON.parse(e.target.result);const doc=(j&&j.data&&typeof j.data==='object')?j.data:j;
-    if(!doc||typeof doc!=='object'){toast('Not a valid backup file',true);return;}
-    if(!confirm('Restore this backup file to the cloud? Current cloud data for this account will be replaced.'))return;
-    STORE[code]=_clone(doc);BASE[code]=_clone(doc);saveStoreLocal();saveBase();if(code===SCHOOL_CODE)DB=STORE[code];
-    if(supa){setSync('saving','Restoring…');supa.from('school_data').upsert({id:code,data:STORE[code],updated_at:new Date().toISOString()}).then(()=>setSync('on','Synced')).catch(()=>setSync('err','Sync error'));}
-    closeModal();toast('Backup file restored');if(USER&&CURRENT){buildNav();go(CURRENT);}
-  }catch(err){toast('Could not read that file',true);}};r.readAsText(f);}
-async function doRestore(code,idx){const list=listBackups(code);const b=list[idx];if(!b){toast('Backup not found',true);return;}
-  STORE[code]=_clone(b.data);BASE[code]=_clone(b.data);saveStoreLocal();saveBase();if(code===SCHOOL_CODE)DB=STORE[code];
-  if(supa){try{setSync('saving','Restoring…');await supa.from('school_data').upsert({id:code,data:STORE[code],updated_at:new Date().toISOString()});setSync('on','Synced');}catch(e){setSync('err','Sync error');}}
-  closeModal();toast('Backup restored');if(USER&&CURRENT){buildNav();go(CURRENT);}}
+/* Restore is a deliberate replacement, not a merge. Serialize it with all other
+   writers, use the shared CAS retry loop, and capture the exact cloud row displaced
+   by the successful CAS attempt so the user receives a recoverable pre-restore file. */
+function downloadRestoreRecovery(code,doc){
+  if(!doc)return false;
+  try{
+    const blob=new Blob([JSON.stringify({code,exportedAt:new Date().toISOString(),restorePoint:'pre-restore',data:doc},null,2)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download=String(code).replace(/[^\w]+/g,'-')+'-pre-restore-'+today()+'.json';
+    a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);return true;
+  }catch(e){console.warn('Could not create pre-restore recovery file',e);return false;}
+}
+async function commitRestoreDocument(code,sourceDoc){
+  code=String(code||'').trim();
+  if(!code||(!USER|| (USER.role!=='owner'&&code!==SCHOOL_CODE))){toast('You are not allowed to restore this school.',true);return false;}
+  if(!supa){toast('Cloud connection unavailable. Nothing was restored.',true);setSync('err','No database connection');return false;}
+  if(!sourceDoc||typeof sourceDoc!=='object'||Array.isArray(sourceDoc)){toast('Not a valid backup file.',true);return false;}
+  if(sourceDoc.settings&&sourceDoc.settings.code&&String(sourceDoc.settings.code).toUpperCase()!==code.toUpperCase()){
+    toast('This backup belongs to a different school.',true);return false;
+  }
+  const cleanDoc=_clone(sourceDoc);
+  if(Array.isArray(cleanDoc.users))cleanDoc.users.forEach(u=>{if(u&&typeof u==='object')delete u.password;});
+  let displaced=null;
+  setSync('saving','Restoring…');
+  const result=await _withRowLock(code,async()=>{
+    let lastError='Restore could not be verified. Please retry.';
+    for(let attempt=0;attempt<4;attempt++){
+      try{
+        const rd=await supa.from('school_data').select('data,updated_at').eq('id',code).maybeSingle();
+        if(rd.error)throw rd.error;
+        if(!rd.data||rd.data.data==null)return {ok:false,error:'Restore target does not exist.'};
+        const before=_clone(rd.data.data),expectedStamp=new Date().toISOString();
+        const wr=await supa.from('school_data').update({data:cleanDoc,updated_at:expectedStamp})
+          .eq('id',code).eq('updated_at',rd.data.updated_at).select('id,data,updated_at');
+        if(wr.error)throw wr.error;
+        const row=Array.isArray(wr.data)&&wr.data.length===1?wr.data[0]:null;
+        if(!row){lastError='Another update happened at the same time — retrying…';continue;}
+        if(row.id!==code||!row.data||Date.parse(row.updated_at)!==Date.parse(expectedStamp)){
+          return {ok:false,error:'The server did not confirm the restored revision. Please refresh and check the cloud data.'};
+        }
+        displaced=before;
+        return {ok:true,data:row.data};
+      }catch(e){lastError=(e&&e.message)||lastError;}
+    }
+    return {ok:false,error:lastError};
+  });
+  if(!result.ok){setSync('err','Restore failed');toast(result.error||'Restore failed. Cloud data was not replaced.',true);return false;}
+  const authoritative=result.data;
+  STORE[code]=authoritative;BASE[code]=_clone(authoritative);
+  if(code===SCHOOL_CODE)DB=authoritative;
+  saveStoreLocal();saveBase();
+  const recoverySaved=downloadRestoreRecovery(code,displaced);
+  closeModal();
+  toast(recoverySaved?'Backup restored. A pre-restore recovery file was prepared for download.':'Backup restored, but the pre-restore recovery file could not be prepared.',!recoverySaved);
+  if(USER&&CURRENT){buildNav();go(CURRENT);}
+  return true;
+}
+function importBackupFile(code,inp){
+  const f=inp&&inp.files&&inp.files[0];if(!f)return;
+  if(f.size>25*1024*1024){toast('Backup file is too large (25 MB maximum).',true);inp.value='';return;}
+  const r=new FileReader();
+  r.onload=async e=>{
+    try{
+      const j=JSON.parse(e.target.result);
+      if(j&&j.code&&String(j.code).toUpperCase()!==String(code).toUpperCase()){toast('This backup belongs to a different school.',true);return;}
+      const doc=(j&&j.data&&typeof j.data==='object'&&!Array.isArray(j.data))?j.data:j;
+      if(!doc||typeof doc!=='object'||Array.isArray(doc)){toast('Not a valid backup file.',true);return;}
+      if(!confirm('Restore this backup file to the cloud? Current cloud data for this account will be replaced. A recovery copy of the current cloud data will be downloaded first.'))return;
+      await commitRestoreDocument(code,doc);
+    }catch(err){console.warn('Backup import failed',err);toast('Could not read that file.',true);}
+    finally{if(inp)inp.value='';}
+  };
+  r.onerror=()=>{toast('Could not read that file.',true);inp.value='';};
+  r.readAsText(f);
+}
+async function doRestore(code,idx){
+  const list=listBackups(code),b=list[idx];if(!b){toast('Backup not found',true);return;}
+  if(!confirm('Restore this device snapshot to the cloud? A recovery copy of the current cloud data will be downloaded first.'))return;
+  await commitRestoreDocument(code,b.data);
+}
 /* ---- download a dated JSON archive (off-site safety net) ---- */
 function downloadBackup(code){code=code||SCHOOL_CODE;const doc=STORE[code]||(code===SCHOOL_CODE?DB:null);if(!doc){toast('No data to back up',true);return;}
   const st=doc.settings||{};const name=st.shortName||st.schoolName||st.storeName||st.familyName||code;
