@@ -14,7 +14,7 @@ returns jsonb
 language plpgsql
 security definer
 set search_path = pg_catalog
-as $
+as $$
 declare
   v_user uuid := auth.uid();
   v_confirmed_at timestamptz;
@@ -28,6 +28,8 @@ declare
   v_plan text;
 begin
   if v_user is null then raise exception 'Authentication required'; end if;
+  -- User metadata is user-editable and is only an onboarding preference, never billing authority.
+  -- PR-F must derive the authoritative plan exclusively from verified Paystack webhook events.
   select email_confirmed_at, lower(coalesce(raw_user_meta_data->>'plan','school'))
     into v_confirmed_at, v_plan from auth.users where id = v_user;
   if v_confirmed_at is null then raise exception 'Verify your email before creating a school'; end if;
@@ -72,8 +74,17 @@ begin
     'payments','[]'::jsonb,'applicants','[]'::jsonb,'remarks','{}'::jsonb
   ) into v_data;
 
-  insert into public.school_data(id,data) values (v_code,v_data);
-  insert into public.memberships(user_id,school_id,role) values (v_user,v_code,'admin');
+  -- Convert concurrent school-code collisions into a stable, user-facing error.
+  -- A concurrent retry by this same user is idempotent after the winning transaction commits.
+  begin
+    insert into public.school_data(id,data) values (v_code,v_data);
+    insert into public.memberships(user_id,school_id,role) values (v_user,v_code,'admin');
+  exception when unique_violation then
+    if exists (select 1 from public.memberships where user_id = v_user and school_id = v_code and role = 'admin') then
+      return jsonb_build_object('school_code', v_code, 'already_created', true);
+    end if;
+    raise exception 'School code is unavailable';
+  end;
 
   v_entry := jsonb_build_object('code',v_code,'name',v_name,'status','active','type','school','createdAt',now());
   insert into public.school_data(id,data)
@@ -104,9 +115,9 @@ returns jsonb
 language sql
 security invoker
 set search_path = pg_catalog
-as $
+as $$
   select private.create_school_impl(p_school_code, p_school_name);
-$;
+$$;
 revoke all on function public.create_school(text,text) from public, anon;
 grant execute on function public.create_school(text,text) to authenticated;
 
