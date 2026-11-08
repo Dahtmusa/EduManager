@@ -3119,15 +3119,39 @@ function logout(){USER=null;sessionStorage.removeItem('sms_su');$('#app').style.
 
 /* ===================== APP SHELL ===================== */
 let CURRENT='';
+
+/* Per-school branding: writes brand tokens + font preset to #app.school-shell as
+   data-* attributes that cascade via responsive.css. Called from enterApp(). */
+function applySchoolBranding(b){
+  const el=document.getElementById('app');if(!el)return;
+  const primary=(b&&b.primary)||'';const accent=(b&&b.accent)||'';
+  const font=(b&&b.font)||'';const logoUrl=(b&&b.logoUrl)||'';
+  if(primary){el.style.setProperty('--brand-primary',primary);
+    el.style.setProperty('--brand-primary-dark',_shadeHex(primary,-22));
+    el.style.setProperty('--brand-primary-tint',_shadeHex(primary,88));}
+  if(accent){el.style.setProperty('--brand-accent',accent);}
+  if(font){el.setAttribute('data-brand-font',font);}else{el.removeAttribute('data-brand-font');}
+  const logoHost=document.getElementById('topLogo');
+  if(logoUrl&&logoHost){logoHost.innerHTML='<img src="'+logoUrl+'" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:inherit">';}
+  const dark=(b&&b.darkMode)==='on';const light=(b&&b.darkMode)==='off';
+  document.body.classList.toggle('dark',dark);document.body.classList.toggle('light',light);
+}
+function _shadeHex(hex,percent){const h=hex.replace('#','');if(h.length!==6)return hex;
+  const n=parseInt(h,16);let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  const t=percent<0?0:255;const p=Math.abs(percent)/100;
+  r=Math.round((t-r)*p+r);g=Math.round((t-g)*p+g);b=Math.round((t-b)*p+b);
+  return '#'+((1<<24)+(r<<16)+(g<<8)+b).toString(16).slice(1);}
+
 function enterApp(){
   closeModal();clearInterval(window._heroT);clearInterval(window._houseT);$('#screen').innerHTML='';$('#screen').style.display='none';$('#app').style.display='block';window.scrollTo(0,0);
   const owner=USER.role==='owner';
   $('#app').classList.remove('school-shell');
+  document.body.classList.remove('school-mode');
   if(!owner&&DB&&DB.kind==='pharmacy'){return enterPharmacy();}
   if(!owner&&DB&&DB.kind==='autoparts'){return enterAuto();}
   if(!owner&&DB&&DB.kind==='family'){return enterFamily();}
   if(!owner&&DB&&DB.kind==='posagent'){return enterPos();}
-  if(!owner)$('#app').classList.add('school-shell');
+  if(!owner){$('#app').classList.add('school-shell');document.body.classList.add('school-mode');applySchoolBranding(DB&&DB.settings&&DB.settings.branding);}
   $('#topbar').className='topbar'+(owner?' owner':'');
   $('#brandName').textContent=owner?((MASTER.platform.name)||'EduManager Cloud'):(DB.settings.shortName||DB.settings.schoolName);
   $('#topLogo').textContent=owner?'🛰️':'🎓';

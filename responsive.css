@@ -1,89 +1,347 @@
-/* PR-D shared mobile-first tenant-school UI foundation.
-   Scope: all school tenants; keep platform-owner and non-school tenant shells unchanged. */
-#app.school-shell{overflow-x:clip;min-width:0}
-#app.school-shell .layout,#app.school-shell #view,#app.school-shell .main{min-width:0;max-width:100%}
-#app.school-shell .main{width:100%;margin-inline:auto}
-#app.school-shell :focus-visible{outline:3px solid var(--ui-gold);outline-offset:2px}
-#app.school-shell .card,#app.school-shell .stat,#app.school-shell .t-wrap{min-width:0}
-#app.school-shell .t-wrap{max-width:100%;overflow-x:auto;overscroll-behavior-inline:contain;-webkit-overflow-scrolling:touch}
-#app.school-shell .t-wrap table{min-width:680px}
-#app.school-shell .page-head,#app.school-shell .page-head>*{min-width:0}
-#app.school-shell .page-head h2{overflow-wrap:anywhere}
-#app.school-shell img,#app.school-shell video,#app.school-shell canvas,#app.school-shell svg{max-width:100%}
-#app.school-shell .modal{max-width:min(820px,100%)}
-#app.school-shell .modal-body{overscroll-behavior:contain}
-#app.school-shell button,#app.school-shell a,#app.school-shell input,#app.school-shell select,#app.school-shell textarea{touch-action:manipulation}
-@media(min-width:761px) and (max-width:1100px){
- #app.school-shell .sidebar{width:224px}
- #app.school-shell .main{padding:24px 22px}
- #app.school-shell .cards-row{grid-template-columns:repeat(2,minmax(0,1fr))}
- #app.school-shell .dash-grid{grid-template-columns:minmax(0,1.2fr) minmax(240px,1fr)}
- #app.school-shell .grid3{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* PR-D shared mobile-first tenant-school UI foundation + branding tokens + dark mode.
+   Scope: all school tenants; platform-owner and non-school tenant shells unchanged
+   except where modal/toast live outside #app (unscoped fixes applied below). */
+
+/* =========================================================================
+   1. Per-school brand tokens
+   Each school's dashboard sets data-brand-primary / data-brand-accent /
+   data-brand-font on #app.school-shell at boot, cascading these tokens down.
+   Defaults preserve the current EduManager green so untouched tenants look
+   unchanged.
+   ========================================================================= */
+#app.school-shell {
+  --brand-primary: #087a43;
+  --brand-primary-dark: #0a5f36;
+  --brand-primary-tint: #e4f3ea;
+  --brand-accent: #d49b36;
+  --brand-ink: #10251b;
+  --brand-ink-soft: #3a5347;
+  --brand-surface: #ffffff;
+  --brand-surface-muted: #f6faf7;
+  --brand-border: #e1ebe4;
+  --brand-shadow: 0 10px 28px rgba(15, 35, 24, 0.08);
+  --brand-radius-sm: 10px;
+  --brand-radius: 14px;
+  --brand-radius-lg: 20px;
+  --brand-font: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
-@media(max-width:760px){
- #app.school-shell .topbar{height:58px;padding:0 12px;gap:8px}
- #app.school-shell .topbar .brand{gap:7px;min-width:0;flex:1}
- #app.school-shell .topbar .brand .logo{width:32px;height:32px;flex:0 0 32px}
- #app.school-shell .topbar .brand #brandName{font-size:14px;max-width:36vw}
- #app.school-shell .menu-toggle{display:flex!important;align-items:center;justify-content:center;min-width:42px;min-height:42px;margin:0;border-radius:10px}
- #app.school-shell .topbar .right{gap:6px;min-width:0}
- #app.school-shell .topbar .right .term-badge{display:none}
- #app.school-shell .topbar .right .sync-chip{padding:6px 8px;font-size:11px}
- #app.school-shell .topbar .right .btn{min-height:36px;padding:6px 9px;font-size:12px}
- #app.school-shell .sidebar{position:fixed;z-index:50;left:-290px;top:58px;bottom:0;width:min(280px,86vw);height:auto;max-height:calc(100dvh - 58px);padding:14px 12px calc(18px + env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;transition:left .2s ease;box-shadow:8px 0 30px rgba(15,35,24,.18)}
- #app.school-shell .sidebar.show{left:0}
- #app.school-shell #navScrim{position:fixed;z-index:49;inset:58px 0 0;background:rgba(12,24,17,.42)}
- #app.school-shell .main{width:100%;max-width:none;padding:18px 14px calc(28px + env(safe-area-inset-bottom))}
- #app.school-shell .page-head{align-items:flex-start;gap:10px;margin-bottom:16px}
- #app.school-shell .page-head h2{font-size:20px;line-height:1.25}
- #app.school-shell .page-head .flex{flex-wrap:wrap;gap:7px}
- #app.school-shell .cards-row{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:16px}
- #app.school-shell .stat{padding:13px;min-width:0}
- #app.school-shell .stat .num{font-size:22px;overflow-wrap:anywhere}
- #app.school-shell .stat .lbl{font-size:10px}
- #app.school-shell .card.pad{padding:14px}
- #app.school-shell .grid2,#app.school-shell .grid3{grid-template-columns:minmax(0,1fr);gap:12px}
- #app.school-shell .grid2 .full{grid-column:auto}
- #app.school-shell .toolbar{align-items:stretch;gap:9px}
- #app.school-shell .toolbar .grow{flex:1 1 100%;min-width:0}
- #app.school-shell .toolbar>div{max-width:100%}
- #app.school-shell .btn{min-height:44px}
- #app.school-shell .btn.sm,#app.school-shell .btn.icon{min-height:38px}
- #app.school-shell input,#app.school-shell select,#app.school-shell textarea{min-height:44px;font-size:16px}
- #app.school-shell .subtabs{max-width:100%;overflow-x:auto;flex-wrap:nowrap;padding-bottom:5px;scrollbar-width:thin}
- #app.school-shell .subtab{flex:0 0 auto;min-height:40px}
- #app.school-shell .modal-bg{align-items:flex-end;padding:8px 8px calc(8px + env(safe-area-inset-bottom))}
- #app.school-shell .modal{width:100%;max-width:100%;max-height:92dvh;border-radius:16px 16px 10px 10px;overflow:hidden}
- #app.school-shell .modal-body{max-height:calc(92dvh - 126px);padding:16px;overflow:auto}
- #app.school-shell .modal-head{padding:14px 16px}
- #app.school-shell .modal-foot{padding:12px 16px}
- #app.school-shell .report{padding:14px;border-width:1px}
- #app.school-shell .report .rh{align-items:flex-start;gap:9px;flex-wrap:wrap}
- #app.school-shell .report .rh h2{font-size:17px}
- #app.school-shell .report .meta-grid,#app.school-shell .report .summary,#app.school-shell .report .remarks{grid-template-columns:repeat(2,minmax(0,1fr))}
- #app.school-shell .dash-grid{grid-template-columns:minmax(0,1fr);gap:12px}
- #app.school-shell .dash-attention{grid-template-columns:minmax(0,1fr)}
- #app.school-shell .photo-pick{align-items:flex-start;flex-wrap:wrap}
- #app.school-shell .linkbox{max-width:100%;flex-wrap:wrap}
- #app.school-shell .linkbox code{min-width:0;white-space:normal;overflow-wrap:anywhere}
- #app.school-shell .toast{width:calc(100% - 28px);max-width:520px;text-align:center;bottom:calc(14px + env(safe-area-inset-bottom))}
+#app.school-shell[data-brand-font="serif"]    { --brand-font: 'Lora', Georgia, serif; }
+#app.school-shell[data-brand-font="quranic"]  { --brand-font: 'Scheherazade New', 'Amiri', serif; }
+#app.school-shell[data-brand-font="rounded"]  { --brand-font: 'Nunito', system-ui, sans-serif; }
+
+#app.school-shell { font-family: var(--brand-font); }
+#app.school-shell .btn.purple,
+#app.school-shell .btn.gold,
+#app.school-shell .pill.green { background: var(--brand-primary); color: #fff; }
+#app.school-shell .pill.gold  { background: var(--brand-accent); color: #fff; }
+#app.school-shell .stat .num  { color: var(--brand-primary-dark); }
+#app.school-shell .topbar     { background: linear-gradient(135deg, var(--brand-primary), var(--brand-primary-dark)); }
+
+/* =========================================================================
+   2. Overflow + focus + table containment (first-slice carryover)
+   ========================================================================= */
+#app.school-shell { overflow-x: clip; min-width: 0; }
+#app.school-shell .layout,
+#app.school-shell #view,
+#app.school-shell .main { min-width: 0; max-width: 100%; }
+#app.school-shell .main { width: 100%; margin-inline: auto; }
+#app.school-shell :focus-visible { outline: 3px solid var(--brand-accent); outline-offset: 2px; }
+#app.school-shell .card,
+#app.school-shell .stat,
+#app.school-shell .t-wrap { min-width: 0; }
+#app.school-shell .t-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  -webkit-overflow-scrolling: touch;
 }
-@media(max-width:390px){
- #app.school-shell .main{padding-inline:11px}
- #app.school-shell .cards-row{gap:8px}
- #app.school-shell .stat{padding:11px}
- #app.school-shell .stat .num{font-size:20px}
- #app.school-shell .topbar .brand #brandName{max-width:30vw}
- #app.school-shell .topbar .right .sync-chip{font-size:0;gap:0;width:30px;height:30px;justify-content:center}
- #app.school-shell .topbar .right .sync-chip .d{width:9px;height:9px}
- #app.school-shell .report .meta-grid,#app.school-shell .report .summary,#app.school-shell .report .remarks{grid-template-columns:minmax(0,1fr)}
+#app.school-shell .t-wrap table { min-width: 680px; }
+#app.school-shell .page-head,
+#app.school-shell .page-head > * { min-width: 0; }
+#app.school-shell .page-head h2 { overflow-wrap: anywhere; }
+#app.school-shell img,
+#app.school-shell video,
+#app.school-shell canvas,
+#app.school-shell svg { max-width: 100%; }
+#app.school-shell button,
+#app.school-shell a,
+#app.school-shell input,
+#app.school-shell select,
+#app.school-shell textarea { touch-action: manipulation; }
+
+/* =========================================================================
+   3. Modal + toast UNSCOPED
+   #modalBg and #toast are siblings of #app in the DOM, so scoping these
+   rules under #app.school-shell (as the first slice did) made them no-ops.
+   They apply globally; the owner shell already has compatible markup.
+   Gated behind body.school-mode so the owner UI is not changed.
+   ========================================================================= */
+body.school-mode .modal { max-width: min(820px, 100%); }
+body.school-mode .modal-body { overscroll-behavior: contain; }
+
+/* =========================================================================
+   4. Tablet
+   ========================================================================= */
+@media (min-width: 761px) and (max-width: 1100px) {
+  #app.school-shell .sidebar { width: 224px; }
+  #app.school-shell .main { padding: 24px 22px; }
+  #app.school-shell .cards-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #app.school-shell .dash-grid { grid-template-columns: minmax(0, 1.2fr) minmax(240px, 1fr); }
+  #app.school-shell .grid3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
-@media(max-width:340px){
- #app.school-shell .cards-row{grid-template-columns:minmax(0,1fr)}
- #app.school-shell .topbar .right .btn{font-size:11px;padding-inline:7px}
+
+/* =========================================================================
+   5. Phone (<=760px)
+   ========================================================================= */
+@media (max-width: 760px) {
+  #app.school-shell .topbar { height: 58px; padding: 0 12px; gap: 8px; }
+  #app.school-shell .topbar .brand { gap: 7px; min-width: 0; flex: 1; }
+  #app.school-shell .topbar .brand .logo { width: 32px; height: 32px; flex: 0 0 32px; }
+  #app.school-shell .topbar .brand #brandName { font-size: 14px; max-width: 36vw; }
+  #app.school-shell .menu-toggle {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    margin: 0;
+    border-radius: 10px;
+  }
+  #app.school-shell .topbar .right { gap: 6px; min-width: 0; }
+  #app.school-shell .topbar .right .term-badge { display: none; }
+  #app.school-shell .topbar .right .sync-chip { padding: 6px 8px; font-size: 11px; }
+  #app.school-shell .topbar .right .btn { min-height: 44px; padding: 8px 12px; font-size: 12px; }
+  #app.school-shell .sidebar {
+    position: fixed;
+    z-index: 50;
+    left: -290px;
+    top: 58px;
+    bottom: 0;
+    width: min(280px, 86vw);
+    height: auto;
+    max-height: calc(100vh - 58px);                /* fallback */
+    max-height: calc(100dvh - 58px);
+    padding: 14px 12px calc(18px + env(safe-area-inset-bottom));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    transition: left .2s ease;
+    box-shadow: 8px 0 30px rgba(15, 35, 24, .18);
+  }
+  #app.school-shell .sidebar.show { left: 0; }
+  #app.school-shell #navScrim { position: fixed; z-index: 49; inset: 58px 0 0; background: rgba(12, 24, 17, .42); }
+  #app.school-shell .main { width: 100%; max-width: none; padding: 18px 14px calc(28px + env(safe-area-inset-bottom)); }
+  #app.school-shell .page-head { align-items: flex-start; gap: 10px; margin-bottom: 16px; }
+  #app.school-shell .page-head h2 { font-size: 20px; line-height: 1.25; }
+  #app.school-shell .page-head .flex { flex-wrap: wrap; gap: 7px; }
+  #app.school-shell .cards-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+  #app.school-shell .stat { padding: 13px; min-width: 0; }
+  #app.school-shell .stat .num { font-size: 22px; overflow-wrap: anywhere; }
+  #app.school-shell .stat .lbl { font-size: 10px; }
+  #app.school-shell .card.pad { padding: 14px; }
+  #app.school-shell .grid2,
+  #app.school-shell .grid3 { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  #app.school-shell .grid2 .full { grid-column: auto; }
+  #app.school-shell .toolbar { align-items: stretch; gap: 9px; }
+  #app.school-shell .toolbar .grow { flex: 1 1 100%; min-width: 0; }
+  #app.school-shell .toolbar > div { max-width: 100%; }
+  #app.school-shell .btn { min-height: 44px; }
+  #app.school-shell .btn.sm,
+  #app.school-shell .btn.icon { min-height: 38px; }
+  #app.school-shell input,
+  #app.school-shell select,
+  #app.school-shell textarea { min-height: 44px; font-size: 16px; }
+  #app.school-shell .subtabs { max-width: 100%; overflow-x: auto; flex-wrap: nowrap; padding-bottom: 5px; scrollbar-width: thin; }
+  #app.school-shell .subtab { flex: 0 0 auto; min-height: 40px; }
+  #app.school-shell .report { padding: 14px; border-width: 1px; }
+  #app.school-shell .report .rh { align-items: flex-start; gap: 9px; flex-wrap: wrap; }
+  #app.school-shell .report .rh h2 { font-size: 17px; }
+  #app.school-shell .report .meta-grid,
+  #app.school-shell .report .summary,
+  #app.school-shell .report .remarks { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  #app.school-shell .dash-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+  #app.school-shell .dash-attention { grid-template-columns: minmax(0, 1fr); }
+  #app.school-shell .photo-pick { align-items: flex-start; flex-wrap: wrap; }
+  #app.school-shell .linkbox { max-width: 100%; flex-wrap: wrap; }
+  #app.school-shell .linkbox code { min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+
+  /* Modal + toast (UNSCOPED under body.school-mode so DOM-sibling elements get mobile styling) */
+  body.school-mode .modal-bg { align-items: flex-end; padding: 8px 8px calc(8px + env(safe-area-inset-bottom)); }
+  body.school-mode .modal { width: 100%; max-width: 100%; max-height: 92vh; max-height: 92dvh; border-radius: 16px 16px 10px 10px; overflow: hidden; }
+  body.school-mode .modal-body { max-height: calc(92vh - 126px); max-height: calc(92dvh - 126px); padding: 16px; overflow: auto; }
+  body.school-mode .modal-head { padding: 14px 16px; }
+  body.school-mode .modal-foot { padding: 12px 16px; }
+  body.school-mode .toast { width: calc(100% - 28px); max-width: 520px; text-align: center; bottom: calc(14px + env(safe-area-inset-bottom)); }
 }
-@media(prefers-reduced-motion:reduce){#app.school-shell .sidebar{transition:none}}
-@media print{
- #app.school-shell .sidebar,#app.school-shell .topbar,#app.school-shell #navScrim{display:none!important}
- #app.school-shell .main{padding:0!important;max-width:none!important}
+
+@media (max-width: 390px) {
+  #app.school-shell .main { padding-inline: 11px; }
+  #app.school-shell .cards-row { gap: 8px; }
+  #app.school-shell .stat { padding: 11px; }
+  #app.school-shell .stat .num { font-size: 20px; }
+  #app.school-shell .topbar .brand #brandName { max-width: 30vw; }
+  #app.school-shell .topbar .right .sync-chip { font-size: 0; gap: 0; width: 30px; height: 30px; justify-content: center; }
+  #app.school-shell .topbar .right .sync-chip .d { width: 9px; height: 9px; }
+  #app.school-shell .report .meta-grid,
+  #app.school-shell .report .summary,
+  #app.school-shell .report .remarks { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 340px) {
+  #app.school-shell .cards-row { grid-template-columns: minmax(0, 1fr); }
+  #app.school-shell .topbar .right .btn { font-size: 11px; padding-inline: 7px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #app.school-shell .sidebar { transition: none; }
+}
+
+@media print {
+  #app.school-shell .sidebar,
+  #app.school-shell .topbar,
+  #app.school-shell #navScrim { display: none !important; }
+  #app.school-shell .main { padding: 0 !important; max-width: none !important; }
+}
+
+/* =========================================================================
+   6. Dark mode
+   Opt-in via body.dark; auto when prefers-color-scheme: dark AND the user
+   has not forced body.light. Owner shell untouched.
+   ========================================================================= */
+@media (prefers-color-scheme: dark) {
+  body:not(.light) #app.school-shell {
+    --brand-ink: #e6f0ea;
+    --brand-ink-soft: #a8bdb0;
+    --brand-surface: #0f1d17;
+    --brand-surface-muted: #152821;
+    --brand-border: #22382d;
+    --brand-primary-tint: #1a3426;
+    --brand-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+    background: #0b1812;
+    color: var(--brand-ink);
+  }
+}
+body.dark #app.school-shell {
+  --brand-ink: #e6f0ea;
+  --brand-ink-soft: #a8bdb0;
+  --brand-surface: #0f1d17;
+  --brand-surface-muted: #152821;
+  --brand-border: #22382d;
+  --brand-primary-tint: #1a3426;
+  --brand-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+  background: #0b1812;
+  color: var(--brand-ink);
+}
+body.dark #app.school-shell .card,
+body.dark #app.school-shell .stat,
+body.dark #app.school-shell .modal,
+body.dark #app.school-shell .sidebar { background: var(--brand-surface); color: var(--brand-ink); border-color: var(--brand-border); }
+body.dark #app.school-shell input,
+body.dark #app.school-shell select,
+body.dark #app.school-shell textarea { background: var(--brand-surface-muted); color: var(--brand-ink); border-color: var(--brand-border); }
+body.dark.school-mode .modal,
+body.dark.school-mode .modal-bg { background: rgba(0, 0, 0, 0.55); }
+body.dark.school-mode .modal { background: var(--brand-surface); color: var(--brand-ink); }
+body.dark.school-mode .toast { background: #152821; color: var(--brand-ink); border: 1px solid var(--brand-border); }
+
+/* =========================================================================
+   7. Report-card templates (print + screen)
+   Three variants layered on top of the existing .report element. A school
+   chooses one by setting .report.tpl-classic / .tpl-modern / .tpl-islamic.
+   Each template uses the per-school brand tokens for colour, logo and
+   signature so one template serves every school.
+   ========================================================================= */
+.report.tpl-classic {
+  border: 2px double var(--brand-primary, #087a43);
+  border-radius: 6px;
+  background: #fff;
+  font-family: 'Lora', Georgia, serif;
+}
+.report.tpl-classic .rh {
+  border-bottom: 3px double var(--brand-primary, #087a43);
+  padding-bottom: 12px;
+  margin-bottom: 14px;
+  text-align: center;
+}
+.report.tpl-classic .rh h2 {
+  font-family: 'Lora', Georgia, serif;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.report.tpl-classic .summary,
+.report.tpl-classic .remarks { border-top: 1px solid #ccc; }
+
+.report.tpl-modern {
+  border: 0;
+  background: linear-gradient(180deg, var(--brand-primary-tint, #e4f3ea) 0, #fff 120px);
+  border-radius: 20px;
+  box-shadow: var(--brand-shadow, 0 10px 28px rgba(15, 35, 24, 0.08));
+  font-family: var(--brand-font, 'Inter', system-ui, sans-serif);
+  overflow: hidden;
+}
+.report.tpl-modern .rh {
+  background: var(--brand-primary, #087a43);
+  color: #fff;
+  padding: 18px 22px;
+  margin: -18px -18px 16px;
+  border-radius: 20px 20px 0 0;
+}
+.report.tpl-modern .rh h2 { color: #fff; font-weight: 800; letter-spacing: -0.5px; }
+.report.tpl-modern table th { background: var(--brand-primary-tint, #e4f3ea); color: var(--brand-primary-dark, #0a5f36); }
+
+.report.tpl-islamic {
+  background: #fdfaf2;
+  border: 6px solid var(--brand-primary, #087a43);
+  border-radius: 10px;
+  position: relative;
+  padding: 24px;
+  font-family: var(--brand-font, 'Scheherazade New', 'Amiri', serif);
+}
+.report.tpl-islamic::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border: 1px solid var(--brand-accent, #d49b36);
+  border-radius: 6px;
+  pointer-events: none;
+}
+.report.tpl-islamic .rh {
+  text-align: center;
+  border-bottom: 2px solid var(--brand-accent, #d49b36);
+  padding-bottom: 14px;
+  margin-bottom: 14px;
+}
+.report.tpl-islamic .rh::before {
+  content: "﷽";
+  display: block;
+  font-size: 22px;
+  color: var(--brand-primary, #087a43);
+  margin-bottom: 8px;
+}
+.report.tpl-islamic .rh h2 { font-weight: 700; color: var(--brand-primary-dark, #0a5f36); }
+
+/* Common slots for logo/signature so templates stay token-driven */
+.report .brand-logo { max-height: 72px; max-width: 150px; object-fit: contain; }
+.report .brand-signature { max-height: 56px; max-width: 220px; object-fit: contain; opacity: 0.9; }
+
+/* =========================================================================
+   8. Branding settings preview card (owner / admin Settings page)
+   ========================================================================= */
+#app.school-shell .brand-preview {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid var(--brand-border);
+  border-radius: var(--brand-radius);
+  background: var(--brand-surface);
+}
+@media (min-width: 761px) {
+  #app.school-shell .brand-preview { grid-template-columns: 220px 1fr; align-items: center; }
+}
+#app.school-shell .brand-swatches { display: flex; gap: 10px; flex-wrap: wrap; }
+#app.school-shell .brand-swatch {
+  width: 36px; height: 36px; border-radius: 50%; border: 2px solid #fff;
+  box-shadow: 0 0 0 1px var(--brand-border);
+  cursor: pointer;
 }
