@@ -849,9 +849,22 @@ const PRIMARY_SUBJECTS=['English Language','Mathematics','Basic Science','Social
 let MODE='owner', SCHOOL_CODE='', DB=null, MASTER=null, USER=null, supa=null;
 let STORE={}, BASE={}, pushTimers={};
 
-/* ===================== STORAGE ===================== */
-function loadStore(){try{STORE=JSON.parse(localStorage.getItem('sms_store'))||{};}catch(e){STORE={};}}
-function saveStoreLocal(){try{localStorage.setItem('sms_store',JSON.stringify(STORE));}catch(e){console.warn('local cache full — relying on cloud',e);}}
+/* ===================== STORAGE =====================
+   Phase 1: FULLY ONLINE. The app behaves like any ordinary website —
+   no localStorage mirror of school data, no offline fallback. Every
+   read comes from Supabase on page load; every write goes straight to
+   Supabase and the "✓ Saved" state is shown only after the server
+   confirms. The in-memory STORE / BASE objects still exist for the
+   lifetime of a single page view (so the UI has something to render
+   against between fetches), but nothing persists to the device.
+
+   One-time cleanup: if a device still carries the old localStorage
+   cache from the previous build, wipe it on boot so stale term data
+   can never be shown or overwrite the cloud.
+*/
+try{localStorage.removeItem('sms_store');localStorage.removeItem('sms_base');}catch(e){}
+function loadStore(){STORE={};}
+function saveStoreLocal(){/* intentionally a no-op — fully online */}
 function initSupa(){
   let url=SUPABASE_URL,key=SUPABASE_KEY;
   if(!url||!key){try{const c=JSON.parse(localStorage.getItem('sms_cfg'));if(c){url=c.url;key=c.key;}}catch(e){}}
@@ -859,8 +872,8 @@ function initSupa(){
   return false;
 }
 function _clone(x){try{return JSON.parse(JSON.stringify(x));}catch(e){return x;}}
-function loadBase(){try{BASE=JSON.parse(localStorage.getItem('sms_base'))||{};}catch(e){BASE={};}}
-function saveBase(){try{localStorage.setItem('sms_base',JSON.stringify(BASE));}catch(e){}}
+function loadBase(){BASE={};}
+function saveBase(){/* intentionally a no-op — fully online */}
 async function pullRow(id){if(!supa)return STORE[id];try{const{data}=await supa.from('school_data').select('data').eq('id',id).maybeSingle();if(data&&data.data){STORE[id]=data.data;BASE[id]=_clone(data.data);saveStoreLocal();saveBase();}return STORE[id];}catch(e){console.warn(e);return STORE[id];}}
 async function pullAll(){if(!supa)return;try{const{data,error}=await supa.from('school_data').select('id,data');if(error)throw error;if(data){data.forEach(r=>{STORE[r.id]=r.data;BASE[r.id]=_clone(r.data);});saveStoreLocal();saveBase();}}catch(e){console.warn(e);setSync('err','Sync error');}}
 /* ---- conflict-safe 3-way merge: never wipes newer cloud data, still honours edits & deletes ---- */
@@ -893,9 +906,12 @@ function merge3(base,local,server){
   return local!==undefined?local:server;
 }
 /* ---- rolling local backups (recovery net; per device) ---- */
-function backupSnapshot(id){try{const doc=STORE[id];if(!doc)return;const key='sms_bak_'+id;let arr=[];try{arr=JSON.parse(localStorage.getItem(key))||[];}catch(e){}
-  const last=arr[arr.length-1];if(last&&_eq(last.data,doc))return;arr.push({t:Date.now(),data:doc});while(arr.length>6)arr.shift();try{localStorage.setItem(key,JSON.stringify(arr));}catch(e){}}catch(e){}}
-function listBackups(id){try{return JSON.parse(localStorage.getItem('sms_bak_'+id))||[];}catch(e){return [];}}
+/* Fully online: no on-device snapshot cache. The cloud is the single source of truth,
+   and users keep offline copies via the explicit "Download backup" button (which saves a
+   JSON file to disk, not to the browser cache). */
+function backupSnapshot(id){/* intentionally a no-op — fully online */}
+function listBackups(id){return [];}
+try{Object.keys(localStorage).filter(k=>k.indexOf('sms_bak_')===0).forEach(k=>localStorage.removeItem(k));}catch(e){}
 /* ---- concurrency-safe persistence core ----
    Every write to a school_data row goes through _commitRowCAS: read {data,updated_at} fresh, 3-way-merge
    local intent onto it, then write guarded by WHERE updated_at = the value just read (optimistic
