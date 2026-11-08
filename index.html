@@ -1024,7 +1024,7 @@ function downloadRestoreRecovery(code,doc){
   try{
     const blob=new Blob([JSON.stringify({code,exportedAt:new Date().toISOString(),restorePoint:'pre-restore',data:doc},null,2)],{type:'application/json'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);
-    a.download=String(code).replace(/[^\\w]+/g,'-')+'-pre-restore-'+today()+'.json';
+    a.download=String(code).replace(/[^\w]+/g,'-')+'-pre-restore-'+today()+'.json';
     a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);return true;
   }catch(e){console.warn('Could not create pre-restore recovery file',e);return false;}
 }
@@ -1052,7 +1052,7 @@ async function commitRestoreDocument(code,sourceDoc){
   saveStoreLocal();saveBase();
   const recoverySaved=downloadRestoreRecovery(code,displaced);
   closeModal();
-  toast(recoverySaved?'Backup restored. A pre-restore recovery file was downloaded.':'Backup restored, but the pre-restore download could not be created.',!recoverySaved);
+  toast(recoverySaved?'Backup restored. A pre-restore recovery file was prepared for download.':'Backup restored, but the pre-restore recovery file could not be prepared.',!recoverySaved);
   if(USER&&CURRENT){buildNav();go(CURRENT);}
   return true;
 }
