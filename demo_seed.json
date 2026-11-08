@@ -1,0 +1,775 @@
+{
+  "school": {
+    "name": "Al-Hikmah Model School",
+    "location": "Kano State, Nigeria",
+    "motto": "Knowledge, Character and Service"
+  },
+  "term": {
+    "label": "Second Term · Mid-term assessment · 2026/2027"
+  },
+  "classes": [
+    {
+      "id": "PRI1",
+      "name": "Primary 1"
+    },
+    {
+      "id": "PRI2",
+      "name": "Primary 2"
+    },
+    {
+      "id": "PRI3",
+      "name": "Primary 3"
+    },
+    {
+      "id": "JSS1",
+      "name": "JSS 1"
+    }
+  ],
+  "subjects": [
+    "Mathematics",
+    "English Language",
+    "Basic Science"
+  ],
+  "pupils": [
+    {
+      "id": "DEMO-001",
+      "name": "Amina Yusuf",
+      "gender": "F",
+      "age": 6,
+      "admissionNo": "EDM/26/001",
+      "class": "PRI1",
+      "results": {
+        "mathematics": {
+          "ca": 12,
+          "exam": null
+        },
+        "english": {
+          "ca": 13,
+          "exam": null
+        },
+        "science": {
+          "ca": 11,
+          "exam": null
+        }
+      },
+      "hifz": {
+        "surah": "Al-Baqarah",
+        "ayah": 5,
+        "pages": 1,
+        "progress": 18
+      }
+    },
+    {
+      "id": "DEMO-002",
+      "name": "Chinedu Okafor",
+      "gender": "M",
+      "age": 6,
+      "admissionNo": "EDM/26/002",
+      "class": "PRI1",
+      "results": {
+        "mathematics": {
+          "ca": 15,
+          "exam": 42
+        },
+        "english": {
+          "ca": 18,
+          "exam": 41
+        },
+        "science": {
+          "ca": 13,
+          "exam": 36
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-003",
+      "name": "Zainab Ibrahim",
+      "gender": "F",
+      "age": 6,
+      "admissionNo": "EDM/26/003",
+      "class": "PRI1",
+      "results": {
+        "mathematics": {
+          "ca": 18,
+          "exam": 49
+        },
+        "english": {
+          "ca": 15,
+          "exam": 44
+        },
+        "science": {
+          "ca": 15,
+          "exam": 40
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-004",
+      "name": "Tunde Adeyemi",
+      "gender": "M",
+      "age": 6,
+      "admissionNo": "EDM/26/004",
+      "class": "PRI1",
+      "results": {
+        "mathematics": {
+          "ca": 12,
+          "exam": 56
+        },
+        "english": {
+          "ca": 20,
+          "exam": 47
+        },
+        "science": {
+          "ca": 17,
+          "exam": null
+        }
+      },
+      "hifz": {
+        "surah": "Al-Fatiha",
+        "ayah": 26,
+        "pages": 4,
+        "progress": 45
+      }
+    },
+    {
+      "id": "DEMO-005",
+      "name": "Maryam Bello",
+      "gender": "F",
+      "age": 6,
+      "admissionNo": "EDM/26/005",
+      "class": "PRI1",
+      "results": {
+        "mathematics": {
+          "ca": 15,
+          "exam": null
+        },
+        "english": {
+          "ca": 17,
+          "exam": 50
+        },
+        "science": {
+          "ca": 19,
+          "exam": 48
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-006",
+      "name": "David Eze",
+      "gender": "M",
+      "age": 6,
+      "admissionNo": "EDM/26/006",
+      "class": "PRI1",
+      "results": {
+        "mathematics": {
+          "ca": 18,
+          "exam": 45
+        },
+        "english": {
+          "ca": 14,
+          "exam": null
+        },
+        "science": {
+          "ca": 11,
+          "exam": 52
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-007",
+      "name": "Fatima Sani",
+      "gender": "F",
+      "age": 6,
+      "admissionNo": "EDM/26/007",
+      "class": "PRI1",
+      "results": {
+        "mathematics": {
+          "ca": 12,
+          "exam": 52
+        },
+        "english": {
+          "ca": 19,
+          "exam": 56
+        },
+        "science": {
+          "ca": 13,
+          "exam": null
+        }
+      },
+      "hifz": {
+        "surah": "An-Naba",
+        "ayah": 7,
+        "pages": 7,
+        "progress": 72
+      }
+    },
+    {
+      "id": "DEMO-008",
+      "name": "Samuel Danjuma",
+      "gender": "M",
+      "age": 7,
+      "admissionNo": "EDM/26/008",
+      "class": "PRI1",
+      "results": {
+        "mathematics": {
+          "ca": 15,
+          "exam": 59
+        },
+        "english": {
+          "ca": 16,
+          "exam": 59
+        },
+        "science": {
+          "ca": 15,
+          "exam": 32
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-009",
+      "name": "Hauwa Musa",
+      "gender": "F",
+      "age": 7,
+      "admissionNo": "EDM/26/009",
+      "class": "PRI2",
+      "results": {
+        "mathematics": {
+          "ca": 18,
+          "exam": null
+        },
+        "english": {
+          "ca": 13,
+          "exam": 40
+        },
+        "science": {
+          "ca": 17,
+          "exam": 36
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-010",
+      "name": "Emeka Nwosu",
+      "gender": "M",
+      "age": 7,
+      "admissionNo": "EDM/26/010",
+      "class": "PRI2",
+      "results": {
+        "mathematics": {
+          "ca": 12,
+          "exam": 48
+        },
+        "english": {
+          "ca": 18,
+          "exam": 43
+        },
+        "science": {
+          "ca": 19,
+          "exam": null
+        }
+      },
+      "hifz": {
+        "surah": "Al-Mulk",
+        "ayah": 28,
+        "pages": 10,
+        "progress": 21
+      }
+    },
+    {
+      "id": "DEMO-011",
+      "name": "Blessing John",
+      "gender": "F",
+      "age": 7,
+      "admissionNo": "EDM/26/011",
+      "class": "PRI2",
+      "results": {
+        "mathematics": {
+          "ca": 15,
+          "exam": 55
+        },
+        "english": {
+          "ca": 15,
+          "exam": null
+        },
+        "science": {
+          "ca": 11,
+          "exam": 44
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-012",
+      "name": "Yusuf Abdullahi",
+      "gender": "M",
+      "age": 7,
+      "admissionNo": "EDM/26/012",
+      "class": "PRI2",
+      "results": {
+        "mathematics": {
+          "ca": 18,
+          "exam": 37
+        },
+        "english": {
+          "ca": 20,
+          "exam": 49
+        },
+        "science": {
+          "ca": 13,
+          "exam": 48
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-013",
+      "name": "Grace Okon",
+      "gender": "F",
+      "age": 7,
+      "admissionNo": "EDM/26/013",
+      "class": "PRI2",
+      "results": {
+        "mathematics": {
+          "ca": 12,
+          "exam": null
+        },
+        "english": {
+          "ca": 17,
+          "exam": 52
+        },
+        "science": {
+          "ca": 15,
+          "exam": null
+        }
+      },
+      "hifz": {
+        "surah": "Al-Baqarah",
+        "ayah": 9,
+        "pages": 1,
+        "progress": 48
+      }
+    },
+    {
+      "id": "DEMO-014",
+      "name": "Ibrahim Garba",
+      "gender": "M",
+      "age": 7,
+      "admissionNo": "EDM/26/014",
+      "class": "PRI2",
+      "results": {
+        "mathematics": {
+          "ca": 15,
+          "exam": 51
+        },
+        "english": {
+          "ca": 14,
+          "exam": 55
+        },
+        "science": {
+          "ca": 17,
+          "exam": 56
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-015",
+      "name": "Chisom Umeh",
+      "gender": "F",
+      "age": 8,
+      "admissionNo": "EDM/26/015",
+      "class": "PRI2",
+      "results": {
+        "mathematics": {
+          "ca": 18,
+          "exam": 58
+        },
+        "english": {
+          "ca": 19,
+          "exam": 58
+        },
+        "science": {
+          "ca": 19,
+          "exam": 32
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-016",
+      "name": "Daniel Ojo",
+      "gender": "M",
+      "age": 8,
+      "admissionNo": "EDM/26/016",
+      "class": "PRI2",
+      "results": {
+        "mathematics": {
+          "ca": 12,
+          "exam": 40
+        },
+        "english": {
+          "ca": 16,
+          "exam": null
+        },
+        "science": {
+          "ca": 11,
+          "exam": null
+        }
+      },
+      "hifz": {
+        "surah": "Al-Fatiha",
+        "ayah": 30,
+        "pages": 4,
+        "progress": 75
+      }
+    },
+    {
+      "id": "DEMO-017",
+      "name": "Hadiza Lawal",
+      "gender": "F",
+      "age": 8,
+      "admissionNo": "EDM/26/017",
+      "class": "PRI3",
+      "results": {
+        "mathematics": {
+          "ca": 15,
+          "exam": null
+        },
+        "english": {
+          "ca": 13,
+          "exam": 42
+        },
+        "science": {
+          "ca": 13,
+          "exam": 40
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-018",
+      "name": "Oluwaseun Adebayo",
+      "gender": "M",
+      "age": 8,
+      "admissionNo": "EDM/26/018",
+      "class": "PRI3",
+      "results": {
+        "mathematics": {
+          "ca": 18,
+          "exam": 54
+        },
+        "english": {
+          "ca": 18,
+          "exam": 45
+        },
+        "science": {
+          "ca": 15,
+          "exam": 44
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-019",
+      "name": "Esther James",
+      "gender": "F",
+      "age": 8,
+      "admissionNo": "EDM/26/019",
+      "class": "PRI3",
+      "results": {
+        "mathematics": {
+          "ca": 12,
+          "exam": 36
+        },
+        "english": {
+          "ca": 15,
+          "exam": 48
+        },
+        "science": {
+          "ca": 17,
+          "exam": null
+        }
+      },
+      "hifz": {
+        "surah": "An-Naba",
+        "ayah": 11,
+        "pages": 7,
+        "progress": 24
+      }
+    },
+    {
+      "id": "DEMO-020",
+      "name": "Musa Ibrahim",
+      "gender": "M",
+      "age": 8,
+      "admissionNo": "EDM/26/020",
+      "class": "PRI3",
+      "results": {
+        "mathematics": {
+          "ca": 15,
+          "exam": 43
+        },
+        "english": {
+          "ca": 20,
+          "exam": 51
+        },
+        "science": {
+          "ca": 19,
+          "exam": 52
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-021",
+      "name": "Ngozi Ekwueme",
+      "gender": "F",
+      "age": 8,
+      "admissionNo": "EDM/26/021",
+      "class": "PRI3",
+      "results": {
+        "mathematics": {
+          "ca": 18,
+          "exam": null
+        },
+        "english": {
+          "ca": 17,
+          "exam": null
+        },
+        "science": {
+          "ca": 11,
+          "exam": 56
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-022",
+      "name": "Peter Bassey",
+      "gender": "M",
+      "age": 9,
+      "admissionNo": "EDM/26/022",
+      "class": "PRI3",
+      "results": {
+        "mathematics": {
+          "ca": 12,
+          "exam": 57
+        },
+        "english": {
+          "ca": 14,
+          "exam": 57
+        },
+        "science": {
+          "ca": 13,
+          "exam": null
+        }
+      },
+      "hifz": {
+        "surah": "Al-Mulk",
+        "ayah": 32,
+        "pages": 10,
+        "progress": 51
+      }
+    },
+    {
+      "id": "DEMO-023",
+      "name": "Aisha Mohammed",
+      "gender": "F",
+      "age": 9,
+      "admissionNo": "EDM/26/023",
+      "class": "PRI3",
+      "results": {
+        "mathematics": {
+          "ca": 15,
+          "exam": 39
+        },
+        "english": {
+          "ca": 19,
+          "exam": 38
+        },
+        "science": {
+          "ca": 15,
+          "exam": 36
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-024",
+      "name": "Abdulrahman Bello",
+      "gender": "M",
+      "age": 9,
+      "admissionNo": "EDM/26/024",
+      "class": "JSS1",
+      "results": {
+        "mathematics": {
+          "ca": 18,
+          "exam": 46
+        },
+        "english": {
+          "ca": 16,
+          "exam": 41
+        },
+        "science": {
+          "ca": 17,
+          "exam": 40
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-025",
+      "name": "Temitope Alabi",
+      "gender": "F",
+      "age": 9,
+      "admissionNo": "EDM/26/025",
+      "class": "JSS1",
+      "results": {
+        "mathematics": {
+          "ca": 12,
+          "exam": null
+        },
+        "english": {
+          "ca": 13,
+          "exam": 44
+        },
+        "science": {
+          "ca": 19,
+          "exam": null
+        }
+      },
+      "hifz": {
+        "surah": "Al-Baqarah",
+        "ayah": 13,
+        "pages": 1,
+        "progress": 78
+      }
+    },
+    {
+      "id": "DEMO-026",
+      "name": "Ifeanyi Obi",
+      "gender": "M",
+      "age": 9,
+      "admissionNo": "EDM/26/026",
+      "class": "JSS1",
+      "results": {
+        "mathematics": {
+          "ca": 15,
+          "exam": 35
+        },
+        "english": {
+          "ca": 18,
+          "exam": null
+        },
+        "science": {
+          "ca": 11,
+          "exam": 48
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-027",
+      "name": "Khadija Umar",
+      "gender": "F",
+      "age": 9,
+      "admissionNo": "EDM/26/027",
+      "class": "JSS1",
+      "results": {
+        "mathematics": {
+          "ca": 18,
+          "exam": 42
+        },
+        "english": {
+          "ca": 15,
+          "exam": 50
+        },
+        "science": {
+          "ca": 13,
+          "exam": 52
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-028",
+      "name": "Michael Etim",
+      "gender": "M",
+      "age": 9,
+      "admissionNo": "EDM/26/028",
+      "class": "JSS1",
+      "results": {
+        "mathematics": {
+          "ca": 12,
+          "exam": 49
+        },
+        "english": {
+          "ca": 20,
+          "exam": 53
+        },
+        "science": {
+          "ca": 15,
+          "exam": null
+        }
+      },
+      "hifz": {
+        "surah": "Al-Fatiha",
+        "ayah": 34,
+        "pages": 4,
+        "progress": 27
+      }
+    },
+    {
+      "id": "DEMO-029",
+      "name": "Ruqayyah Sulaiman",
+      "gender": "F",
+      "age": 10,
+      "admissionNo": "EDM/26/029",
+      "class": "JSS1",
+      "results": {
+        "mathematics": {
+          "ca": 15,
+          "exam": null
+        },
+        "english": {
+          "ca": 17,
+          "exam": 56
+        },
+        "science": {
+          "ca": 17,
+          "exam": 32
+        }
+      },
+      "hifz": null
+    },
+    {
+      "id": "DEMO-030",
+      "name": "Josephine Nnamdi",
+      "gender": "F",
+      "age": 10,
+      "admissionNo": "EDM/26/030",
+      "class": "JSS1",
+      "results": {
+        "mathematics": {
+          "ca": 18,
+          "exam": 38
+        },
+        "english": {
+          "ca": 14,
+          "exam": 59
+        },
+        "science": {
+          "ca": 19,
+          "exam": 36
+        }
+      },
+      "hifz": null
+    }
+  ]
+}
