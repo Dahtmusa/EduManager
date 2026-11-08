@@ -21,6 +21,7 @@ declare
   v_entry jsonb;
   v_classes jsonb;
   v_subjects jsonb;
+  v_plan text := lower(coalesce((select raw_user_meta_data->>'plan' from auth.users where id = v_user), 'school'));
 begin
   if v_user is null then raise exception 'Authentication required'; end if;
   select email_confirmed_at into v_confirmed_at from auth.users where id = v_user;
@@ -55,7 +56,7 @@ begin
       'code',v_code,'schoolName',v_name,'shortName',v_name,'address','Nigeria',
       'motto','Knowledge • Character • Service','session','2026/2027','term','First Term',
       'status','active','receiptSeq',0,'grade',jsonb_build_object('ca1',20,'ca2',20,'exam',60),
-      'sampleData',true,'theme','green','modules',jsonb_build_object()
+      'sampleData',true,'planRequested',case when v_plan in ('starter','school','academy') then v_plan else 'school' end,'theme','green','modules',jsonb_build_object()
     ),
     'users',jsonb_build_array(jsonb_build_object(
       'id',v_user::text,'name',coalesce((select raw_user_meta_data->>'name' from auth.users where id=v_user),'School Administrator'),
