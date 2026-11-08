@@ -36,11 +36,57 @@ Deliver one modern, consistent and mobile-first application experience for every
 - **Access guard**: `_canEditBranding()` restricts the page to `USER.role === 'admin'` or `'owner'`. Combined with Storage RLS from `0004_school_assets.sql`, uploads from a teacher (or a school-A admin targeting a school-B folder) are denied server-side regardless of the client gate.
 - **Migration revised in place**: `supabase/migrations/0004_school_assets.sql` now provisions two buckets — `school-assets` (public, for logos + crests) and `school-assets-private` (private, for signatures). Previous slice-2 version had a public-read policy on a private bucket, which did not match the `createSignedUrl`-free flow logos actually use. Both buckets' write policies still enforce path-matches-school and role ∈ {owner, admin}. Idempotent; rollback block updated to drop both buckets.
 
+### Slice 4 (this commit, claude) — review fixes + results polish + KPI redesign
+
+**Review fixes addressing GPT-6's eight findings on slice 3:**
+
+1. `enterApp` logo-reset order fixed. `applySchoolBranding` now runs AFTER `#topLogo` is set to its default, so the saved uploaded logo wins on every login.
+2. Bucket-level file-size and allowed-MIME enforcement added to `0004_school_assets.sql`:
+   - `school-assets`: `file_size_limit = 2097152`, `allowed_mime_types = ['image/png','image/jpeg','image/webp','image/svg+xml']`.
+   - `school-assets-private`: `file_size_limit = 2097152`, `allowed_mime_types = ['image/png','image/jpeg','image/webp']` — **SVG rejected server-side** for signatures.
+3. Private-signature read tightened to administrators of the owning school (`role in ('owner','admin')`). Ordinary teachers no longer download signatures via the Storage API even though they are members of the school. Platform owner bypass retained.
+4. Parent PIN report rendering of signatures is **explicitly deferred to a server-rendered flow** in a later PR. The migration's doc-comment and this QA doc both state that parents viewing a PIN result page do NOT receive a signature URL; the current schema prevents any anonymous-reachable signing path.
+5. Client validation split per field: SVG allowed for logo + crest only, rejected for signature. `BRAND_IMG_TYPES_PUBLIC` vs `BRAND_IMG_TYPES_SIG` constants; signature `<input>` `accept` attribute tightened. Bucket-level MIME list is the authoritative gate; the client is defence in depth.
+6. Orphan-asset handling: `brandSave` now uses **versioned paths** (`logo-<base36-timestamp>.png`, etc.) so a half-saved upload cannot overwrite the currently-referenced asset. On `cloudCommit` failure, `DB.settings.branding` is reverted in memory and a message tells the user the previous branding has been restored. The just-uploaded files become orphans in Storage; a best-effort cleanup also removes the previously-active files **only when** the new save succeeds.
+7. Migration rollback block is now **preservation-first** with a two-stage procedure (Stage A strips policies but keeps every object; Stage B is destructive and explicitly requires product-owner approval). The default comment says re-running the migration is safe and is preferred to any rollback.
+8. Automated tests added at `tests/branding.test.mjs` covering `_shadeHex`, `_brandPathFor`, and `_fileExt`. Run with `node tests/branding.test.mjs`. Tests passed locally in this slice.
+
+**Slice 4 feature deliverables:**
+
+- **Modern KPI card styling**: `.stat` elevation, hover, uppercase label, tabular-numeric number, optional `.stat-ic` icon slot. Uses the per-school brand tokens so each tenant's KPI numbers inherit its primary colour.
+- **Results-entry sticky headers**: `.t-wrap table thead th { position: sticky; top: 0 }` scoped under `#app.school-shell`. Column headers remain visible when scrolling a long class roster.
+- **Arrow-key navigation between score cells**: installed once globally via `window._scoreNavInstalled`. Handles `ArrowUp` / `ArrowDown` / `ArrowLeft` / `ArrowRight` / `Enter`. Left/Right do not hijack until the caret is at the edge of the input value (so normal typing still edits the value). Enter advances the same as Right. Existing `onchange` → `setScore` behaviour and `cloudCommit` save path are untouched.
+- `.score-in` input restyled for consistent width, focus ring (accent colour), and 44px min-height on mobile.
+
 ### Not yet delivered (deferred to further slices)
-- **Dashboard content redesign** — still only sizing; KPI card shape and activity hierarchy unchanged.
-- **Results-entry UX polish** — sticky table headers and arrow-key cell navigation still to do (JS).
+- **Full dashboard content redesign** — this slice modernised the shared `.stat` card used across dashboards, but the specific arrangement of activity sections, charts, and attention lists in `vDashboard` / `vTdash` is unchanged. The new `.stat-ic` slot is available for the dashboard redesign to use without further CSS work.
 - **Real screenshots** — not produced in this slice.
 - **Role-based QA execution** — not executed in this slice.
+
+### Automated vs manual check split (addresses finding 8)
+
+**Automated (run on every PR update):**
+- `node tests/branding.test.mjs` — pure-function helpers.
+- `node -e "..."` JS parse check of the full `index.html` (as used in this commit).
+- Local CSS parse via your editor/linter.
+
+**Manual preview checks still required before merge:**
+
+| Check | How to run |
+|---|---|
+| Logo persists after login | Sign in as admin of a school with a saved logo; confirm the top-bar logo is the uploaded image, not the graduation cap. |
+| Bucket MIME enforcement | Attempt to upload a `.gif` to `school-assets` via DevTools console: `await supa.storage.from('school-assets').upload('BNFODIO/x.gif', new Blob(['x'], {type:'image/gif'}))`. Expect bucket-level rejection. |
+| Bucket size enforcement | Attempt to upload a 3 MB PNG; expect bucket-level rejection. |
+| SVG rejected on signature server-side | `await supa.storage.from('school-assets-private').upload('BNFODIO/s.svg', new Blob(['<svg/>'], {type:'image/svg+xml'}))`. Expect bucket-level rejection. |
+| Teacher cannot read signature | Sign in as teacher. `await supa.storage.from('school-assets-private').createSignedUrl(path, 60)`. Expect error / null. |
+| Cross-school upload denied | Admin of school A attempts upload to school B folder. Expect RLS denial. |
+| cloudCommit failure recovery | Simulate failure (DevTools throttle offline, click Save). Expect "Save failed … previous branding restored." UI still shows the previous branding. |
+| Arrow-key nav in results | Open Results for a class. Tab into CA1 of the first pupil. Press Right / Down repeatedly. Focus advances cell-by-cell without hijacking value edits. |
+| Sticky header | Scroll down in a long class; column headers remain visible. |
+| 320 / 390 / 768 / 1280 viewport | DevTools responsive mode. Branding page, Results page, Dashboard page each render without horizontal overflow. |
+| Dark mode | Toggle `body.dark` or set branding → darkMode = 'on'. Modal, inputs, cards re-colour without lost contrast. |
+
+Record each manual check with device/browser, date, and pass/fail evidence before marking the merge gate green.
 
 ## Required screen-size matrix
 Test at each viewport width; use actual device emulation and at least one physical Android phone and one iPhone before release.

@@ -345,3 +345,92 @@ body.dark.school-mode .toast { background: #152821; color: var(--brand-ink); bor
   box-shadow: 0 0 0 1px var(--brand-border);
   cursor: pointer;
 }
+
+/* =========================================================================
+   9. PR-D slice 4 — modern KPI cards + results-entry sticky headers
+   ========================================================================= */
+
+/* KPI cards — subtle elevation, consistent hierarchy, hover affordance. */
+#app.school-shell .stat {
+  position: relative;
+  padding: 18px 18px 16px;
+  border-radius: var(--brand-radius);
+  background: var(--brand-surface);
+  border: 1px solid var(--brand-border);
+  box-shadow: var(--brand-shadow);
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+#app.school-shell .stat:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 14px 34px rgba(15, 35, 24, 0.12);
+}
+#app.school-shell .stat .lbl {
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--brand-ink-soft);
+  margin-bottom: 6px;
+}
+#app.school-shell .stat .num {
+  font-size: 30px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  color: var(--brand-primary-dark);
+}
+#app.school-shell .stat .meta {
+  font-size: 12px;
+  color: var(--brand-ink-soft);
+  margin-top: 4px;
+}
+/* Optional icon slot in a .stat: <div class="stat"><span class="stat-ic">📊</span>...</div> */
+#app.school-shell .stat .stat-ic {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--brand-primary-tint);
+  color: var(--brand-primary-dark);
+  display: grid;
+  place-items: center;
+  font-size: 18px;
+}
+
+/* Results-entry table — sticky header + wider inputs on all screens.
+   The existing results view renders scores inside a <table> within a
+   .t-wrap scroller. Making the thead sticky inside the scroller keeps
+   column headers visible while a teacher scrolls a long class. */
+#app.school-shell .t-wrap { position: relative; }
+#app.school-shell .t-wrap table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--brand-primary-tint);
+  color: var(--brand-primary-dark);
+  box-shadow: inset 0 -1px 0 var(--brand-border);
+}
+#app.school-shell input.score-in {
+  width: 100%;
+  min-width: 64px;
+  text-align: center;
+  padding: 6px 4px;
+  border-radius: 8px;
+  border: 1px solid var(--brand-border);
+  background: var(--brand-surface);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+#app.school-shell input.score-in:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(212, 155, 54, 0.35);
+  border-color: var(--brand-accent);
+}
+@media (max-width: 760px) {
+  #app.school-shell input.score-in {
+    min-height: 44px;
+    font-size: 16px;
+  }
+}
