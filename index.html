@@ -4294,9 +4294,9 @@ function showSubj(btn,i){document.querySelectorAll('.subtab').forEach(b=>b.class
   $('#subjPane').innerHTML=`<div class="t-wrap"><table><thead><tr><th>Name</th><th class="center">CA1 (${g.ca1})</th><th class="center">CA2 (${g.ca2})</th><th class="center">Exam (${g.exam})</th><th class="center">Total</th><th class="center">Grade</th></tr></thead><tbody>
   ${list.map(s=>{const r=(DB.results[rkey(s.id)]||{})[subj]||{};const has=r.ca1!=null||r.ca2!=null||r.exam!=null;const tot=(+r.ca1||0)+(+r.ca2||0)+(+r.exam||0);const gr=gradeOf(tot);
     return `<tr><td><b>${esc(s.name)}</b></td>
-    <td class="center"><input class="score-in" type="number" min="0" max="${g.ca1}" value="${r.ca1??''}" ${lk?'disabled':''} onchange="setScore('${s.id}','${jq(subj)}','ca1',this,${g.ca1})"></td>
-    <td class="center"><input class="score-in" type="number" min="0" max="${g.ca2}" value="${r.ca2??''}" ${lk?'disabled':''} onchange="setScore('${s.id}','${jq(subj)}','ca2',this,${g.ca2})"></td>
-    <td class="center"><input class="score-in" type="number" min="0" max="${g.exam}" value="${r.exam??''}" ${lk?'disabled':''} onchange="setScore('${s.id}','${jq(subj)}','exam',this,${g.exam})"></td>
+    <td class="center"><input class="score-in" type="number" min="0" max="${g.ca1}" value="${r.ca1??''}" ${lk?'disabled':''} oninput="setScore('${s.id}','${jq(subj)}','ca1',this,${g.ca1})"></td>
+    <td class="center"><input class="score-in" type="number" min="0" max="${g.ca2}" value="${r.ca2??''}" ${lk?'disabled':''} oninput="setScore('${s.id}','${jq(subj)}','ca2',this,${g.ca2})"></td>
+    <td class="center"><input class="score-in" type="number" min="0" max="${g.exam}" value="${r.exam??''}" ${lk?'disabled':''} oninput="setScore('${s.id}','${jq(subj)}','exam',this,${g.exam})"></td>
     <td class="center" id="tot_${s.id}"><b>${has?tot:'—'}</b></td><td class="center" id="gr_${s.id}">${has?`<span class="pill ${gr.g==='F'?'red':'green'}">${gr.g}</span>`:'—'}</td></tr>`;}).join('')}
   </tbody></table></div><p class="muted mt" style="font-size:12.5px">${lk?'🔒 Locked. Tap <b>Edit</b> above to make changes.':'Type scores for <b>every subject tab</b>, then tap <b>Save this class to the cloud</b> above. Scores are only stored when you Save.'}</p>`;}
 function setScore(sid,subj,field,inp,max){if(resLocked(resClass))return;let v=inp.value===''?null:Math.max(0,Math.min(max,Number(inp.value)));if(v!==null)inp.value=v;
@@ -4306,6 +4306,7 @@ function setScore(sid,subj,field,inp,max){if(resLocked(resClass))return;let v=in
   const r=(DB.results[k]||{})[subj]||{};const has=r.ca1!=null||r.ca2!=null||r.exam!=null;const tot=(+r.ca1||0)+(+r.ca2||0)+(+r.exam||0);const gr=gradeOf(tot);
   $('#tot_'+sid).innerHTML=`<b>${has?tot:'—'}</b>`;$('#gr_'+sid).innerHTML=has?`<span class="pill ${gr.g==='F'?'red':'green'}">${gr.g}</span>`:'—';}
 async function saveClassToCloud(){const cid=resClass;
+  try{const ae=document.activeElement;if(ae&&ae.classList&&ae.classList.contains('score-in')){ae.blur();}}catch(e){}
   if(!navigator.onLine){toast('⚠ No internet — NOT saved. Connect and try again.',true);return;}
   if(!supa){toast('⚠ Cloud not connected — NOT saved.',true);return;}
   const btn=$('#saveClassBtn');if(btn){btn.disabled=true;btn.textContent='Saving…';}setSync('saving','Saving…');
