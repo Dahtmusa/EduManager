@@ -1040,11 +1040,28 @@ async function commitRestoreDocument(code,sourceDoc){
   if(Array.isArray(cleanDoc.users))cleanDoc.users.forEach(u=>{if(u&&typeof u==='object')delete u.password;});
   let displaced=null;
   setSync('saving','Restoring…');
-  const result=await _withRowLock(code,()=>_commitRowCAS(code,server=>{
-    if(server==null)throw new Error('Restore target does not exist.');
-    displaced=_clone(server);
-    return _clone(cleanDoc);
-  }));
+  const result=await _withRowLock(code,async()=>{
+    let lastError='Restore could not be verified. Please retry.';
+    for(let attempt=0;attempt<4;attempt++){
+      try{
+        const rd=await supa.from('school_data').select('data,updated_at').eq('id',code).maybeSingle();
+        if(rd.error)throw rd.error;
+        if(!rd.data||rd.data.data==null)return {ok:false,error:'Restore target does not exist.'};
+        const before=_clone(rd.data.data),expectedStamp=new Date().toISOString();
+        const wr=await supa.from('school_data').update({data:cleanDoc,updated_at:expectedStamp})
+          .eq('id',code).eq('updated_at',rd.data.updated_at).select('id,data,updated_at');
+        if(wr.error)throw wr.error;
+        const row=Array.isArray(wr.data)&&wr.data.length===1?wr.data[0]:null;
+        if(!row){lastError='Another update happened at the same time — retrying…';continue;}
+        if(row.id!==code||!row.data||Date.parse(row.updated_at)!==Date.parse(expectedStamp)){
+          return {ok:false,error:'The server did not confirm the restored revision. Please refresh and check the cloud data.'};
+        }
+        displaced=before;
+        return {ok:true,data:row.data};
+      }catch(e){lastError=(e&&e.message)||lastError;}
+    }
+    return {ok:false,error:lastError};
+  });
   if(!result.ok){setSync('err','Restore failed');toast(result.error||'Restore failed. Cloud data was not replaced.',true);return false;}
   const authoritative=result.data;
   STORE[code]=authoritative;BASE[code]=_clone(authoritative);
